@@ -61,6 +61,20 @@
             ReferencedContainer = "container:aecmtest_webrtc.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <CommandLineArguments>
+         <CommandLineArgument
+            argument = "/Users/huagao/works/Github_opensource/webrtcresearch/aecmtest_webrtc/AECNearInIutput-float32-Chn1-16000.wav"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/huagao/works/Github_opensource/webrtcresearch/aecmtest_webrtc/AECFarInIutput-float32-Chn1-16000.wav"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/huagao/works/Github_opensource/webrtcresearch/aecmtest_webrtc/out.wav"
+            isEnabled = "YES">
+         </CommandLineArgument>
+      </CommandLineArguments>
       <AdditionalOptions>
       </AdditionalOptions>
    </LaunchAction>

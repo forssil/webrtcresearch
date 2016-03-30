@@ -785,22 +785,7 @@ void WebRtcAecm_CalcEnergies(AecmCore* aecm,
         }
         tmp16 += FAR_ENERGY_VAD_REGION;
 
-        if ((aecm->startupState == 0) | (aecm->vadUpdateCount > 1024))
-        {
-            // In startup phase or VAD update halted
-            aecm->farEnergyVAD = aecm->farEnergyMin + tmp16;
-        } else
-        {
-            if (aecm->farEnergyVAD > aecm->farLogEnergy)
-            {
-                aecm->farEnergyVAD +=
-                    (aecm->farLogEnergy + tmp16 - aecm->farEnergyVAD) >> 6;
-                aecm->vadUpdateCount = 0;
-            } else
-            {
-                aecm->vadUpdateCount++;
-            }
-        }
+       aecm->farEnergyVAD = aecm->farEnergyMin + tmp16;
         // Put MSE threshold higher than VAD
         aecm->farEnergyMSE = aecm->farEnergyVAD + (1 << 8);
     }
