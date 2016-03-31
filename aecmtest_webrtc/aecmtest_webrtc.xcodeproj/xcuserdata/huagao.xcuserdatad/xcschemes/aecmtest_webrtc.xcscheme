@@ -71,7 +71,7 @@
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/huagao/works/Github_opensource/webrtcresearch/aecmtest_webrtc/out.wav"
+            argument = "/Users/huagao/works/Github_opensource/webrtcresearch/aecmtest_webrtc/out1.wav"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>

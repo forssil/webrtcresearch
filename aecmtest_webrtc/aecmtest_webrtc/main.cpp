@@ -91,7 +91,7 @@ int main(int argc, const char * argv[]) {
      ////
      int loop =0;
      for (loop = 0 ; loop  < wavhead1.RawDataFileLength; loop += frame_size * wavhead1.BytesPerSample) {
-         if (loop >37227) {
+         if (loop >1962222*wavhead1.BytesPerSample) {
              loop*=1;
          }
          read_file1->ReadSample(buffer, frame_size);

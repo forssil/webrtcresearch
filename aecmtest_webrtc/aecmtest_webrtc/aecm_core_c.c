@@ -378,6 +378,10 @@ int WebRtcAecm_ProcessBlock(AecmCore* aecm,
   const int kMinPrefBand = 4;
   const int kMaxPrefBand = 24;
   int32_t avgHnl32 = 0;
+    
+    uint32_t eb =0;
+    uint32_t ea =0;
+    int16_t temp =0;
 
   // Determine startup state. There are three states:
   // (0) the first CONV_LEN blocks
@@ -635,35 +639,89 @@ int WebRtcAecm_ProcessBlock(AecmCore* aecm,
   // Calculate NLP gain, result is in Q14
   if (aecm->nlpFlag)
   {
+      eb =0;
+      ea =0;
+      for (i = 5; i < PART_LEN1; i++)
+      {
+           temp =0;
+          temp = (int16_t)(WEBRTC_SPL_MUL_16_16_RSFT_WITH_ROUND(dfw[i].real,
+                                                                       hnl[i], 14));
+          eb+= (uint32_t)WEBRTC_SPL_MUL_16_U16(temp, temp)>>8;
+          ea+= (uint32_t)WEBRTC_SPL_MUL_16_U16(dfw[i].real, dfw[i].real)>>8;
+          temp= (int16_t)(WEBRTC_SPL_MUL_16_16_RSFT_WITH_ROUND(dfw[i].imag,
+                                                                       hnl[i], 14));
+          eb+=(uint32_t)WEBRTC_SPL_MUL_16_U16(temp, temp)>>8;
+          ea+= (uint32_t)WEBRTC_SPL_MUL_16_U16(dfw[i].imag, dfw[i].imag)>>8;
+          
+      }
+
+      tmpU32=  WebRtcSpl_DivU32U16(eb, ea>>16);
+      if (tmpU32 > 6231) {
+          nlpGain = tmpU32 >> 2;
+          if (nlpGain>ONE_Q14) {
+              nlpGain = ONE_Q14;
+          }
+      }
+      else
+      {
+          nlpGain =0;
+      }
+      eb =0;
+      ea =0;
+      for (i = 1; i < 15; i++)
+      {
+          temp =0;
+          temp = (int16_t)(WEBRTC_SPL_MUL_16_16_RSFT_WITH_ROUND(dfw[i].real,
+                                                                hnl[i], 14));
+          eb+= (uint32_t)WEBRTC_SPL_MUL_16_U16(temp, temp)>>8;
+          ea+= (uint32_t)WEBRTC_SPL_MUL_16_U16(dfw[i].real, dfw[i].real)>>8;
+          temp= (int16_t)(WEBRTC_SPL_MUL_16_16_RSFT_WITH_ROUND(dfw[i].imag,
+                                                               hnl[i], 14));
+          eb+=(uint32_t)WEBRTC_SPL_MUL_16_U16(temp, temp)>>8;
+          ea+= (uint32_t)WEBRTC_SPL_MUL_16_U16(dfw[i].imag, dfw[i].imag)>>8;
+          
+      }
+      tmpU32=  WebRtcSpl_DivU32U16(eb, ea>>16);
+      tmp16no2 = ONE_Q14;
+      if (nlpGain < (ONE_Q14>>7)) {
+          if (tmpU32 < ONE_Q14 ) {
+              tmp16no2 = eb >>22;
+              if (tmp16no2>ONE_Q14) {
+                  tmp16no2 = ONE_Q14;
+              }
+          }
+      }
+      
+
+
     for (i = 0; i < PART_LEN1; i++)
     {
       // Truncate values close to zero and one.
-      if (hnl[i] > NLP_COMP_HIGH)
-      {
-        hnl[i] = ONE_Q14;
-      } else if (hnl[i] < NLP_COMP_LOW)
-      {
-        hnl[i] = 0;
-      }
+        if (i>15) {
+            if (hnl[i] > NLP_COMP_HIGH)
+            {
+                hnl[i] = ONE_Q14;
+            } else if (hnl[i] < NLP_COMP_LOW)
+            {
+                hnl[i] = 0;
+            }
+            
+            
+            // NLP
+            if ((hnl[i] == ONE_Q14) && (nlpGain == ONE_Q14))
+            {
+                hnl[i] = ONE_Q14;
+            } else
+            {
+                hnl[i] = (int16_t)((hnl[i] * nlpGain) >> 14);
+            }
 
-      // Remove outliers
-      if (numPosCoef < 3)
-      {
-        nlpGain = 0;
-      } else
-      {
-        nlpGain = ONE_Q14;
-      }
-
-      // NLP
-      if ((hnl[i] == ONE_Q14) && (nlpGain == ONE_Q14))
-      {
-        hnl[i] = ONE_Q14;
-      } else
-      {
-        hnl[i] = (int16_t)((hnl[i] * nlpGain) >> 14);
-      }
-
+        }
+        else
+        {
+            hnl[i] = (int16_t)((hnl[i] * tmp16no2) >> 14);
+        }
+      
       // multiply with Wiener coefficients
 #if 1
          efw[i].real = (int16_t)(WEBRTC_SPL_MUL_16_16_RSFT_WITH_ROUND(dfw[i].real,
