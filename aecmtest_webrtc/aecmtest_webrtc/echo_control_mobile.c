@@ -7,7 +7,7 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
-
+#if 1
 #include "echo_control_mobile.h"
 
 #ifdef AEC_DEBUG
@@ -18,7 +18,19 @@
 #include "ring_buffer.h"
 #include "signal_processing_library.h"
 #include "aecm_core.h"
+#else
+#include "webrtc/modules/audio_processing/aecm/echo_control_mobile.h"
 
+#ifdef AEC_DEBUG
+#include <stdio.h>
+#endif
+#include <stdlib.h>
+
+#include "webrtc/common_audio/ring_buffer.h"
+#include "webrtc/common_audio/signal_processing/include/signal_processing_library.h"
+#include "webrtc/modules/audio_processing/aecm/aecm_core.h"
+
+#endif
 #define BUF_SIZE_FRAMES 50 // buffer size (frames)
 // Maximum length of resampled signal. Must be an integer multiple of frames
 // (ceil(1/(1 + MIN_SKEW)*2) + 1)*FRAME_LEN
