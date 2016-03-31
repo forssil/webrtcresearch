@@ -55,6 +55,7 @@ typedef struct {
     // Far end history variables
     // TODO(bjornv): Replace |far_history| with ring_buffer.
     uint16_t far_history[PART_LEN1 * MAX_DELAY];
+    ComplexInt16 far_history_complex[PART_LEN1 * MAX_DELAY];
     int far_history_pos;
     int far_q_domains[MAX_DELAY];
 
@@ -276,6 +277,7 @@ void WebRtcAecm_FetchFarFrame(AecmCore* const aecm,
 //
 void WebRtcAecm_UpdateFarHistory(AecmCore* self,
                                  uint16_t* far_spectrum,
+                                 ComplexInt16* far_spectrum_complex,
                                  int far_q);
 
 ////////////////////////////////////////////////////////////////////////////////

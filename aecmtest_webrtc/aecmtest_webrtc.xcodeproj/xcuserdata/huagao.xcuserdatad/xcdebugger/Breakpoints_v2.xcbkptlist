@@ -6,16 +6,32 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "aecmtest_webrtc/main.cpp"
-            timestampString = "481015486.939797"
+            filePath = "aecmtest_webrtc/echo_control_mobile.c"
+            timestampString = "481021724.771084"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "136"
-            endingLineNumber = "136"
-            landmarkName = "main(int argc, const char * argv[])"
+            startingLineNumber = "292"
+            endingLineNumber = "292"
+            landmarkName = "WebRtcAecm_Process()"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "aecmtest_webrtc/aecm_core.c"
+            timestampString = "481102020.327309"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "1028"
+            endingLineNumber = "1028"
+            landmarkName = "WebRtcAecm_UpdateChannel()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

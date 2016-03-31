@@ -39,8 +39,8 @@ int main(int argc, const char * argv[]) {
      CWavFileOp *write_file1 = NULL;
      CWavFileOp *write_file2 = NULL;
      unsigned int frame_size = 0;
-     char * buffer =NULL; // hold readout from file
-     char * processing_buffer = NULL ; // hold type of input request
+     unsigned char * buffer =NULL; // hold readout from file
+     unsigned char * processing_buffer = NULL ; // hold type of input request
      short * process_in =NULL;
     short * reffer_in = NULL;
 
@@ -78,11 +78,11 @@ int main(int argc, const char * argv[]) {
      write_file1->WriteHeader(wavhead1);
      
      //init buffer
-     buffer = new char[2* frame_size * wavhead1.BytesPerSample+2* frame_size * wavhead2.BytesPerSample];
+     buffer = new unsigned char[2* frame_size * wavhead1.BytesPerSample+2* frame_size * wavhead2.BytesPerSample];
      processing_buffer = buffer + frame_size * wavhead1.BytesPerSample;
-    char* buffer2 = processing_buffer + frame_size * wavhead1.BytesPerSample;
-    char* refer_buffer = buffer2 + frame_size * wavhead2.BytesPerSample;
-     memset(buffer, 0, 3* frame_size * wavhead1.BytesPerSample);
+    unsigned char* buffer2 = processing_buffer + frame_size * wavhead1.BytesPerSample;
+    unsigned char* refer_buffer = buffer2 + frame_size * wavhead2.BytesPerSample;
+     memset(buffer, 0, 2* frame_size * wavhead1.BytesPerSample+2* frame_size * wavhead2.BytesPerSample);
      ///init processing
     void* aecmInst =WebRtcAecm_Create();
     if ( 0 != WebRtcAecm_Init(aecmInst, wavhead1.SampleRate)) {
@@ -91,7 +91,10 @@ int main(int argc, const char * argv[]) {
      ////
      int loop =0;
      for (loop = 0 ; loop  < wavhead1.RawDataFileLength; loop += frame_size * wavhead1.BytesPerSample) {
-         read_file1->ReadSample((unsigned char*)buffer, frame_size);
+         if (loop >37227) {
+             loop*=1;
+         }
+         read_file1->ReadSample(buffer, frame_size);
          if (3 == wavhead1.FormatCategory) {
              
              float * psi =(float * )buffer;
@@ -114,10 +117,10 @@ int main(int argc, const char * argv[]) {
          }
          
      //////////
-          read_file2->ReadSample((unsigned char*)buffer2, frame_size);
+          read_file2->ReadSample(buffer2, frame_size);
          if (3 == wavhead2.FormatCategory) {
              
-             float * psi =(float * )buffer;
+             float* psi =(float* )buffer2;
              short * pso = (short *)refer_buffer;
              for (int i = 0; i< frame_size; i++) {
                  int j = i * wavhead2.NChannels;
@@ -129,7 +132,7 @@ int main(int argc, const char * argv[]) {
          else if (1 == wavhead2.FormatCategory) {
              
              short * pso = (short *)refer_buffer;
-             short * psi =(short * )buffer;
+             short * psi =(short * )buffer2;
              for (int i = 0; i< frame_size ; i++) {
                  pso[i]= psi[i * wavhead2.NChannels];
              }

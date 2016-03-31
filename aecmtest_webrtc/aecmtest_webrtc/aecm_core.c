@@ -154,6 +154,7 @@ static const int16_t kChannelStored16kHz[PART_LEN1] = {
 //
 void WebRtcAecm_UpdateFarHistory(AecmCore* self,
                                  uint16_t* far_spectrum,
+                                 ComplexInt16* far_spectrum_complex,
                                  int far_q) {
   // Get new buffer position
   self->far_history_pos++;
@@ -166,6 +167,9 @@ void WebRtcAecm_UpdateFarHistory(AecmCore* self,
   memcpy(&(self->far_history[self->far_history_pos * PART_LEN1]),
          far_spectrum,
          sizeof(uint16_t) * PART_LEN1);
+    memcpy(&(self->far_history_complex[self->far_history_pos * PART_LEN1]),
+           far_spectrum_complex,
+           sizeof(ComplexInt16) * PART_LEN1);
 }
 
 // Returns a pointer to the far end spectrum aligned to current near end
@@ -434,6 +438,7 @@ int WebRtcAecm_InitCore(AecmCore* const aecm, int samplingFreq) {
     }
     // Set far end histories to zero
     memset(aecm->far_history, 0, sizeof(uint16_t) * PART_LEN1 * MAX_DELAY);
+    memset(aecm->far_history_complex, 0, sizeof(ComplexInt16) * PART_LEN1* MAX_DELAY);
     memset(aecm->far_q_domains, 0, sizeof(int) * MAX_DELAY);
     aecm->far_history_pos = MAX_DELAY;
 
@@ -775,7 +780,7 @@ void WebRtcAecm_CalcEnergies(AecmCore* aecm,
         aecm->farEnergyMaxMin = (aecm->farEnergyMax - aecm->farEnergyMin);
 
         // Dynamic VAD region size
-        tmp16 = 2560 - aecm->farEnergyMin;
+        tmp16 = (2560) - aecm->farEnergyMin;
         if (tmp16 > 0)
         {
           tmp16 = (int16_t)((tmp16 * FAR_ENERGY_VAD_REGION) >> 9);
@@ -785,9 +790,24 @@ void WebRtcAecm_CalcEnergies(AecmCore* aecm,
         }
         tmp16 += FAR_ENERGY_VAD_REGION;
 
-       aecm->farEnergyVAD = aecm->farEnergyMin + tmp16;
+        if ((aecm->startupState == 0) | (aecm->vadUpdateCount > 1024))
+        {
+            // In startup phase or VAD update halted
+            aecm->farEnergyVAD = aecm->farEnergyMin + tmp16;
+        } else
+        {
+            if (aecm->farEnergyVAD > aecm->farLogEnergy)
+            {
+                aecm->farEnergyVAD +=
+                (aecm->farLogEnergy + tmp16 - aecm->farEnergyVAD) >> 6;
+                aecm->vadUpdateCount = 0;
+            } else
+            {
+                aecm->vadUpdateCount++;
+            }
+        }
         // Put MSE threshold higher than VAD
-        aecm->farEnergyMSE = aecm->farEnergyVAD + (1 << 8);
+       aecm->farEnergyMSE = aecm->farEnergyVAD + (1 << 8);
     }
 
     // Update VAD variables

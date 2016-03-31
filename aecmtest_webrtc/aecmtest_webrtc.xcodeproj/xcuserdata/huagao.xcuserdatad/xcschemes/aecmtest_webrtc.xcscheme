@@ -63,11 +63,11 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "/Users/huagao/works/Github_opensource/webrtcresearch/aecmtest_webrtc/AECNearInIutput-float32-Chn1-16000.wav"
+            argument = "/Users/huagao/works/Github_opensource/webrtcresearch/aecmtest_webrtc/M_DC-PenableSE-2016-03-22.wav"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/huagao/works/Github_opensource/webrtcresearch/aecmtest_webrtc/AECFarInIutput-float32-Chn1-16000.wav"
+            argument = "/Users/huagao/works/Github_opensource/webrtcresearch/aecmtest_webrtc/farend.wav"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
