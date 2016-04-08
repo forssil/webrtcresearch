@@ -25,6 +25,10 @@
 #define ALIGN8_BEG
 #define ALIGN8_END __attribute__((aligned(8)))
 #endif
+ 
+#ifdef AEC_DEBUG
+#include <stdio.h>
+#endif
 
 typedef struct {
     int16_t real;

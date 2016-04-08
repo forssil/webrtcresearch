@@ -85,4 +85,6 @@
 #define NLP_COMP_LOW    3277    /* 0.2 in Q14 */
 #define NLP_COMP_HIGH   ONE_Q14 /* 1 in Q14 */
 
+#define AEC_DEBUG 1
+ 
 #endif
