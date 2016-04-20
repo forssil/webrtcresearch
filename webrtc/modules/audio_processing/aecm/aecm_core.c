@@ -596,14 +596,11 @@ int WebRtcAecm_ProcessFrame(AecmCore* aecm,
     // to pass the smaller blocks individually.
     WebRtc_WriteBuffer(aecm->farFrameBuf, farFrame, FRAME_LEN);
     WebRtc_WriteBuffer(aecm->nearNoisyFrameBuf, nearendNoisy, FRAME_LEN);
-
-#ifdef AECM_DUMP_DEBUG
     if (nearendClean != NULL)
     {
         WebRtc_WriteBuffer(aecm->nearCleanFrameBuf, nearendClean, FRAME_LEN);
     }
-#endif
-    
+
     // Process as many blocks as possible.
     while (WebRtc_available_read(aecm->farFrameBuf) >= PART_LEN)
     {
