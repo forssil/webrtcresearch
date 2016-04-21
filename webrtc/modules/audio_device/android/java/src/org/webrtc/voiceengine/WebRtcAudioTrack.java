@@ -19,7 +19,7 @@ import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Process;
 import android.os.Build;
-
+import java.util.Locale;
 import org.webrtc.Logging;
 
 class WebRtcAudioTrack {
@@ -45,6 +45,8 @@ class WebRtcAudioTrack {
 
   private AudioTrack audioTrack = null;
   private AudioTrackThread audioThread = null;
+
+  private boolean bIsHuawei6 = false;
 
   /**
    * Audio thread which keeps calling AudioTrack.write() to stream audio.
@@ -142,6 +144,20 @@ class WebRtcAudioTrack {
     this.nativeAudioTrack = nativeAudioTrack;
     audioManager = (AudioManager) context.getSystemService(
         Context.AUDIO_SERVICE);
+    String manufacturer = Build.MANUFACTURER;
+    String model = Build.MODEL;
+//    String manufacturer = "HUAWEI";
+//   String model ="H60-ASDF";
+    boolean bIsHuawei6 = false;
+    String huaweiManufacturer = "huawei";
+    String huaweiH60 = "h60";
+    if (true == huaweiManufacturer.equals (manufacturer.toLowerCase(Locale.US))
+            && model.toLowerCase(Locale.US).compareTo(huaweiH60) >0 ) {
+              bIsHuawei6 = true;
+    }
+    Logging.d(TAG, "manufacturer:" + manufacturer + ", model:" + model + ", is bIsHuawei6:" + bIsHuawei6);
+
+
     if (DEBUG) {
       WebRtcAudioUtils.logDeviceInfo(TAG);
     }
@@ -168,10 +184,7 @@ class WebRtcAudioTrack {
         AudioFormat.CHANNEL_OUT_MONO,
         AudioFormat.ENCODING_PCM_16BIT);
     Logging.d(TAG, "AudioTrack.getMinBufferSize: " + minBufferSizeInBytes);
-    String manufactury = Build.MANUFACTURER;
-    String mode = Build.MODEL;
-    Logging.d(TAG, "initPlayout, " + manufactury  + " "+ mode);
-
+ 
     assertTrue(audioTrack == null);
 
     // For the streaming mode, data must be written to the audio sink in
@@ -182,21 +195,42 @@ class WebRtcAudioTrack {
       // Create an AudioTrack object and initialize its associated audio buffer.
       // The size of this buffer determines how long an AudioTrack can play
       // before running out of data.
-    Logging.d(TAG, "initPlayout, new AudioTrack, mode is  " + AudioManager.STREAM_MUSIC);
-
-      audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
+      if (!bIsHuawei6) {
+        Logging.d(TAG, "new AudioTrack with mode  " + AudioManager.STREAM_VOICE_CALL + ", bIsHuawei6:" + bIsHuawei6);
+         audioTrack = new AudioTrack(AudioManager.STREAM_VOICE_CALL,
                                   sampleRate,
                                   AudioFormat.CHANNEL_OUT_MONO,
                                   AudioFormat.ENCODING_PCM_16BIT,
                                   minBufferSizeInBytes,
                                   AudioTrack.MODE_STREAM);
+          
+      }
+      else
+      {
+        Logging.d(TAG, "new AudioTrack with mode  " + AudioManager.STREAM_MUSIC + ", bIsHuawei6:" + bIsHuawei6);
+       
+        audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
+                                  sampleRate,
+                                  AudioFormat.CHANNEL_OUT_MONO,
+                                  AudioFormat.ENCODING_PCM_16BIT,
+                                  minBufferSizeInBytes,
+                                  AudioTrack.MODE_STREAM);
+       
+      }
     } catch (IllegalArgumentException e) {
       Logging.d(TAG, e.getMessage());
       return;
     }
     assertTrue(audioTrack.getState() == AudioTrack.STATE_INITIALIZED);
     assertTrue(audioTrack.getPlayState() == AudioTrack.PLAYSTATE_STOPPED);
-    assertTrue(audioTrack.getStreamType() == AudioManager.STREAM_MUSIC);
+    if (!bIsHuawei6) {
+     assertTrue(audioTrack.getStreamType() == AudioManager.STREAM_VOICE_CALL);     
+    }
+    else
+    {
+     assertTrue(audioTrack.getStreamType() == AudioManager.STREAM_MUSIC);
+     
+    }
   }
 
   private boolean startPlayout() {
@@ -224,7 +258,15 @@ class WebRtcAudioTrack {
   private int getStreamMaxVolume() {
     Logging.d(TAG, "getStreamMaxVolume");
     assertTrue(audioManager != null);
-    return audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+    if (!bIsHuawei6) {
+     return audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL);
+     
+    }
+    else
+    {
+     return audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+     
+    }
   }
 
   /** Set current volume level for a phone call audio stream. */
@@ -237,7 +279,15 @@ class WebRtcAudioTrack {
         return false;
       }
     }
-    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0);
+    if (!bIsHuawei6) {
+     audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, volume, 0);
+     
+    }
+    else
+    {
+     audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0);
+     
+    }
     return true;
   }
 
@@ -245,7 +295,13 @@ class WebRtcAudioTrack {
   private int getStreamVolume() {
     Logging.d(TAG, "getStreamVolume");
     assertTrue(audioManager != null);
-    return audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+    if (!bIsHuawei6) {
+      return audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL);      
+    }
+    else
+    {
+      return audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);    
+    }
   }
 
   /** Helper method which throws an exception  when an assertion has failed. */

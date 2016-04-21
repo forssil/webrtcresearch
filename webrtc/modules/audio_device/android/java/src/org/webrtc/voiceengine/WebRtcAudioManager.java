@@ -17,6 +17,8 @@ import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.os.Build;
+import java.util.Locale;
+import java.util.Date;
 
 import org.webrtc.Logging;
 
@@ -84,6 +86,7 @@ public class WebRtcAudioManager {
   private int channels;
   private int outputBufferSize;
   private int inputBufferSize;
+  private boolean bIsHuawei6 = false; 
 
   WebRtcAudioManager(Context context, long nativeAudioManager) {
     Logging.d(TAG, "ctor" + WebRtcAudioUtils.getThreadInfo());
@@ -95,17 +98,35 @@ public class WebRtcAudioManager {
       WebRtcAudioUtils.logDeviceInfo(TAG);
     }
     storeAudioParameters();
+    String manufacturer = Build.MANUFACTURER;
+    String model = Build.MODEL;
+//    String manufacturer = "HUAWEI";
+//   String model ="H60-ASDF";
+   
+    String huaweiManufacturer = "huawei";
+    String huaweiH60 = "h60";
+    if (true == huaweiManufacturer.equals (manufacturer.toLowerCase(Locale.US))
+      && model.toLowerCase(Locale.US).compareTo(huaweiH60) >0 ) {
+      bIsHuawei6 = true;
+    }
+    Logging.d(TAG, "manufacturer:" + manufacturer + ", model:" + model + ", is bIsHuawei6:" + bIsHuawei6);
 
-    /*  nativeCacheAudioParameters(
+    if (!bIsHuawei6) {
+      nativeCacheAudioParameters(
         sampleRate, channels, hardwareAEC, hardwareAGC, hardwareNS,
         lowLatencyOutput, outputBufferSize, inputBufferSize,
         nativeAudioManager);
-    */
-    //Test Huawei
-    nativeCacheAudioParameters(
+      
+    }
+    else
+    {
+        nativeCacheAudioParameters(
         sampleRate, channels, true, true, true,
         lowLatencyOutput, outputBufferSize, inputBufferSize,
         nativeAudioManager);
+    }
+    
+
   }
 
   private boolean init() {
