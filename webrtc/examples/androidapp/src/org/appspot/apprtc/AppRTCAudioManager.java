@@ -130,15 +130,18 @@ public class AppRTCAudioManager {
     savedIsSpeakerPhoneOn = audioManager.isSpeakerphoneOn();
     savedIsMicrophoneMute = audioManager.isMicrophoneMute();
 
+    Log.d(TAG, "init, set audio focus to mode " + AudioManager.STREAM_MUSIC);
     // Request audio focus before making any device switch.
-    audioManager.requestAudioFocus(null, AudioManager.STREAM_VOICE_CALL,
+    audioManager.requestAudioFocus(null, AudioManager.STREAM_MUSIC,
         AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
 
     // Start by setting MODE_IN_COMMUNICATION as default audio mode. It is
     // required to be in this mode when playout and/or recording starts for
     // best possible VoIP performance.
+
     // TODO(henrika): we migh want to start with RINGTONE mode here instead.
-    audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+    Log.d(TAG, "init, audioManager.setMode to  " + AudioManager.MODE_NORMAL);
+    audioManager.setMode(AudioManager.MODE_NORMAL);
 
     // Always disable microphone mute during a WebRTC call.
     setMicrophoneMute(false);

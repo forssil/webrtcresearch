@@ -95,8 +95,15 @@ public class WebRtcAudioManager {
       WebRtcAudioUtils.logDeviceInfo(TAG);
     }
     storeAudioParameters();
-    nativeCacheAudioParameters(
+
+    /*  nativeCacheAudioParameters(
         sampleRate, channels, hardwareAEC, hardwareAGC, hardwareNS,
+        lowLatencyOutput, outputBufferSize, inputBufferSize,
+        nativeAudioManager);
+    */
+    //Test Huawei
+    nativeCacheAudioParameters(
+        sampleRate, channels, true, true, true,
         lowLatencyOutput, outputBufferSize, inputBufferSize,
         nativeAudioManager);
   }
@@ -106,13 +113,13 @@ public class WebRtcAudioManager {
     if (initialized) {
       return true;
     }
-    Logging.d(TAG, "audio mode is: " + AUDIO_MODES[audioManager.getMode()]);
+    Logging.d(TAG, "init audio mode is: " + AUDIO_MODES[audioManager.getMode()]);
     initialized = true;
     return true;
   }
 
   private void dispose() {
-    Logging.d(TAG, "dispose" + WebRtcAudioUtils.getThreadInfo());
+    Logging.d(TAG, "init dispose" + WebRtcAudioUtils.getThreadInfo());
     if (!initialized) {
       return;
     }
