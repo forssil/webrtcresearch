@@ -3,12 +3,97 @@ cd ../
 
 echo "Start build Debug version"
 #build Debug version
-ninja -C out/Debug
+ninja -C out/Debug  audio_device_java
+ninja -C out/Debug  audio_coding_module
+ninja -C out/Debug  audio_conference_mixer
+ninja -C out/Debug  audio_decoder_interface
+ninja -C out/Debug  audio_encoder_interfac
+ninja -C out/Debug  audio_processing
+ninja -C out/Debug  audio_processing_neon
+ninja -C out/Debug  audioproc_debug_proto
+ninja -C out/Debug  bitrate_controller
+ninja -C out/Debug  cng
+ninja -C out/Debug  common_audio
+ninja -C out/Debug  common_audio_neon
+ninja -C out/Debug  cpu_features
+ninja -C out/Debug  cpu_features_android
+ninja -C out/Debug  g711
+ninja -C out/Debug  g722
+ninja -C out/Debug  gflagsv
+ninja -C out/Debug  ilbc
+ninja -C out/Debug  isac
+ninja -C out/Debug  isac_neon
+ninja -C out/Debug  media_file
+ninja -C out/Debug  metrics_default
+ninja -C out/Debug  neteq
+ninja -C out/Debug  openmax_dl
+ninja -C out/Debug  openmax_dl_armv7
+ninja -C out/Debug  openmax_dl_neon
+ninja -C out/Debug  opus
+ninja -C out/Debug  paced_sender
+ninja -C out/Debug  pcm16b
+ninja -C out/Debug  protobuf_lite
+ninja -C out/Debug  redv
+ninja -C out/Debug  remote_bitrate_estimator
+ninja -C out/Debug  rent_a_codec
+ninja -C out/Debug  rtc_base
+ninja -C out/Debug  rtc_base_approved
+ninja -C out/Debug  rtc_event_log
+ninja -C out/Debug  rtc_event_log_protov
+ninja -C out/Debug  rtp_rtcp
+ninja -C out/Debug  system_wrappersv
+ninja -C out/Debug  voice_engine
+ninja -C out/Debug  webrtc_common
+ninja -C out/Debug  webrtc_opus
+ninja -C out/Debug  webrtc_utility
 echo "end of building Debug version"
 
 echo "start build release version"
 #build release version
-ninja -C out/Release
+@ninja -C out/Release
+ninja -C out/Release  audio_device_java
+ninja -C out/Release  audio_coding_module
+ninja -C out/Release  audio_conference_mixer
+ninja -C out/Release  audio_decoder_interface
+ninja -C out/Release  audio_encoder_interfac
+ninja -C out/Release  audio_processing
+ninja -C out/Release  audio_processing_neon
+ninja -C out/Release  audioproc_debug_proto
+ninja -C out/Release  bitrate_controller
+ninja -C out/Release  cng
+ninja -C out/Release  common_audio
+ninja -C out/Release  common_audio_neon
+ninja -C out/Release  cpu_features
+ninja -C out/Release  cpu_features_android
+ninja -C out/Release  g711
+ninja -C out/Release  g722
+ninja -C out/Release  gflagsv
+ninja -C out/Release  ilbc
+ninja -C out/Release  isac
+ninja -C out/Release  isac_neon
+ninja -C out/Release  media_file
+ninja -C out/Release  metrics_default
+ninja -C out/Release  neteq
+ninja -C out/Release  openmax_dl
+ninja -C out/Release  openmax_dl_armv7
+ninja -C out/Release  openmax_dl_neon
+ninja -C out/Release  opus
+ninja -C out/Release  paced_sender
+ninja -C out/Release  pcm16b
+ninja -C out/Release  protobuf_lite
+ninja -C out/Release  redv
+ninja -C out/Release  remote_bitrate_estimator
+ninja -C out/Release  rent_a_codec
+ninja -C out/Release  rtc_base
+ninja -C out/Release  rtc_base_approved
+ninja -C out/Release  rtc_event_log
+ninja -C out/Release  rtc_event_log_protov
+ninja -C out/Release  rtp_rtcp
+ninja -C out/Release  system_wrappersv
+ninja -C out/Release  voice_engine
+ninja -C out/Release  webrtc_common
+ninja -C out/Release  webrtc_opus
+ninja -C out/Release  webrtc_utility
 echo "end of building release version"
 
 #create package foler
