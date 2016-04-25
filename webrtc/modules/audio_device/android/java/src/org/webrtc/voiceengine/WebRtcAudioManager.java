@@ -86,7 +86,8 @@ public class WebRtcAudioManager {
   private int channels;
   private int outputBufferSize;
   private int inputBufferSize;
-  private boolean bIsHuawei6 = false; 
+  private boolean bIsHuawei6 = false;
+  private boolean bIsMeizuM2Note = false;
 
   WebRtcAudioManager(Context context, long nativeAudioManager) {
     Logging.d(TAG, "ctor" + WebRtcAudioUtils.getThreadInfo());
@@ -98,32 +99,34 @@ public class WebRtcAudioManager {
       WebRtcAudioUtils.logDeviceInfo(TAG);
     }
     storeAudioParameters();
-    String manufacturer = Build.MANUFACTURER;
-    String model = Build.MODEL;
-//    String manufacturer = "HUAWEI";
-//   String model ="H60-ASDF";
+
    
     String huaweiManufacturer = "huawei";
     String huaweiH60 = "h60";
-    if (true == huaweiManufacturer.equals (manufacturer.toLowerCase(Locale.US))
-      && model.toLowerCase(Locale.US).compareTo(huaweiH60) >0 ) {
-      bIsHuawei6 = true;
-    }
+
+    bIsHuawei6 = isDesiredDevice(huaweiManufacturer, huaweiH60);
+
     Logging.d(TAG, "manufacturer:" + manufacturer + ", model:" + model + ", is bIsHuawei6:" + bIsHuawei6);
 
-    if (!bIsHuawei6) {
-      nativeCacheAudioParameters(
-        sampleRate, channels, hardwareAEC, hardwareAGC, hardwareNS,
-        lowLatencyOutput, outputBufferSize, inputBufferSize,
-        nativeAudioManager);
-      
-    }
-    else
-    {
+    String meizuManufacturer = "meizu";
+    String meizum2 = "m2-note";
+    bIsMeizuM2Note = isDesiredDevice(meizuManufacturer, meizum2);
+    Logging.d(TAG, "manufacturer:" + manufacturer + ", model:" + model + ", is bIsMeizuM2Note:" + bIsMeizuM2Note);
+
+    if (bIsHuawei6 || bIsMeizuM2Note) {
         nativeCacheAudioParameters(
         sampleRate, channels, true, true, true,
         lowLatencyOutput, outputBufferSize, inputBufferSize,
         nativeAudioManager);
+       
+    }
+    else
+    {
+     nativeCacheAudioParameters(
+        sampleRate, channels, hardwareAEC, hardwareAGC, hardwareNS,
+        lowLatencyOutput, outputBufferSize, inputBufferSize,
+        nativeAudioManager);
+
     }
     
 
@@ -304,6 +307,25 @@ public class WebRtcAudioManager {
     if (!condition) {
       throw new AssertionError("Expected condition to be true");
     }
+  }
+
+  private static boolean isDesiredDevice(String desiredManufactString, String desiredModel){
+
+    String manufacturer = Build.MANUFACTURER;
+    String model = Build.MODEL;
+
+    //    String manufacturer = "HUAWEI";
+    //   String model ="H60-ASDF";
+    //    String manufacturer = "MEIZU";
+    //   String model ="M2-NOTE";
+
+    boolean isDesired = false;
+    if (true == desiredManufactString.equals (manufacturer.toLowerCase(Locale.US))
+      && model.toLowerCase(Locale.US).compareTo(desiredModel) >0 ) {
+      isDesired = true;
+    }
+    return isDesired;
+ 
   }
 
   private native void nativeCacheAudioParameters(

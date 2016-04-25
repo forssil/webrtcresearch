@@ -49,4 +49,21 @@ public final class BuildInfo {
   public static String getSdkVersion() {
     return Integer.toString(Build.VERSION.SDK_INT);
   }
+
+  public static boolean isDesiredDevice(String manufactureName, String modelName){
+        String manufacturer = Build.MANUFACTURER;
+    String model = Build.MODEL;
+
+    //    String manufacturer = "HUAWEI";
+    //   String model ="H60-ASDF";
+    //    String manufacturer = "MEIZU";
+    //   String model ="M2-NOTE";
+
+    boolean isDesired = false;
+    if (true == desiredManufactString.equals (manufacturer.toLowerCase(Locale.US))
+      && model.toLowerCase(Locale.US).compareTo(desiredModel) >0 ) {
+      isDesired = true;
+    }
+    return isDesired;
+  }
 }
