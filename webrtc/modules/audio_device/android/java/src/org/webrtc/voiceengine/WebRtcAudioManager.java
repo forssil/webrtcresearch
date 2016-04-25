@@ -24,6 +24,8 @@ import org.webrtc.Logging;
 
 import java.lang.Math;
 
+import org.webrtc.voiceengine.BuildInfo;
+
 // WebRtcAudioManager handles tasks that uses android.media.AudioManager.
 // At construction, storeAudioParameters() is called and it retrieves
 // fundamental audio parameters like native sample rate and number of channels.
@@ -70,6 +72,7 @@ public class WebRtcAudioManager {
       "MODE_IN_COMMUNICATION",
   };
 
+
   private final long nativeAudioManager;
   private final Context context;
   private final AudioManager audioManager;
@@ -88,6 +91,7 @@ public class WebRtcAudioManager {
   private int inputBufferSize;
   private boolean bIsHuawei6 = false;
   private boolean bIsMeizuM2Note = false;
+  private boolean isSamsungSMG9600 = false;
 
   WebRtcAudioManager(Context context, long nativeAudioManager) {
     Logging.d(TAG, "ctor" + WebRtcAudioUtils.getThreadInfo());
@@ -101,19 +105,8 @@ public class WebRtcAudioManager {
     storeAudioParameters();
 
    
-    String huaweiManufacturer = "huawei";
-    String huaweiH60 = "h60";
 
-    bIsHuawei6 = isDesiredDevice(huaweiManufacturer, huaweiH60);
-
-    Logging.d(TAG, "manufacturer:" + manufacturer + ", model:" + model + ", is bIsHuawei6:" + bIsHuawei6);
-
-    String meizuManufacturer = "meizu";
-    String meizum2 = "m2-note";
-    bIsMeizuM2Note = isDesiredDevice(meizuManufacturer, meizum2);
-    Logging.d(TAG, "manufacturer:" + manufacturer + ", model:" + model + ", is bIsMeizuM2Note:" + bIsMeizuM2Note);
-
-    if (bIsHuawei6 || bIsMeizuM2Note) {
+    if (isNeedDisableWebRTCSelfAEC()) {
         nativeCacheAudioParameters(
         sampleRate, channels, true, true, true,
         lowLatencyOutput, outputBufferSize, inputBufferSize,
@@ -309,23 +302,31 @@ public class WebRtcAudioManager {
     }
   }
 
-  private static boolean isDesiredDevice(String desiredManufactString, String desiredModel){
+  private boolean isNeedDisableWebRTCSelfAEC()
+  {
+    boolean bNeedDisable = false;
+    
+    String huaweiManufacturer = "huawei";
+    String huaweiH60 = "h60";
 
-    String manufacturer = Build.MANUFACTURER;
-    String model = Build.MODEL;
+    bIsHuawei6 = BuildInfo.isDesiredDevice(huaweiManufacturer, huaweiH60);
 
-    //    String manufacturer = "HUAWEI";
-    //   String model ="H60-ASDF";
-    //    String manufacturer = "MEIZU";
-    //   String model ="M2-NOTE";
 
-    boolean isDesired = false;
-    if (true == desiredManufactString.equals (manufacturer.toLowerCase(Locale.US))
-      && model.toLowerCase(Locale.US).compareTo(desiredModel) >0 ) {
-      isDesired = true;
+    String meizuManufacturer = "meizu";
+    String meizum2 = "m2-note";
+    bIsMeizuM2Note =  BuildInfo.isDesiredDevice(meizuManufacturer, meizum2);
+    
+    String samsungManufacturer = "samsung";
+    String smg9600 = "sm-g9600";
+    isSamsungSMG9600 =  BuildInfo.isDesiredDevice(samsungManufacturer, smg9600);
+
+    if (bIsHuawei6 || bIsMeizuM2Note || isSamsungSMG9600) {
+      bNeedDisable = true;
     }
-    return isDesired;
- 
+    Logging.d(TAG, "isNeedDisableWebRTCSelfAEC, return " + bNeedDisable);
+
+    return bNeedDisable;
+
   }
 
   private native void nativeCacheAudioParameters(

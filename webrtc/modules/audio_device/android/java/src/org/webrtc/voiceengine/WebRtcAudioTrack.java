@@ -21,6 +21,8 @@ import android.os.Process;
 import android.os.Build;
 import java.util.Locale;
 import org.webrtc.Logging;
+import org.webrtc.voiceengine.BuildInfo;
+
 
 class WebRtcAudioTrack {
   private static final boolean DEBUG = false;
@@ -144,20 +146,10 @@ class WebRtcAudioTrack {
     this.nativeAudioTrack = nativeAudioTrack;
     audioManager = (AudioManager) context.getSystemService(
         Context.AUDIO_SERVICE);
-    String manufacturer = Build.MANUFACTURER;
-    String model = Build.MODEL;
-//    String manufacturer = "HUAWEI";
-//   String model ="H60-ASDF";
     boolean bIsHuawei6 = false;
     String huaweiManufacturer = "huawei";
     String huaweiH60 = "h60";
-    if (true == huaweiManufacturer.equals (manufacturer.toLowerCase(Locale.US))
-            && model.toLowerCase(Locale.US).compareTo(huaweiH60) >0 ) {
-              bIsHuawei6 = true;
-    }
-    Logging.d(TAG, "manufacturer:" + manufacturer + ", model:" + model + ", is bIsHuawei6:" + bIsHuawei6);
-
-
+    bIsHuawei6 = BuildInfo.isDesiredDevice(huaweiManufacturer, huaweiH60);
     if (DEBUG) {
       WebRtcAudioUtils.logDeviceInfo(TAG);
     }
@@ -195,18 +187,7 @@ class WebRtcAudioTrack {
       // Create an AudioTrack object and initialize its associated audio buffer.
       // The size of this buffer determines how long an AudioTrack can play
       // before running out of data.
-      if (!bIsHuawei6) {
-        Logging.d(TAG, "new AudioTrack with mode  " + AudioManager.STREAM_VOICE_CALL + ", bIsHuawei6:" + bIsHuawei6);
-         audioTrack = new AudioTrack(AudioManager.STREAM_VOICE_CALL,
-                                  sampleRate,
-                                  AudioFormat.CHANNEL_OUT_MONO,
-                                  AudioFormat.ENCODING_PCM_16BIT,
-                                  minBufferSizeInBytes,
-                                  AudioTrack.MODE_STREAM);
-          
-      }
-      else
-      {
+      if (bIsHuawei6) {
         Logging.d(TAG, "new AudioTrack with mode  " + AudioManager.STREAM_MUSIC + ", bIsHuawei6:" + bIsHuawei6);
        
         audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
@@ -215,7 +196,20 @@ class WebRtcAudioTrack {
                                   AudioFormat.ENCODING_PCM_16BIT,
                                   minBufferSizeInBytes,
                                   AudioTrack.MODE_STREAM);
-       
+         
+      }
+      else
+      {
+ 
+        Logging.d(TAG, "new AudioTrack with mode  " + AudioManager.STREAM_VOICE_CALL + ", bIsHuawei6:" + bIsHuawei6);
+         audioTrack = new AudioTrack(AudioManager.STREAM_VOICE_CALL,
+                                  sampleRate,
+                                  AudioFormat.CHANNEL_OUT_MONO,
+                                  AudioFormat.ENCODING_PCM_16BIT,
+                                  minBufferSizeInBytes,
+                                  AudioTrack.MODE_STREAM);
+ 
+        
       }
     } catch (IllegalArgumentException e) {
       Logging.d(TAG, e.getMessage());
