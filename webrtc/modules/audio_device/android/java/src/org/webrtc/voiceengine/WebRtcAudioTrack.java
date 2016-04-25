@@ -48,7 +48,7 @@ class WebRtcAudioTrack {
   private AudioTrack audioTrack = null;
   private AudioTrackThread audioThread = null;
 
-  private boolean bIsHuawei6 = false;
+  private boolean musicPlayMode = false;
 
   /**
    * Audio thread which keeps calling AudioTrack.write() to stream audio.
@@ -144,12 +144,11 @@ class WebRtcAudioTrack {
     Logging.d(TAG, "ctor" + WebRtcAudioUtils.getThreadInfo());
     this.context = context;
     this.nativeAudioTrack = nativeAudioTrack;
+
+
     audioManager = (AudioManager) context.getSystemService(
         Context.AUDIO_SERVICE);
-    boolean bIsHuawei6 = false;
-    String huaweiManufacturer = "huawei";
-    String huaweiH60 = "h60";
-    bIsHuawei6 = BuildInfo.isDesiredDevice(huaweiManufacturer, huaweiH60);
+    musicPlayMode = isNeedMusicMode();
     if (DEBUG) {
       WebRtcAudioUtils.logDeviceInfo(TAG);
     }
@@ -187,8 +186,8 @@ class WebRtcAudioTrack {
       // Create an AudioTrack object and initialize its associated audio buffer.
       // The size of this buffer determines how long an AudioTrack can play
       // before running out of data.
-      if (bIsHuawei6) {
-        Logging.d(TAG, "new AudioTrack with mode  " + AudioManager.STREAM_MUSIC + ", bIsHuawei6:" + bIsHuawei6);
+      if (musicPlayMode) {
+        Logging.d(TAG, "new AudioTrack with mode  " + AudioManager.STREAM_MUSIC + ", musicPlayMode:" + musicPlayMode);
        
         audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
                                   sampleRate,
@@ -201,7 +200,7 @@ class WebRtcAudioTrack {
       else
       {
  
-        Logging.d(TAG, "new AudioTrack with mode  " + AudioManager.STREAM_VOICE_CALL + ", bIsHuawei6:" + bIsHuawei6);
+        Logging.d(TAG, "new AudioTrack with mode  " + AudioManager.STREAM_VOICE_CALL + ", musicPlayMode:" + musicPlayMode);
          audioTrack = new AudioTrack(AudioManager.STREAM_VOICE_CALL,
                                   sampleRate,
                                   AudioFormat.CHANNEL_OUT_MONO,
@@ -209,7 +208,7 @@ class WebRtcAudioTrack {
                                   minBufferSizeInBytes,
                                   AudioTrack.MODE_STREAM);
  
-        
+
       }
     } catch (IllegalArgumentException e) {
       Logging.d(TAG, e.getMessage());
@@ -217,13 +216,12 @@ class WebRtcAudioTrack {
     }
     assertTrue(audioTrack.getState() == AudioTrack.STATE_INITIALIZED);
     assertTrue(audioTrack.getPlayState() == AudioTrack.PLAYSTATE_STOPPED);
-    if (!bIsHuawei6) {
-     assertTrue(audioTrack.getStreamType() == AudioManager.STREAM_VOICE_CALL);     
+    if (musicPlayMode) {
+     assertTrue(audioTrack.getStreamType() == AudioManager.STREAM_MUSIC);
     }
     else
     {
-     assertTrue(audioTrack.getStreamType() == AudioManager.STREAM_MUSIC);
-     
+       assertTrue(audioTrack.getStreamType() == AudioManager.STREAM_VOICE_CALL);        
     }
   }
 
@@ -252,14 +250,12 @@ class WebRtcAudioTrack {
   private int getStreamMaxVolume() {
     Logging.d(TAG, "getStreamMaxVolume");
     assertTrue(audioManager != null);
-    if (!bIsHuawei6) {
-     return audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL);
-     
+    if (musicPlayMode) {
+      return audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);    
     }
     else
     {
-     return audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
-     
+      return audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL);
     }
   }
 
@@ -273,14 +269,12 @@ class WebRtcAudioTrack {
         return false;
       }
     }
-    if (!bIsHuawei6) {
-     audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, volume, 0);
-     
+    if (musicPlayMode) {
+     audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0);     
     }
     else
     {
-     audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0);
-     
+      audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, volume, 0);    
     }
     return true;
   }
@@ -289,15 +283,29 @@ class WebRtcAudioTrack {
   private int getStreamVolume() {
     Logging.d(TAG, "getStreamVolume");
     assertTrue(audioManager != null);
-    if (!bIsHuawei6) {
-      return audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL);      
+    if (musicPlayMode) {
+      return audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);    
     }
     else
     {
-      return audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);    
+      return audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL);      
     }
   }
 
+  private boolean isNeedMusicMode()
+  {
+
+    boolean bNeedMusicMode = false;
+    boolean bIsHuawei6 = false;
+    String huaweiManufacturer = "huawei";
+    String huaweiH60 = "h60";
+    bIsHuawei6 = BuildInfo.isDesiredDevice(huaweiManufacturer, huaweiH60);
+    if (bIsHuawei6) {
+      bNeedMusicMode = true;
+    }
+
+    return bNeedMusicMode;
+  }
   /** Helper method which throws an exception  when an assertion has failed. */
   private static void assertTrue(boolean condition) {
     if (!condition) {
