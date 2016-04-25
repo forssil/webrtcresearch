@@ -39,9 +39,9 @@ ninja -C out/Debug  rent_a_codec
 ninja -C out/Debug  rtc_base
 ninja -C out/Debug  rtc_base_approved
 ninja -C out/Debug  rtc_event_log
-ninja -C out/Debug  rtc_event_log_protov
+ninja -C out/Debug  rtc_event_log_proto
 ninja -C out/Debug  rtp_rtcp
-ninja -C out/Debug  system_wrappersv
+ninja -C out/Debug  system_wrappers
 ninja -C out/Debug  voice_engine
 ninja -C out/Debug  webrtc_common
 ninja -C out/Debug  webrtc_opus
@@ -87,9 +87,9 @@ ninja -C out/Release  rent_a_codec
 ninja -C out/Release  rtc_base
 ninja -C out/Release  rtc_base_approved
 ninja -C out/Release  rtc_event_log
-ninja -C out/Release  rtc_event_log_protov
+ninja -C out/Release  rtc_event_log_proto
 ninja -C out/Release  rtp_rtcp
-ninja -C out/Release  system_wrappersv
+ninja -C out/Release  system_wrappers
 ninja -C out/Release  voice_engine
 ninja -C out/Release  webrtc_common
 ninja -C out/Release  webrtc_opus
