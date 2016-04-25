@@ -19,7 +19,7 @@ ninja -C out/Debug  cpu_features
 ninja -C out/Debug  cpu_features_android
 ninja -C out/Debug  g711
 ninja -C out/Debug  g722
-ninja -C out/Debug  gflagsv
+ninja -C out/Debug  gflags
 ninja -C out/Debug  ilbc
 ninja -C out/Debug  isac
 ninja -C out/Debug  isac_neon
@@ -33,7 +33,7 @@ ninja -C out/Debug  opus
 ninja -C out/Debug  paced_sender
 ninja -C out/Debug  pcm16b
 ninja -C out/Debug  protobuf_lite
-ninja -C out/Debug  redv
+ninja -C out/Debug  red
 ninja -C out/Debug  remote_bitrate_estimator
 ninja -C out/Debug  rent_a_codec
 ninja -C out/Debug  rtc_base
@@ -67,7 +67,7 @@ ninja -C out/Release  cpu_features
 ninja -C out/Release  cpu_features_android
 ninja -C out/Release  g711
 ninja -C out/Release  g722
-ninja -C out/Release  gflagsv
+ninja -C out/Release  gflags
 ninja -C out/Release  ilbc
 ninja -C out/Release  isac
 ninja -C out/Release  isac_neon
@@ -81,7 +81,7 @@ ninja -C out/Release  opus
 ninja -C out/Release  paced_sender
 ninja -C out/Release  pcm16b
 ninja -C out/Release  protobuf_lite
-ninja -C out/Release  redv
+ninja -C out/Release  red
 ninja -C out/Release  remote_bitrate_estimator
 ninja -C out/Release  rent_a_codec
 ninja -C out/Release  rtc_base
