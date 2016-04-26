@@ -16,22 +16,22 @@
 /* Algorithm parameters */
 #define FRAME_LEN       80             /* Total frame length, 10 ms. */
 
-#define PART_LEN        64             /* Length of partition. */
-#define PART_LEN_SHIFT  7              /* Length of (PART_LEN * 2) in base 2. */
+#define PART_LEN        128             /* Length of partition. */
+#define PART_LEN_SHIFT  8             /* Length of (PART_LEN * 2) in base 2. */
 
 #define PART_LEN1       (PART_LEN + 1)  /* Unique fft coefficients. */
 #define PART_LEN2       (PART_LEN << 1) /* Length of partition * 2. */
 #define PART_LEN4       (PART_LEN << 2) /* Length of partition * 4. */
 #define FAR_BUF_LEN     PART_LEN4       /* Length of buffers. */
-#define MAX_DELAY       100
+#define MAX_DELAY       50
 
 /* Counter parameters */
-#define CONV_LEN        512          /* Convergence length used at startup. */
+#define CONV_LEN        (512)          /* Convergence length used at startup. */
 #define CONV_LEN2       (CONV_LEN << 1) /* Used at startup. */
 
 /* Energy parameters */
-#define MAX_BUF_LEN     64           /* History length of energy signals. */
-#define FAR_ENERGY_MIN  1025         /* Lowest Far energy level: At least 2 */
+#define MAX_BUF_LEN     (64)           /* History length of energy signals. */
+#define FAR_ENERGY_MIN  (1025)         /* Lowest Far energy level: At least 2 */
                                      /* in energy. */
 #define FAR_ENERGY_DIFF 929          /* Allowed difference between max */
                                      /* and min. */
@@ -60,7 +60,8 @@
 /* Suppression gain parameters: SUPGAIN parameters in Q-(RESOLUTION_SUPGAIN). */
 #define RESOLUTION_SUPGAIN      8     /* Channel in Q-(RESOLUTION_SUPGAIN). */
 #define SUPGAIN_DEFAULT (1 << RESOLUTION_SUPGAIN)  /* Default. */
-#define SUPGAIN_ERROR_PARAM_A   3072  /* Estimation error parameter */
+#define SUPGAIN_ERROR_PARAM_A   (3072)  /* Estimation error parameter */
+//#define SUPGAIN_ERROR_PARAM_A   (256*15)  /* Estimation error parameter */
                                       /* (Maximum gain) (8 in Q8). */
 #define SUPGAIN_ERROR_PARAM_B   1536  /* Estimation error parameter */
                                       /* (Gain before going down). */
@@ -84,4 +85,5 @@
 #define NLP_COMP_LOW    3277    /* 0.2 in Q14 */
 #define NLP_COMP_HIGH   ONE_Q14 /* 1 in Q14 */
 
+ 
 #endif
