@@ -7,6 +7,7 @@ ninja -C out/Debug  audio_device_java
 ninja -C out/Debug  audio_coding_module
 ninja -C out/Debug  audio_conference_mixer
 ninja -C out/Debug  audio_decoder_interface
+ninja -C out/Debug  audio_device
 ninja -C out/Debug  audio_encoder_interface
 ninja -C out/Debug  audio_processing
 ninja -C out/Debug  audio_processing_neon
@@ -55,6 +56,7 @@ ninja -C out/Release  audio_device_java
 ninja -C out/Release  audio_coding_module
 ninja -C out/Release  audio_conference_mixer
 ninja -C out/Release  audio_decoder_interface
+ninja -C out/Release  audio_device
 ninja -C out/Release  audio_encoder_interface
 ninja -C out/Release  audio_processing
 ninja -C out/Release  audio_processing_neon
