@@ -18,11 +18,15 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.media.AudioManager;
+import android.media.MediaRecorder.AudioSource;
 import android.util.Log;
 
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+
+import org.webrtc.voiceengine.WebRtcAudioUtils;
+
 
 /**
  * AppRTCAudioManager manages all audio related parts of the AppRTC demo.
@@ -104,6 +108,11 @@ public class AppRTCAudioManager {
     onStateChangeListener = deviceStateChangeListener;
     audioManager = ((AudioManager) context.getSystemService(
         Context.AUDIO_SERVICE));
+     
+      WebRtcAudioUtils.captureMode = AudioSource.MIC;
+      WebRtcAudioUtils.bDisableWebRTCAEC = true;
+      WebRtcAudioUtils.playbackMode = AudioManager.STREAM_VOICE_CALL;
+
 
     // Create and initialize the proximity sensor.
     // Tablet devices (e.g. Nexus 7) does not support proximity sensors.
@@ -130,18 +139,15 @@ public class AppRTCAudioManager {
     savedIsSpeakerPhoneOn = audioManager.isSpeakerphoneOn();
     savedIsMicrophoneMute = audioManager.isMicrophoneMute();
 
-    Log.d(TAG, "init, set audio focus to mode " + AudioManager.STREAM_MUSIC);
     // Request audio focus before making any device switch.
-    audioManager.requestAudioFocus(null, AudioManager.STREAM_MUSIC,
+    audioManager.requestAudioFocus(null, AudioManager.STREAM_VOICE_CALL,
         AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
 
     // Start by setting MODE_IN_COMMUNICATION as default audio mode. It is
     // required to be in this mode when playout and/or recording starts for
     // best possible VoIP performance.
-
     // TODO(henrika): we migh want to start with RINGTONE mode here instead.
-    Log.d(TAG, "init, audioManager.setMode to  " + AudioManager.MODE_NORMAL);
-    audioManager.setMode(AudioManager.MODE_NORMAL);
+    audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
 
     // Always disable microphone mute during a WebRTC call.
     setMicrophoneMute(false);
