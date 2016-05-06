@@ -18,13 +18,13 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Process;
-import android.os.Build;
-import java.util.Locale;
-import org.webrtc.Logging;
-import org.webrtc.voiceengine.BuildInfo;
 
+import org.webrtc.Logging;
+import org.webrtc.voiceengine.WebRtcAudioUtils;
 
 class WebRtcAudioTrack {
+
+ 
   private static final boolean DEBUG = false;
 
   private static final String TAG = "WebRtcAudioTrack";
@@ -47,8 +47,6 @@ class WebRtcAudioTrack {
 
   private AudioTrack audioTrack = null;
   private AudioTrackThread audioThread = null;
-
-  private boolean musicPlayMode = false;
 
   /**
    * Audio thread which keeps calling AudioTrack.write() to stream audio.
@@ -144,11 +142,8 @@ class WebRtcAudioTrack {
     Logging.d(TAG, "ctor" + WebRtcAudioUtils.getThreadInfo());
     this.context = context;
     this.nativeAudioTrack = nativeAudioTrack;
-
-
     audioManager = (AudioManager) context.getSystemService(
         Context.AUDIO_SERVICE);
-    musicPlayMode = isNeedMusicMode();
     if (DEBUG) {
       WebRtcAudioUtils.logDeviceInfo(TAG);
     }
@@ -174,8 +169,8 @@ class WebRtcAudioTrack {
         sampleRate,
         AudioFormat.CHANNEL_OUT_MONO,
         AudioFormat.ENCODING_PCM_16BIT);
-    Logging.d(TAG, "AudioTrack.getMinBufferSize: " + minBufferSizeInBytes);
- 
+    Logging.d(TAG, "AudioTrack.getMinBufferSize: " + minBufferSizeInBytes
+       + ", playbackMode:" + WebRtcAudioUtils.playbackMode);
     assertTrue(audioTrack == null);
 
     // For the streaming mode, data must be written to the audio sink in
@@ -186,43 +181,19 @@ class WebRtcAudioTrack {
       // Create an AudioTrack object and initialize its associated audio buffer.
       // The size of this buffer determines how long an AudioTrack can play
       // before running out of data.
-      if (musicPlayMode) {
-        Logging.d(TAG, "new AudioTrack with mode  " + AudioManager.STREAM_MUSIC + ", musicPlayMode:" + musicPlayMode);
-       
-        audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
+      audioTrack = new AudioTrack(WebRtcAudioUtils.playbackMode,
                                   sampleRate,
                                   AudioFormat.CHANNEL_OUT_MONO,
                                   AudioFormat.ENCODING_PCM_16BIT,
                                   minBufferSizeInBytes,
                                   AudioTrack.MODE_STREAM);
-         
-      }
-      else
-      {
- 
-        Logging.d(TAG, "new AudioTrack with mode  " + AudioManager.STREAM_VOICE_CALL + ", musicPlayMode:" + musicPlayMode);
-         audioTrack = new AudioTrack(AudioManager.STREAM_VOICE_CALL,
-                                  sampleRate,
-                                  AudioFormat.CHANNEL_OUT_MONO,
-                                  AudioFormat.ENCODING_PCM_16BIT,
-                                  minBufferSizeInBytes,
-                                  AudioTrack.MODE_STREAM);
- 
-
-      }
     } catch (IllegalArgumentException e) {
       Logging.d(TAG, e.getMessage());
       return;
     }
     assertTrue(audioTrack.getState() == AudioTrack.STATE_INITIALIZED);
     assertTrue(audioTrack.getPlayState() == AudioTrack.PLAYSTATE_STOPPED);
-    if (musicPlayMode) {
-     assertTrue(audioTrack.getStreamType() == AudioManager.STREAM_MUSIC);
-    }
-    else
-    {
-       assertTrue(audioTrack.getStreamType() == AudioManager.STREAM_VOICE_CALL);        
-    }
+    assertTrue(audioTrack.getStreamType() == WebRtcAudioUtils.playbackMode);
   }
 
   private boolean startPlayout() {
@@ -250,13 +221,7 @@ class WebRtcAudioTrack {
   private int getStreamMaxVolume() {
     Logging.d(TAG, "getStreamMaxVolume");
     assertTrue(audioManager != null);
-    if (musicPlayMode) {
-      return audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);    
-    }
-    else
-    {
-      return audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL);
-    }
+    return audioManager.getStreamMaxVolume(WebRtcAudioUtils.playbackMode);
   }
 
   /** Set current volume level for a phone call audio stream. */
@@ -269,13 +234,7 @@ class WebRtcAudioTrack {
         return false;
       }
     }
-    if (musicPlayMode) {
-     audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0);     
-    }
-    else
-    {
-      audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, volume, 0);    
-    }
+    audioManager.setStreamVolume(WebRtcAudioUtils.playbackMode, volume, 0);
     return true;
   }
 
@@ -283,29 +242,9 @@ class WebRtcAudioTrack {
   private int getStreamVolume() {
     Logging.d(TAG, "getStreamVolume");
     assertTrue(audioManager != null);
-    if (musicPlayMode) {
-      return audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);    
-    }
-    else
-    {
-      return audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL);      
-    }
+    return audioManager.getStreamVolume(WebRtcAudioUtils.playbackMode);
   }
 
-  private boolean isNeedMusicMode()
-  {
-
-    boolean bNeedMusicMode = false;
-    boolean bIsHuawei6 = false;
-    String huaweiManufacturer = "huawei";
-    String huaweiH60 = "h60";
-    bIsHuawei6 = BuildInfo.isDesiredDevice(huaweiManufacturer, huaweiH60);
-    if (bIsHuawei6) {
-      bNeedMusicMode = true;
-    }
-
-    return bNeedMusicMode;
-  }
   /** Helper method which throws an exception  when an assertion has failed. */
   private static void assertTrue(boolean condition) {
     if (!condition) {

@@ -12,15 +12,8 @@ package org.webrtc.voiceengine;
 
 import android.os.Build;
 import android.util.Log;
-import java.util.Locale;
-import java.util.Date;
-import org.webrtc.Logging;
 
 public final class BuildInfo {
-
-  private static final boolean DEBUG = false;
-  private static final String TAG = "WebRtcVoeBuildInfo";
-
   public static String getDevice() {
     return Build.DEVICE;
   }
@@ -55,29 +48,5 @@ public final class BuildInfo {
 
   public static String getSdkVersion() {
     return Integer.toString(Build.VERSION.SDK_INT);
-  }
-
-  public static boolean isDesiredDevice(String manufactureName, String modelName){
-    String manufacturer = Build.MANUFACTURER;
-    String model = Build.MODEL;
-
-    //    String manufacturer = "HUAWEI";
-    //    String model ="H60-ASDF";
-    //    String manufacturer = "MEIZU";
-    //    String model ="M2-NOTE";
-
-    boolean isDesired = false;
-    if (true == manufactureName.equals (manufacturer.toLowerCase(Locale.US))
-      && model.toLowerCase(Locale.US).compareTo(modelName) >=0 ) {
-      isDesired = true;
-    }
-    Logging.d(TAG, "isDesiredDevice, this device is manufacturer:" + manufacturer
-      + ", model:" + model
-      + ", desired device is manufactureName:" + manufactureName
-      + ", modelName:" + modelName
-      + ", isDesired:" + isDesired);
-
-
-    return isDesired;
   }
 }

@@ -23,8 +23,11 @@ import android.os.Process;
 import android.os.SystemClock;
 
 import org.webrtc.Logging;
+import org.webrtc.voiceengine.WebRtcAudioUtils;
 
 class  WebRtcAudioRecord {
+ 
+
   private static final boolean DEBUG = false;
 
   private static final String TAG = "WebRtcAudioRecord";
@@ -165,7 +168,7 @@ class  WebRtcAudioRecord {
     final int bytesPerFrame = channels * (BITS_PER_SAMPLE / 8);
     final int framesPerBuffer = sampleRate / BUFFERS_PER_SECOND;
     byteBuffer = ByteBuffer.allocateDirect(bytesPerFrame * framesPerBuffer);
-    Logging.d(TAG, "initRecording byteBuffer.capacity: " + byteBuffer.capacity());
+    Logging.d(TAG, "byteBuffer.capacity: " + byteBuffer.capacity());
     // Rather than passing the ByteBuffer with every callback (requiring
     // the potentially expensive GetDirectBufferAddress) we simply have the
     // the native class cache the address to the memory once.
@@ -180,20 +183,19 @@ class  WebRtcAudioRecord {
           AudioFormat.ENCODING_PCM_16BIT);
     if (minBufferSize == AudioRecord.ERROR
         || minBufferSize == AudioRecord.ERROR_BAD_VALUE) {
-      Logging.e(TAG, "initRecording AudioRecord.getMinBufferSize failed: " + minBufferSize);
+      Logging.e(TAG, "AudioRecord.getMinBufferSize failed: " + minBufferSize);
       return -1;
     }
-    Logging.d(TAG, "initRecording AudioRecord.getMinBufferSize: " + minBufferSize);
+    Logging.d(TAG, "AudioRecord.getMinBufferSize: " + minBufferSize);
 
     // Use a larger buffer size than the minimum required when creating the
     // AudioRecord instance to ensure smooth recording under load. It has been
     // verified that it does not increase the actual recording latency.
     int bufferSizeInBytes =
         Math.max(BUFFER_SIZE_FACTOR * minBufferSize, byteBuffer.capacity());
-    Logging.d(TAG, "initRecording bufferSizeInBytes: " + bufferSizeInBytes);
+    Logging.d(TAG, "bufferSizeInBytes: " + bufferSizeInBytes + ", captureMode:" +WebRtcAudioUtils.captureMode);
     try {
-     Logging.d(TAG, "initRecording new AudioRecord, mode is: " + AudioSource.VOICE_COMMUNICATION);     
-      audioRecord = new AudioRecord(AudioSource.VOICE_COMMUNICATION,
+      audioRecord = new AudioRecord(WebRtcAudioUtils.captureMode,
                                     sampleRate,
                                     AudioFormat.CHANNEL_IN_MONO,
                                     AudioFormat.ENCODING_PCM_16BIT,

@@ -17,14 +17,12 @@ import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.os.Build;
-import java.util.Locale;
-import java.util.Date;
 
 import org.webrtc.Logging;
 
 import java.lang.Math;
 
-import org.webrtc.voiceengine.BuildInfo;
+import org.webrtc.voiceengine.WebRtcAudioUtils;
 
 // WebRtcAudioManager handles tasks that uses android.media.AudioManager.
 // At construction, storeAudioParameters() is called and it retrieves
@@ -38,6 +36,8 @@ import org.webrtc.voiceengine.BuildInfo;
 // This class also adds support for output volume control of the
 // STREAM_VOICE_CALL-type stream.
 public class WebRtcAudioManager {
+
+
   private static final boolean DEBUG = false;
 
   private static final String TAG = "WebRtcAudioManager";
@@ -72,7 +72,6 @@ public class WebRtcAudioManager {
       "MODE_IN_COMMUNICATION",
   };
 
-
   private final long nativeAudioManager;
   private final Context context;
   private final AudioManager audioManager;
@@ -89,9 +88,6 @@ public class WebRtcAudioManager {
   private int channels;
   private int outputBufferSize;
   private int inputBufferSize;
-  private boolean bIsHuawei6 = false;
-  private boolean bIsMeizuM2Note = false;
-  private boolean isSamsungSMG9600 = false;
 
   WebRtcAudioManager(Context context, long nativeAudioManager) {
     Logging.d(TAG, "ctor" + WebRtcAudioUtils.getThreadInfo());
@@ -102,41 +98,38 @@ public class WebRtcAudioManager {
     if (DEBUG) {
       WebRtcAudioUtils.logDeviceInfo(TAG);
     }
-    storeAudioParameters();
-
+     Logging.d(TAG, "Keith bDisableWebRTCAEC:" + WebRtcAudioUtils.bDisableWebRTCAEC);
    
-
-    if (isNeedDisableWebRTCSelfAEC()) {
-        nativeCacheAudioParameters(
+    storeAudioParameters();
+    if (true == WebRtcAudioUtils.bDisableWebRTCAEC) {
+         nativeCacheAudioParameters(
         sampleRate, channels, true, true, true,
         lowLatencyOutput, outputBufferSize, inputBufferSize,
         nativeAudioManager);
-       
+      
     }
     else
     {
-     nativeCacheAudioParameters(
+        nativeCacheAudioParameters(
         sampleRate, channels, hardwareAEC, hardwareAGC, hardwareNS,
         lowLatencyOutput, outputBufferSize, inputBufferSize,
         nativeAudioManager);
-
+      
     }
-    
-
-  }
+ }
 
   private boolean init() {
     Logging.d(TAG, "init" + WebRtcAudioUtils.getThreadInfo());
     if (initialized) {
       return true;
     }
-    Logging.d(TAG, "init audio mode is: " + AUDIO_MODES[audioManager.getMode()]);
+    Logging.d(TAG, "audio mode is: " + AUDIO_MODES[audioManager.getMode()]);
     initialized = true;
     return true;
   }
 
   private void dispose() {
-    Logging.d(TAG, "init dispose" + WebRtcAudioUtils.getThreadInfo());
+    Logging.d(TAG, "dispose" + WebRtcAudioUtils.getThreadInfo());
     if (!initialized) {
       return;
     }
@@ -300,33 +293,6 @@ public class WebRtcAudioManager {
     if (!condition) {
       throw new AssertionError("Expected condition to be true");
     }
-  }
-
-  private boolean isNeedDisableWebRTCSelfAEC()
-  {
-    boolean bNeedDisable = false;
-    
-    String huaweiManufacturer = "huawei";
-    String huaweiH60 = "h60";
-
-    bIsHuawei6 = BuildInfo.isDesiredDevice(huaweiManufacturer, huaweiH60);
-
-
-    String meizuManufacturer = "meizu";
-    String meizum2 = "m2-note";
-    bIsMeizuM2Note =  BuildInfo.isDesiredDevice(meizuManufacturer, meizum2);
-    
-    String samsungManufacturer = "samsung";
-    String smg9600 = "sm-g9600";
-    isSamsungSMG9600 =  BuildInfo.isDesiredDevice(samsungManufacturer, smg9600);
-
-    if (bIsHuawei6 || bIsMeizuM2Note || isSamsungSMG9600) {
-      bNeedDisable = true;
-    }
-    Logging.d(TAG, "isNeedDisableWebRTCSelfAEC, return " + bNeedDisable);
-
-    return bNeedDisable;
-
   }
 
   private native void nativeCacheAudioParameters(
