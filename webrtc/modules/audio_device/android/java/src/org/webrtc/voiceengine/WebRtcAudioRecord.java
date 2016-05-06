@@ -23,8 +23,11 @@ import android.os.Process;
 import android.os.SystemClock;
 
 import org.webrtc.Logging;
+import org.webrtc.voiceengine.WebRtcAudioUtils;
 
 class  WebRtcAudioRecord {
+ 
+
   private static final boolean DEBUG = false;
 
   private static final String TAG = "WebRtcAudioRecord";
@@ -190,9 +193,9 @@ class  WebRtcAudioRecord {
     // verified that it does not increase the actual recording latency.
     int bufferSizeInBytes =
         Math.max(BUFFER_SIZE_FACTOR * minBufferSize, byteBuffer.capacity());
-    Logging.d(TAG, "bufferSizeInBytes: " + bufferSizeInBytes);
+    Logging.d(TAG, "bufferSizeInBytes: " + bufferSizeInBytes + ", captureMode:" +WebRtcAudioUtils.captureMode);
     try {
-      audioRecord = new AudioRecord(AudioSource.VOICE_COMMUNICATION,
+      audioRecord = new AudioRecord(WebRtcAudioUtils.captureMode,
                                     sampleRate,
                                     AudioFormat.CHANNEL_IN_MONO,
                                     AudioFormat.ENCODING_PCM_16BIT,

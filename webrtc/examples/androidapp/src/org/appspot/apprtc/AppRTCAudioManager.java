@@ -18,11 +18,15 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.media.AudioManager;
+import android.media.MediaRecorder.AudioSource;
 import android.util.Log;
 
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+
+import org.webrtc.voiceengine.WebRtcAudioUtils;
+
 
 /**
  * AppRTCAudioManager manages all audio related parts of the AppRTC demo.
@@ -104,6 +108,11 @@ public class AppRTCAudioManager {
     onStateChangeListener = deviceStateChangeListener;
     audioManager = ((AudioManager) context.getSystemService(
         Context.AUDIO_SERVICE));
+     
+      WebRtcAudioUtils.captureMode = AudioSource.MIC;
+      WebRtcAudioUtils.bDisableWebRTCAEC = true;
+      WebRtcAudioUtils.playbackMode = AudioManager.STREAM_VOICE_CALL;
+
 
     // Create and initialize the proximity sensor.
     // Tablet devices (e.g. Nexus 7) does not support proximity sensors.

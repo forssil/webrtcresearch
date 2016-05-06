@@ -16,6 +16,8 @@ import android.media.audiofx.AcousticEchoCanceler;
 import android.media.audiofx.AudioEffect;
 import android.media.audiofx.AudioEffect.Descriptor;
 import android.media.AudioManager;
+import android.media.AudioRecord;
+import android.media.MediaRecorder.AudioSource;
 import android.os.Build;
 import android.os.Process;
 
@@ -27,6 +29,14 @@ import java.util.Arrays;
 import java.util.List;
 
 public final class WebRtcAudioUtils {
+  
+  public static int playbackMode = AudioManager.STREAM_VOICE_CALL;
+
+   //added by keith
+  public static int captureMode = AudioSource.VOICE_COMMUNICATION;
+
+  public static boolean bDisableWebRTCAEC = false;
+
   private static final String TAG = "WebRtcAudioUtils";
 
   // List of devices where we have seen issues (e.g. bad audio quality) using
