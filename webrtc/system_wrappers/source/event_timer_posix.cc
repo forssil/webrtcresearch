@@ -27,33 +27,29 @@ EventTimerWrapper* EventTimerWrapper::Create() {
   return new EventTimerPosix();
 }
 
-const int64_t kNanosecondsPerMillisecond = 1000000;
-const int64_t kNanosecondsPerSecond = 1000000000;
+const long int E6 = 1000000;
+const long int E9 = 1000 * E6;
 
 EventTimerPosix::EventTimerPosix()
     : event_set_(false),
       timer_thread_(nullptr),
       created_at_(),
       periodic_(false),
-      time_ms_(0),
-      count_(0),
-      is_stopping_(false) {
+      time_(0),
+      count_(0) {
   pthread_mutexattr_t attr;
   pthread_mutexattr_init(&attr);
   pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
   pthread_mutex_init(&mutex_, &attr);
+#ifdef WEBRTC_CLOCK_TYPE_REALTIME
+  pthread_cond_init(&cond_, 0);
+#else
   pthread_condattr_t cond_attr;
   pthread_condattr_init(&cond_attr);
-// TODO(sprang): Remove HAVE_PTHREAD_COND_TIMEDWAIT_MONOTONIC special case once
-// all supported Android platforms support pthread_condattr_setclock.
-// TODO(sprang): Add support for monotonic clock on Apple platforms.
-#if !(defined(WEBRTC_MAC) || defined(WEBRTC_IOS)) && \
-    !(defined(WEBRTC_ANDROID) &&                     \
-      defined(HAVE_PTHREAD_COND_TIMEDWAIT_MONOTONIC))
   pthread_condattr_setclock(&cond_attr, CLOCK_MONOTONIC);
-#endif
   pthread_cond_init(&cond_, &cond_attr);
   pthread_condattr_destroy(&cond_attr);
+#endif
 }
 
 EventTimerPosix::~EventTimerPosix() {
@@ -71,15 +67,19 @@ bool EventTimerPosix::Set() {
   return true;
 }
 
-EventTypeWrapper EventTimerPosix::Wait(unsigned long timeout_ms) {
+EventTypeWrapper EventTimerPosix::Wait(unsigned long timeout) {
   int ret_val = 0;
   RTC_CHECK_EQ(0, pthread_mutex_lock(&mutex_));
 
   if (!event_set_) {
-    if (WEBRTC_EVENT_INFINITE != timeout_ms) {
+    if (WEBRTC_EVENT_INFINITE != timeout) {
       timespec end_at;
 #ifndef WEBRTC_MAC
+#ifdef WEBRTC_CLOCK_TYPE_REALTIME
+      clock_gettime(CLOCK_REALTIME, &end_at);
+#else
       clock_gettime(CLOCK_MONOTONIC, &end_at);
+#endif
 #else
       timeval value;
       struct timezone time_zone;
@@ -88,20 +88,15 @@ EventTypeWrapper EventTimerPosix::Wait(unsigned long timeout_ms) {
       gettimeofday(&value, &time_zone);
       TIMEVAL_TO_TIMESPEC(&value, &end_at);
 #endif
-      end_at.tv_sec += timeout_ms / 1000;
-      end_at.tv_nsec += (timeout_ms % 1000) * kNanosecondsPerMillisecond;
+      end_at.tv_sec  += timeout / 1000;
+      end_at.tv_nsec += (timeout - (timeout / 1000) * 1000) * E6;
 
-      if (end_at.tv_nsec >= kNanosecondsPerSecond) {
+      if (end_at.tv_nsec >= E9) {
         end_at.tv_sec++;
-        end_at.tv_nsec -= kNanosecondsPerSecond;
+        end_at.tv_nsec -= E9;
       }
-      while (ret_val == 0 && !event_set_) {
-#if defined(WEBRTC_ANDROID) && defined(HAVE_PTHREAD_COND_TIMEDWAIT_MONOTONIC)
-        ret_val = pthread_cond_timedwait_monotonic_np(&cond_, &mutex_, &end_at);
-#else
+      while (ret_val == 0 && !event_set_)
         ret_val = pthread_cond_timedwait(&cond_, &mutex_, &end_at);
-#endif  // WEBRTC_ANDROID && HAVE_PTHREAD_COND_TIMEDWAIT_MONOTONIC
-      }
     } else {
       while (ret_val == 0 && !event_set_)
         ret_val = pthread_cond_wait(&cond_, &mutex_);
@@ -120,21 +115,12 @@ EventTypeWrapper EventTimerPosix::Wait(unsigned long timeout_ms) {
   return ret_val == 0 ? kEventSignaled : kEventTimeout;
 }
 
-EventTypeWrapper EventTimerPosix::Wait(timespec* end_at, bool reset_event) {
+EventTypeWrapper EventTimerPosix::Wait(timespec* end_at) {
   int ret_val = 0;
   RTC_CHECK_EQ(0, pthread_mutex_lock(&mutex_));
-  if (reset_event) {
-    // Only wake for new events or timeouts.
-    event_set_ = false;
-  }
 
-  while (ret_val == 0 && !event_set_) {
-#if defined(WEBRTC_ANDROID) && defined(HAVE_PTHREAD_COND_TIMEDWAIT_MONOTONIC)
-    ret_val = pthread_cond_timedwait_monotonic_np(&cond_, &mutex_, end_at);
-#else
+  while (ret_val == 0 && !event_set_)
     ret_val = pthread_cond_timedwait(&cond_, &mutex_, end_at);
-#endif  // WEBRTC_ANDROID && HAVE_PTHREAD_COND_TIMEDWAIT_MONOTONIC
-  }
 
   RTC_DCHECK(ret_val == 0 || ret_val == ETIMEDOUT);
 
@@ -148,12 +134,7 @@ EventTypeWrapper EventTimerPosix::Wait(timespec* end_at, bool reset_event) {
   return ret_val == 0 ? kEventSignaled : kEventTimeout;
 }
 
-rtc::PlatformThread* EventTimerPosix::CreateThread() {
-  const char* kThreadName = "WebRtc_event_timer_thread";
-  return new rtc::PlatformThread(Run, this, kThreadName);
-}
-
-bool EventTimerPosix::StartTimer(bool periodic, unsigned long time_ms) {
+bool EventTimerPosix::StartTimer(bool periodic, unsigned long time) {
   pthread_mutex_lock(&mutex_);
   if (timer_thread_) {
     if (periodic_) {
@@ -161,8 +142,8 @@ bool EventTimerPosix::StartTimer(bool periodic, unsigned long time_ms) {
       pthread_mutex_unlock(&mutex_);
       return false;
     } else  {
-      // New one shot timer.
-      time_ms_ = time_ms;
+      // New one shot timer
+      time_ = time;
       created_at_.tv_sec = 0;
       timer_event_->Set();
       pthread_mutex_unlock(&mutex_);
@@ -170,16 +151,17 @@ bool EventTimerPosix::StartTimer(bool periodic, unsigned long time_ms) {
     }
   }
 
-  // Start the timer thread.
+  // Start the timer thread
   timer_event_.reset(new EventTimerPosix());
-  timer_thread_.reset(CreateThread());
+  const char* thread_name = "WebRtc_event_timer_thread";
+  timer_thread_ = ThreadWrapper::CreateThread(Run, this, thread_name);
   periodic_ = periodic;
-  time_ms_ = time_ms;
-  timer_thread_->Start();
-  timer_thread_->SetPriority(rtc::kRealtimePriority);
+  time_ = time;
+  bool started = timer_thread_->Start();
+  timer_thread_->SetPriority(kRealtimePriority);
   pthread_mutex_unlock(&mutex_);
 
-  return true;
+  return started;
 }
 
 bool EventTimerPosix::Run(void* obj) {
@@ -188,13 +170,13 @@ bool EventTimerPosix::Run(void* obj) {
 
 bool EventTimerPosix::Process() {
   pthread_mutex_lock(&mutex_);
-  if (is_stopping_) {
-    pthread_mutex_unlock(&mutex_);
-    return false;
-  }
   if (created_at_.tv_sec == 0) {
 #ifndef WEBRTC_MAC
-    RTC_CHECK_EQ(0, clock_gettime(CLOCK_MONOTONIC, &created_at_));
+#ifdef WEBRTC_CLOCK_TYPE_REALTIME
+    clock_gettime(CLOCK_REALTIME, &created_at_);
+#else
+    clock_gettime(CLOCK_MONOTONIC, &created_at_);
+#endif
 #else
     timeval value;
     struct timezone time_zone;
@@ -207,27 +189,17 @@ bool EventTimerPosix::Process() {
   }
 
   timespec end_at;
-  unsigned long long total_delta_ms = time_ms_ * ++count_;
-  if (!periodic_ && count_ >= 1) {
-    // No need to wake up often if we're not going to signal waiting threads.
-    total_delta_ms =
-        std::min<uint64_t>(total_delta_ms, 60 * kNanosecondsPerSecond);
-  }
+  unsigned long long time = time_ * ++count_;
+  end_at.tv_sec  = created_at_.tv_sec + time / 1000;
+  end_at.tv_nsec = created_at_.tv_nsec + (time - (time / 1000) * 1000) * E6;
 
-  end_at.tv_sec = created_at_.tv_sec + total_delta_ms / 1000;
-  end_at.tv_nsec = created_at_.tv_nsec +
-                   (total_delta_ms % 1000) * kNanosecondsPerMillisecond;
-
-  if (end_at.tv_nsec >= kNanosecondsPerSecond) {
+  if (end_at.tv_nsec >= E9) {
     end_at.tv_sec++;
-    end_at.tv_nsec -= kNanosecondsPerSecond;
+    end_at.tv_nsec -= E9;
   }
 
   pthread_mutex_unlock(&mutex_);
-  // Reset event on first call so that we don't immediately return here if this
-  // thread was not blocked on timer_event_->Wait when the StartTimer() call
-  // was made.
-  if (timer_event_->Wait(&end_at, count_ == 1) == kEventSignaled)
+  if (timer_event_->Wait(&end_at) == kEventSignaled)
     return true;
 
   pthread_mutex_lock(&mutex_);
@@ -239,15 +211,13 @@ bool EventTimerPosix::Process() {
 }
 
 bool EventTimerPosix::StopTimer() {
-  pthread_mutex_lock(&mutex_);
-  is_stopping_ = true;
-  pthread_mutex_unlock(&mutex_);
-
-  if (timer_event_)
+  if (timer_event_) {
     timer_event_->Set();
-
+  }
   if (timer_thread_) {
-    timer_thread_->Stop();
+    if (!timer_thread_->Stop()) {
+      return false;
+    }
     timer_thread_.reset();
   }
   timer_event_.reset();

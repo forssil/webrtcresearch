@@ -10,10 +10,8 @@
 
 #import "ARDAppDelegate.h"
 
-#import "webrtc/base/objc/RTCFieldTrials.h"
-#import "webrtc/base/objc/RTCLogging.h"
-#import "webrtc/base/objc/RTCSSLAdapter.h"
-#import "webrtc/base/objc/RTCTracing.h"
+#import "RTCLogging.h"
+#import "RTCPeerConnectionFactory.h"
 
 #import "ARDMainViewController.h"
 
@@ -25,9 +23,7 @@
 
 - (BOOL)application:(UIApplication *)application
     didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-  RTCInitFieldTrials(RTCFieldTrialOptionsSendSideBwe);
-  RTCInitializeSSL();
-  RTCSetupInternalTracer();
+  [RTCPeerConnectionFactory initializeSSL];
   _window =  [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
   [_window makeKeyAndVisible];
   ARDMainViewController *viewController = [[ARDMainViewController alloc] init];
@@ -43,9 +39,14 @@
   return YES;
 }
 
+- (void)applicationWillResignActive:(UIApplication *)application {
+  ARDMainViewController *viewController =
+      (ARDMainViewController *)_window.rootViewController;
+  [viewController applicationWillResignActive:application];
+}
+
 - (void)applicationWillTerminate:(UIApplication *)application {
-  RTCShutdownInternalTracer();
-  RTCCleanupSSL();
+  [RTCPeerConnectionFactory deinitializeSSL];
 }
 
 @end

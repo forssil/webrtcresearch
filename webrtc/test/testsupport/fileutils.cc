@@ -43,7 +43,6 @@ namespace test {
 
 #if defined(WEBRTC_IOS)
 // Defined in iosfileutils.mm.  No header file to discourage use elsewhere.
-std::string IOSOutputPath();
 std::string IOSResourcePath(std::string name, std::string extension);
 #endif
 
@@ -60,12 +59,9 @@ const char* kRootDirName = "/sdcard/";
 #else
 // The file we're looking for to identify the project root dir.
 const char* kProjectRootFileName = "DEPS";
-#if !defined(WEBRTC_IOS)
 const char* kOutputDirName = "out";
-#endif
 const char* kFallbackPath = "./";
-#endif  // !defined(WEBRTC_ANDROID)
-
+#endif
 #if !defined(WEBRTC_IOS)
 const char* kResourcesDirName = "resources";
 #endif
@@ -144,9 +140,6 @@ std::string ProjectRootPath() {
 }
 
 std::string OutputPath() {
-#if defined(WEBRTC_IOS)
-  return IOSOutputPath();
-#else
   std::string path = ProjectRootPath();
   if (path == kCannotFindProjectRootDir) {
     return kFallbackPath;
@@ -156,7 +149,6 @@ std::string OutputPath() {
     return kFallbackPath;
   }
   return path + kPathDelimiter;
-#endif
 }
 
 std::string WorkingDir() {
@@ -230,9 +222,6 @@ std::string ResourcePath(std::string name, std::string extension) {
 #ifdef WEBRTC_MAC
   platform = "mac";
 #endif  // WEBRTC_MAC
-#ifdef WEBRTC_ANDROID
-  platform = "android";
-#endif  // WEBRTC_ANDROID
 
 #ifdef WEBRTC_ARCH_64_BITS
   std::string architecture = "64";

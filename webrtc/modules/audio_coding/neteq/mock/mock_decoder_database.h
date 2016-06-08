@@ -11,8 +11,6 @@
 #ifndef WEBRTC_MODULES_AUDIO_CODING_NETEQ_MOCK_MOCK_DECODER_DATABASE_H_
 #define WEBRTC_MODULES_AUDIO_CODING_NETEQ_MOCK_MOCK_DECODER_DATABASE_H_
 
-#include <string>
-
 #include "webrtc/modules/audio_coding/neteq/decoder_database.h"
 
 #include "testing/gmock/include/gmock/gmock.h"
@@ -29,12 +27,10 @@ class MockDecoderDatabase : public DecoderDatabase {
       int());
   MOCK_METHOD0(Reset,
       void());
-  MOCK_METHOD3(RegisterPayload,
-      int(uint8_t rtp_payload_type, NetEqDecoder codec_type,
-          const std::string& name));
-  MOCK_METHOD5(InsertExternal,
-      int(uint8_t rtp_payload_type, NetEqDecoder codec_type,
-          const std::string& codec_name, int fs_hz,
+  MOCK_METHOD2(RegisterPayload,
+      int(uint8_t rtp_payload_type, NetEqDecoder codec_type));
+  MOCK_METHOD4(InsertExternal,
+      int(uint8_t rtp_payload_type, NetEqDecoder codec_type, int fs_hz,
           AudioDecoder* decoder));
   MOCK_METHOD1(Remove,
       int(uint8_t rtp_payload_type));

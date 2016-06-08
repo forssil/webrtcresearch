@@ -25,9 +25,9 @@
 #include "webrtc/modules/audio_processing/beamformer/array_util.h"
 #include "webrtc/typedefs.h"
 
-namespace webrtc {
-
 struct AecCore;
+
+namespace webrtc {
 
 class AudioFrame;
 
@@ -65,18 +65,6 @@ class VoiceDetection;
 struct ExtendedFilter {
   ExtendedFilter() : enabled(false) {}
   explicit ExtendedFilter(bool enabled) : enabled(enabled) {}
-  static const ConfigOptionID identifier = ConfigOptionID::kExtendedFilter;
-  bool enabled;
-};
-
-// Enables the next generation AEC functionality. This feature replaces the
-// standard methods for echo removal in the AEC. This configuration only applies
-// to EchoCancellation and not EchoControlMobile. It can be set in the
-// constructor or using AudioProcessing::SetExtraOptions().
-struct EchoCanceller3 {
-  EchoCanceller3() : enabled(false) {}
-  explicit EchoCanceller3(bool enabled) : enabled(enabled) {}
-  static const ConfigOptionID identifier = ConfigOptionID::kEchoCanceller3;
   bool enabled;
 };
 
@@ -88,7 +76,6 @@ struct EchoCanceller3 {
 struct DelayAgnostic {
   DelayAgnostic() : enabled(false) {}
   explicit DelayAgnostic(bool enabled) : enabled(enabled) {}
-  static const ConfigOptionID identifier = ConfigOptionID::kDelayAgnostic;
   bool enabled;
 };
 
@@ -109,7 +96,6 @@ struct ExperimentalAgc {
       : enabled(enabled), startup_min_volume(kAgcStartupMinVolume) {}
   ExperimentalAgc(bool enabled, int startup_min_volume)
       : enabled(enabled), startup_min_volume(startup_min_volume) {}
-  static const ConfigOptionID identifier = ConfigOptionID::kExperimentalAgc;
   bool enabled;
   int startup_min_volume;
 };
@@ -119,7 +105,6 @@ struct ExperimentalAgc {
 struct ExperimentalNs {
   ExperimentalNs() : enabled(false) {}
   explicit ExperimentalNs(bool enabled) : enabled(enabled) {}
-  static const ConfigOptionID identifier = ConfigOptionID::kExperimentalNs;
   bool enabled;
 };
 
@@ -142,7 +127,6 @@ struct Beamforming {
       : enabled(enabled),
         array_geometry(array_geometry),
         target_direction(target_direction) {}
-  static const ConfigOptionID identifier = ConfigOptionID::kBeamforming;
   const bool enabled;
   const std::vector<Point> array_geometry;
   const SphericalPointf target_direction;
@@ -157,7 +141,6 @@ struct Beamforming {
 struct Intelligibility {
   Intelligibility() : enabled(false) {}
   explicit Intelligibility(bool enabled) : enabled(enabled) {}
-  static const ConfigOptionID identifier = ConfigOptionID::kIntelligibility;
   bool enabled;
 };
 
@@ -166,11 +149,11 @@ struct Intelligibility {
 //
 // APM operates on two audio streams on a frame-by-frame basis. Frames of the
 // primary stream, on which all processing is applied, are passed to
-// |ProcessStream()|. Frames of the reverse direction stream are passed to
-// |ProcessReverseStream()|. On the client-side, this will typically be the
-// near-end (capture) and far-end (render) streams, respectively. APM should be
-// placed in the signal chain as close to the audio hardware abstraction layer
-// (HAL) as possible.
+// |ProcessStream()|. Frames of the reverse direction stream, which are used for
+// analysis by some components, are passed to |AnalyzeReverseStream()|. On the
+// client-side, this will typically be the near-end (capture) and far-end
+// (render) streams, respectively. APM should be placed in the signal chain as
+// close to the audio hardware abstraction layer (HAL) as possible.
 //
 // On the server-side, the reverse stream will normally not be used, with
 // processing occurring on each incoming stream.
@@ -214,7 +197,7 @@ struct Intelligibility {
 // // Start a voice call...
 //
 // // ... Render frame arrives bound for the audio HAL ...
-// apm->ProcessReverseStream(render_frame);
+// apm->AnalyzeReverseStream(render_frame);
 //
 // // ... Capture frame arrives from the audio HAL ...
 // // Call required set_stream_ functions.
@@ -267,7 +250,7 @@ class AudioProcessing {
   //
   // It is also not necessary to call if the audio parameters (sample
   // rate and number of channels) have changed. Passing updated parameters
-  // directly to |ProcessStream()| and |ProcessReverseStream()| is permissible.
+  // directly to |ProcessStream()| and |AnalyzeReverseStream()| is permissible.
   // If the parameters are known at init-time though, they may be provided.
   virtual int Initialize() = 0;
 
@@ -300,10 +283,9 @@ class AudioProcessing {
   // necessary classes?
   virtual int proc_sample_rate_hz() const = 0;
   virtual int proc_split_sample_rate_hz() const = 0;
-  virtual size_t num_input_channels() const = 0;
-  virtual size_t num_proc_channels() const = 0;
-  virtual size_t num_output_channels() const = 0;
-  virtual size_t num_reverse_channels() const = 0;
+  virtual int num_input_channels() const = 0;
+  virtual int num_output_channels() const = 0;
+  virtual int num_reverse_channels() const = 0;
 
   // Set to true when the output of AudioProcessing will be muted or in some
   // other way not used. Ideally, the captured audio would still be processed,
@@ -352,18 +334,27 @@ class AudioProcessing {
                             const StreamConfig& output_config,
                             float* const* dest) = 0;
 
-  // Processes a 10 ms |frame| of the reverse direction audio stream. The frame
-  // may be modified. On the client-side, this is the far-end (or to be
+  // Analyzes a 10 ms |frame| of the reverse direction audio stream. The frame
+  // will not be modified. On the client-side, this is the far-end (or to be
   // rendered) audio.
   //
-  // It is necessary to provide this if echo processing is enabled, as the
+  // It is only necessary to provide this if echo processing is enabled, as the
   // reverse stream forms the echo reference signal. It is recommended, but not
   // necessary, to provide if gain control is enabled. On the server-side this
   // typically will not be used. If you're not sure what to pass in here,
   // chances are you don't need to use it.
   //
   // The |sample_rate_hz_|, |num_channels_|, and |samples_per_channel_|
-  // members of |frame| must be valid.
+  // members of |frame| must be valid. |sample_rate_hz_| must correspond to
+  // |input_sample_rate_hz()|
+  //
+  // TODO(ajm): add const to input; requires an implementation fix.
+  // DEPRECATED: Use |ProcessReverseStream| instead.
+  // TODO(ekm): Remove once all users have updated to |ProcessReverseStream|.
+  virtual int AnalyzeReverseStream(AudioFrame* frame) = 0;
+
+  // Same as |AnalyzeReverseStream|, but may modify |frame| if intelligibility
+  // is enabled.
   virtual int ProcessReverseStream(AudioFrame* frame) = 0;
 
   // Accepts deinterleaved float audio with the range [-1, 1]. Each element
@@ -383,12 +374,12 @@ class AudioProcessing {
 
   // This must be called if and only if echo processing is enabled.
   //
-  // Sets the |delay| in ms between ProcessReverseStream() receiving a far-end
+  // Sets the |delay| in ms between AnalyzeReverseStream() receiving a far-end
   // frame and ProcessStream() receiving a near-end frame containing the
   // corresponding echo. On the client-side this can be expressed as
   //   delay = (t_render - t_analyze) + (t_process - t_capture)
   // where,
-  //   - t_analyze is the time a frame is passed to ProcessReverseStream() and
+  //   - t_analyze is the time a frame is passed to AnalyzeReverseStream() and
   //     t_render is the time the first sample of the same frame is rendered by
   //     the audio hardware.
   //   - t_capture is the time the first sample of a frame is captured by the
@@ -413,22 +404,13 @@ class AudioProcessing {
   // Starts recording debugging information to a file specified by |filename|,
   // a NULL-terminated string. If there is an ongoing recording, the old file
   // will be closed, and recording will continue in the newly specified file.
-  // An already existing file will be overwritten without warning. A maximum
-  // file size (in bytes) for the log can be specified. The logging is stopped
-  // once the limit has been reached. If max_log_size_bytes is set to a value
-  // <= 0, no limit will be used.
+  // An already existing file will be overwritten without warning.
   static const size_t kMaxFilenameSize = 1024;
-  virtual int StartDebugRecording(const char filename[kMaxFilenameSize],
-                                  int64_t max_log_size_bytes) = 0;
+  virtual int StartDebugRecording(const char filename[kMaxFilenameSize]) = 0;
 
   // Same as above but uses an existing file handle. Takes ownership
   // of |handle| and closes it at StopDebugRecording().
-  virtual int StartDebugRecording(FILE* handle, int64_t max_log_size_bytes) = 0;
-
-  // TODO(ivoc): Remove this function after Chrome stops using it.
-  int StartDebugRecording(FILE* handle) {
-    return StartDebugRecording(handle, -1);
-  }
+  virtual int StartDebugRecording(FILE* handle) = 0;
 
   // Same as above but uses an existing PlatformFile handle. Takes ownership
   // of |handle| and closes it at StopDebugRecording().
@@ -495,6 +477,7 @@ class AudioProcessing {
   static const int kNativeSampleRatesHz[];
   static const size_t kNumNativeSampleRates;
   static const int kMaxNativeSampleRateHz;
+  static const int kMaxAECMSampleRateHz;
 
   static const int kChunkSizeMs = 10;
 };
@@ -514,7 +497,7 @@ class StreamConfig {
   //               is true, the last channel in any corresponding list of
   //               channels is the keyboard channel.
   StreamConfig(int sample_rate_hz = 0,
-               size_t num_channels = 0,
+               int num_channels = 0,
                bool has_keyboard = false)
       : sample_rate_hz_(sample_rate_hz),
         num_channels_(num_channels),
@@ -525,14 +508,14 @@ class StreamConfig {
     sample_rate_hz_ = value;
     num_frames_ = calculate_frames(value);
   }
-  void set_num_channels(size_t value) { num_channels_ = value; }
+  void set_num_channels(int value) { num_channels_ = value; }
   void set_has_keyboard(bool value) { has_keyboard_ = value; }
 
   int sample_rate_hz() const { return sample_rate_hz_; }
 
   // The number of channels in the stream, not including the keyboard channel if
   // present.
-  size_t num_channels() const { return num_channels_; }
+  int num_channels() const { return num_channels_; }
 
   bool has_keyboard() const { return has_keyboard_; }
   size_t num_frames() const { return num_frames_; }
@@ -553,7 +536,7 @@ class StreamConfig {
   }
 
   int sample_rate_hz_;
-  size_t num_channels_;
+  int num_channels_;
   bool has_keyboard_;
   size_t num_frames_;
 };
@@ -911,9 +894,6 @@ class NoiseSuppression {
   // averaged over output channels. This is not supported in fixed point, for
   // which |kUnsupportedFunctionError| is returned.
   virtual float speech_probability() const = 0;
-
-  // Returns the noise estimate per frequency bin averaged over all channels.
-  virtual std::vector<float> NoiseEstimate() = 0;
 
  protected:
   virtual ~NoiseSuppression() {}

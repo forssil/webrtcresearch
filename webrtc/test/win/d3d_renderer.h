@@ -7,8 +7,8 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
-#ifndef WEBRTC_TEST_WIN_D3D_RENDERER_H_
-#define WEBRTC_TEST_WIN_D3D_RENDERER_H_
+#ifndef WEBRTC_VIDEO_ENGINE_TEST_COMMON_WIN_D3D_RENDERER_H_
+#define WEBRTC_VIDEO_ENGINE_TEST_COMMON_WIN_D3D_RENDERER_H_
 
 #include <Windows.h>
 #include <d3d9.h>
@@ -27,7 +27,8 @@ class D3dRenderer : public VideoRenderer {
                              size_t height);
   virtual ~D3dRenderer();
 
-  void OnFrame(const webrtc::VideoFrame& frame) override;
+  void RenderFrame(const webrtc::VideoFrame& frame, int delta) override;
+  bool IsTextureSupported() const override { return false; }
 
  private:
   D3dRenderer(size_t width, size_t height);
@@ -50,4 +51,4 @@ class D3dRenderer : public VideoRenderer {
 }  // namespace test
 }  // namespace webrtc
 
-#endif  // WEBRTC_TEST_WIN_D3D_RENDERER_H_
+#endif  // WEBRTC_VIDEO_ENGINE_TEST_COMMON_WIN_D3D_RENDERER_H_

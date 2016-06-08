@@ -184,11 +184,12 @@ bool UdpSocketManagerPosix::RemoveSocket(UdpSocketWrapper* s)
     return retVal;
 }
 
+
 UdpSocketManagerPosixImpl::UdpSocketManagerPosixImpl()
-    : _thread(UdpSocketManagerPosixImpl::Run,
-              this,
-              "UdpSocketManagerPosixImplThread"),
-      _critSectList(CriticalSectionWrapper::CreateCriticalSection()) {
+{
+    _critSectList = CriticalSectionWrapper::CreateCriticalSection();
+    _thread = ThreadWrapper::CreateThread(UdpSocketManagerPosixImpl::Run, this,
+                                          "UdpSocketManagerPosixImplThread");
     FD_ZERO(&_readFds);
     WEBRTC_TRACE(kTraceMemory,  kTraceTransport, -1,
                  "UdpSocketManagerPosix created");
@@ -219,19 +220,29 @@ UdpSocketManagerPosixImpl::~UdpSocketManagerPosixImpl()
 
 bool UdpSocketManagerPosixImpl::Start()
 {
+    if (!_thread)
+    {
+        return false;
+    }
+
     WEBRTC_TRACE(kTraceStateInfo,  kTraceTransport, -1,
                  "Start UdpSocketManagerPosix");
-    _thread.Start();
-    _thread.SetPriority(rtc::kRealtimePriority);
+    if (!_thread->Start())
+        return false;
+    _thread->SetPriority(kRealtimePriority);
     return true;
 }
 
 bool UdpSocketManagerPosixImpl::Stop()
 {
+    if (!_thread)
+    {
+        return true;
+    }
+
     WEBRTC_TRACE(kTraceStateInfo,  kTraceTransport, -1,
                  "Stop UdpSocketManagerPosix");
-    _thread.Stop();
-    return true;
+    return _thread->Stop();
 }
 
 bool UdpSocketManagerPosixImpl::Process()

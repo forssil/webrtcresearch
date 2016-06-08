@@ -10,7 +10,6 @@
 
 #include "webrtc/p2p/client/basicportallocator.h"
 
-#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -28,6 +27,7 @@
 #include "webrtc/base/logging.h"
 
 using rtc::CreateRandomId;
+using rtc::CreateRandomString;
 
 namespace {
 
@@ -70,16 +70,15 @@ BasicPortAllocator::BasicPortAllocator(
     : network_manager_(network_manager),
       socket_factory_(socket_factory),
       stun_servers_() {
-  ASSERT(network_manager_ != nullptr);
-  ASSERT(socket_factory_ != nullptr);
+  ASSERT(socket_factory_ != NULL);
   Construct();
 }
 
-BasicPortAllocator::BasicPortAllocator(rtc::NetworkManager* network_manager)
+BasicPortAllocator::BasicPortAllocator(
+    rtc::NetworkManager* network_manager)
     : network_manager_(network_manager),
-      socket_factory_(nullptr),
+      socket_factory_(NULL),
       stun_servers_() {
-  ASSERT(network_manager_ != nullptr);
   Construct();
 }
 
@@ -328,12 +327,6 @@ void BasicPortAllocatorSession::GetNetworks(
   } else {
     network_manager->GetNetworks(networks);
   }
-  networks->erase(std::remove_if(networks->begin(), networks->end(),
-                                 [this](rtc::Network* network) {
-                                   return allocator_->network_ignore_mask() &
-                                          network->type();
-                                 }),
-                  networks->end());
 }
 
 // For each network, see if we have a sequence that covers it already.  If not,

@@ -576,11 +576,11 @@ MainWnd::VideoRenderer::VideoRenderer(
   bmi_.bmiHeader.biHeight = -height;
   bmi_.bmiHeader.biSizeImage = width * height *
                               (bmi_.bmiHeader.biBitCount >> 3);
-  rendered_track_->AddOrUpdateSink(this, rtc::VideoSinkWants());
+  rendered_track_->AddRenderer(this);
 }
 
 MainWnd::VideoRenderer::~VideoRenderer() {
-  rendered_track_->RemoveSink(this);
+  rendered_track_->RemoveRenderer(this);
   ::DeleteCriticalSection(&buffer_lock_);
 }
 
@@ -598,14 +598,16 @@ void MainWnd::VideoRenderer::SetSize(int width, int height) {
   image_.reset(new uint8_t[bmi_.bmiHeader.biSizeImage]);
 }
 
-void MainWnd::VideoRenderer::OnFrame(
-    const cricket::VideoFrame& video_frame) {
+void MainWnd::VideoRenderer::RenderFrame(
+    const cricket::VideoFrame* video_frame) {
+  if (!video_frame)
+    return;
 
   {
     AutoLock<VideoRenderer> lock(this);
 
     const cricket::VideoFrame* frame =
-        video_frame.GetCopyWithRotationApplied();
+        video_frame->GetCopyWithRotationApplied();
 
     SetSize(static_cast<int>(frame->GetWidth()),
             static_cast<int>(frame->GetHeight()));

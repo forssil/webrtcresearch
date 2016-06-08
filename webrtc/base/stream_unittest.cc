@@ -12,6 +12,7 @@
 #include "webrtc/base/gunit.h"
 #include "webrtc/base/pathutils.h"
 #include "webrtc/base/stream.h"
+#include "webrtc/test/testsupport/gtest_disable.h"
 
 namespace rtc {
 

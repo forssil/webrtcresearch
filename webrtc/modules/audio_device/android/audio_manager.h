@@ -11,10 +11,9 @@
 #ifndef WEBRTC_MODULES_AUDIO_DEVICE_ANDROID_AUDIO_MANAGER_H_
 #define WEBRTC_MODULES_AUDIO_DEVICE_ANDROID_AUDIO_MANAGER_H_
 
-#include <memory>
-
 #include <jni.h>
 
+#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/base/thread_checker.h"
 #include "webrtc/modules/audio_device/android/audio_common.h"
 #include "webrtc/modules/audio_device/audio_device_config.h"
@@ -40,7 +39,7 @@ class AudioManager {
   class JavaAudioManager {
    public:
     JavaAudioManager(NativeRegistration* native_registration,
-                     std::unique_ptr<GlobalRef> audio_manager);
+                     rtc::scoped_ptr<GlobalRef> audio_manager);
     ~JavaAudioManager();
 
     bool Init();
@@ -49,7 +48,7 @@ class AudioManager {
     bool IsDeviceBlacklistedForOpenSLESUsage();
 
    private:
-    std::unique_ptr<GlobalRef> audio_manager_;
+    rtc::scoped_ptr<GlobalRef> audio_manager_;
     jmethodID init_;
     jmethodID dispose_;
     jmethodID is_communication_mode_enabled_;
@@ -129,13 +128,13 @@ class AudioManager {
   AttachCurrentThreadIfNeeded attach_thread_if_needed_;
 
   // Wraps the JNI interface pointer and methods associated with it.
-  std::unique_ptr<JNIEnvironment> j_environment_;
+  rtc::scoped_ptr<JNIEnvironment> j_environment_;
 
   // Contains factory method for creating the Java object.
-  std::unique_ptr<NativeRegistration> j_native_registration_;
+  rtc::scoped_ptr<NativeRegistration> j_native_registration_;
 
   // Wraps the Java specific parts of the AudioManager.
-  std::unique_ptr<AudioManager::JavaAudioManager> j_audio_manager_;
+  rtc::scoped_ptr<AudioManager::JavaAudioManager> j_audio_manager_;
 
   AudioDeviceModule::AudioLayer audio_layer_;
 

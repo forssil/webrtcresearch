@@ -18,62 +18,63 @@
 #include <CoreAudio/CoreAudio.h>
 
 namespace webrtc {
+	
+class AudioMixerManagerMac
+{
+public:
+    int32_t OpenSpeaker(AudioDeviceID deviceID);
+    int32_t OpenMicrophone(AudioDeviceID deviceID);
+    int32_t SetSpeakerVolume(uint32_t volume);
+    int32_t SpeakerVolume(uint32_t& volume) const;
+    int32_t MaxSpeakerVolume(uint32_t& maxVolume) const;
+    int32_t MinSpeakerVolume(uint32_t& minVolume) const;
+    int32_t SpeakerVolumeStepSize(uint16_t& stepSize) const;
+    int32_t SpeakerVolumeIsAvailable(bool& available);
+    int32_t SpeakerMuteIsAvailable(bool& available);
+    int32_t SetSpeakerMute(bool enable);
+    int32_t SpeakerMute(bool& enabled) const;
+    int32_t StereoPlayoutIsAvailable(bool& available);
+    int32_t StereoRecordingIsAvailable(bool& available);
+    int32_t MicrophoneMuteIsAvailable(bool& available);
+    int32_t SetMicrophoneMute(bool enable);
+    int32_t MicrophoneMute(bool& enabled) const;
+    int32_t MicrophoneBoostIsAvailable(bool& available);
+    int32_t SetMicrophoneBoost(bool enable);
+    int32_t MicrophoneBoost(bool& enabled) const;
+    int32_t MicrophoneVolumeIsAvailable(bool& available);
+    int32_t SetMicrophoneVolume(uint32_t volume);
+    int32_t MicrophoneVolume(uint32_t& volume) const;
+    int32_t MaxMicrophoneVolume(uint32_t& maxVolume) const;
+    int32_t MinMicrophoneVolume(uint32_t& minVolume) const;
+    int32_t MicrophoneVolumeStepSize(uint16_t& stepSize) const;
+    int32_t Close();
+    int32_t CloseSpeaker();
+    int32_t CloseMicrophone();
+    bool SpeakerIsInitialized() const;
+    bool MicrophoneIsInitialized() const;
 
-class AudioMixerManagerMac {
- public:
-  int32_t OpenSpeaker(AudioDeviceID deviceID);
-  int32_t OpenMicrophone(AudioDeviceID deviceID);
-  int32_t SetSpeakerVolume(uint32_t volume);
-  int32_t SpeakerVolume(uint32_t& volume) const;
-  int32_t MaxSpeakerVolume(uint32_t& maxVolume) const;
-  int32_t MinSpeakerVolume(uint32_t& minVolume) const;
-  int32_t SpeakerVolumeStepSize(uint16_t& stepSize) const;
-  int32_t SpeakerVolumeIsAvailable(bool& available);
-  int32_t SpeakerMuteIsAvailable(bool& available);
-  int32_t SetSpeakerMute(bool enable);
-  int32_t SpeakerMute(bool& enabled) const;
-  int32_t StereoPlayoutIsAvailable(bool& available);
-  int32_t StereoRecordingIsAvailable(bool& available);
-  int32_t MicrophoneMuteIsAvailable(bool& available);
-  int32_t SetMicrophoneMute(bool enable);
-  int32_t MicrophoneMute(bool& enabled) const;
-  int32_t MicrophoneBoostIsAvailable(bool& available);
-  int32_t SetMicrophoneBoost(bool enable);
-  int32_t MicrophoneBoost(bool& enabled) const;
-  int32_t MicrophoneVolumeIsAvailable(bool& available);
-  int32_t SetMicrophoneVolume(uint32_t volume);
-  int32_t MicrophoneVolume(uint32_t& volume) const;
-  int32_t MaxMicrophoneVolume(uint32_t& maxVolume) const;
-  int32_t MinMicrophoneVolume(uint32_t& minVolume) const;
-  int32_t MicrophoneVolumeStepSize(uint16_t& stepSize) const;
-  int32_t Close();
-  int32_t CloseSpeaker();
-  int32_t CloseMicrophone();
-  bool SpeakerIsInitialized() const;
-  bool MicrophoneIsInitialized() const;
+public:
+    AudioMixerManagerMac(const int32_t id);
+    ~AudioMixerManagerMac();
 
- public:
-  AudioMixerManagerMac(const int32_t id);
-  ~AudioMixerManagerMac();
+private:
+    static void logCAMsg(const TraceLevel level,
+                         const TraceModule module,
+                         const int32_t id, const char *msg,
+                         const char *err);
 
- private:
-  static void logCAMsg(const TraceLevel level,
-                       const TraceModule module,
-                       const int32_t id,
-                       const char* msg,
-                       const char* err);
+private:
+    CriticalSectionWrapper& _critSect;
+    int32_t _id;
 
- private:
-  CriticalSectionWrapper& _critSect;
-  int32_t _id;
+    AudioDeviceID _inputDeviceID;
+    AudioDeviceID _outputDeviceID;
 
-  AudioDeviceID _inputDeviceID;
-  AudioDeviceID _outputDeviceID;
+    uint16_t _noInputChannels;
+    uint16_t _noOutputChannels;
 
-  uint16_t _noInputChannels;
-  uint16_t _noOutputChannels;
 };
-
+	
 }  // namespace webrtc
 
 #endif  // AUDIO_MIXER_MAC_H

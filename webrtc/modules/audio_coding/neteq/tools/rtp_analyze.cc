@@ -10,11 +10,10 @@
 
 #include <assert.h>
 #include <stdio.h>
-
-#include <memory>
 #include <vector>
 
-#include "gflags/gflags.h"
+#include "google/gflags.h"
+#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/modules/audio_coding/neteq/tools/packet.h"
 #include "webrtc/modules/audio_coding/neteq/tools/rtp_file_source.h"
 
@@ -64,7 +63,7 @@ int main(int argc, char* argv[]) {
   }
 
   printf("Input file: %s\n", argv[1]);
-  std::unique_ptr<webrtc::test::RtpFileSource> file_source(
+  rtc::scoped_ptr<webrtc::test::RtpFileSource> file_source(
       webrtc::test::RtpFileSource::Create(argv[1]));
   assert(file_source.get());
   // Set RTP extension IDs.
@@ -105,7 +104,7 @@ int main(int argc, char* argv[]) {
 
   uint32_t max_abs_send_time = 0;
   int cycles = -1;
-  std::unique_ptr<webrtc::test::Packet> packet;
+  rtc::scoped_ptr<webrtc::test::Packet> packet;
   while (true) {
     packet.reset(file_source->NextPacket());
     if (!packet.get()) {

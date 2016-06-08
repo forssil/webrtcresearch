@@ -11,17 +11,16 @@
 #import <Foundation/Foundation.h>
 #import <OCMock/OCMock.h>
 
-#include "webrtc/base/gunit.h"
-#include "webrtc/base/ssladapter.h"
-
-#import "webrtc/api/objc/RTCMediaConstraints.h"
-#import "webrtc/api/objc/RTCPeerConnectionFactory.h"
-#import "webrtc/api/objc/RTCSessionDescription.h"
-
 #import "ARDAppClient+Internal.h"
 #import "ARDJoinResponse+Internal.h"
 #import "ARDMessageResponse+Internal.h"
 #import "ARDSDPUtils.h"
+#import "RTCMediaConstraints.h"
+#import "RTCPeerConnectionFactory.h"
+#import "RTCSessionDescription.h"
+
+#include "webrtc/base/gunit.h"
+#include "webrtc/base/ssladapter.h"
 
 // These classes mimic XCTest APIs, to make eventual conversion to XCTest
 // easier. Conversion will happen once XCTest is supported well on build bots.
@@ -218,8 +217,7 @@
       [OCMockObject niceMockForProtocol:@protocol(ARDAppClientDelegate)];
   [[[delegate stub] andDo:^(NSInvocation *invocation) {
     connectedHandler();
-  }] appClient:[OCMArg any]
-      didChangeConnectionState:RTCIceConnectionStateConnected];
+  }] appClient:[OCMArg any] didChangeConnectionState:RTCICEConnectionConnected];
 
   return [[ARDAppClient alloc] initWithRoomServerClient:roomServerClient
                                        signalingChannel:signalingChannel
@@ -230,8 +228,8 @@
 // Tests that an ICE connection is established between two ARDAppClient objects
 // where one is set up as a caller and the other the answerer. Network
 // components are mocked out and messages are relayed directly from object to
-// object. It's expected that both clients reach the
-// RTCIceConnectionStateConnected state within a reasonable amount of time.
+// object. It's expected that both clients reach the RTCICEConnectionConnected
+// state within a reasonable amount of time.
 - (void)testSession {
   // Need block arguments here because we're setting up a callbacks before we
   // create the clients.
@@ -260,9 +258,7 @@
   }];
   // TODO(tkchin): Figure out why DTLS-SRTP constraint causes thread assertion
   // crash in Debug.
-  caller.defaultPeerConnectionConstraints =
-      [[RTCMediaConstraints alloc] initWithMandatoryConstraints:nil
-                                            optionalConstraints:nil];
+  caller.defaultPeerConnectionConstraints = [[RTCMediaConstraints alloc] init];
   weakCaller = caller;
 
   answerer = [self createAppClientForRoomId:roomId
@@ -278,8 +274,7 @@
   // TODO(tkchin): Figure out why DTLS-SRTP constraint causes thread assertion
   // crash in Debug.
   answerer.defaultPeerConnectionConstraints =
-      [[RTCMediaConstraints alloc] initWithMandatoryConstraints:nil
-                                            optionalConstraints:nil];
+      [[RTCMediaConstraints alloc] init];
   weakAnswerer = answerer;
 
   // Kick off connection.
@@ -306,7 +301,7 @@
   NSString *expectedSdp = @("m=video 9 RTP/SAVPF 120 100 116 117 96\n"
                             "a=rtpmap:120 H264/90000\n");
   RTCSessionDescription* desc =
-      [[RTCSessionDescription alloc] initWithType:RTCSdpTypeOffer sdp:sdp];
+      [[RTCSessionDescription alloc] initWithType:@"offer" sdp:sdp];
   RTCSessionDescription *h264Desc =
       [ARDSDPUtils descriptionForDescription:desc
                          preferredVideoCodec:@"H264"];

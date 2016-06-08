@@ -17,6 +17,7 @@ namespace webrtc {
 class RemoteBitrateEstimatorAbsSendTimeTest :
     public RemoteBitrateEstimatorTest {
  public:
+
   RemoteBitrateEstimatorAbsSendTimeTest() {}
   virtual void SetUp() {
     bitrate_estimator_.reset(new RemoteBitrateEstimatorAbsSendTime(
@@ -27,47 +28,51 @@ class RemoteBitrateEstimatorAbsSendTimeTest :
 };
 
 TEST_F(RemoteBitrateEstimatorAbsSendTimeTest, InitialBehavior) {
-  InitialBehaviorTestHelper(674840);
+  InitialBehaviorTestHelper(508017);
 }
 
 TEST_F(RemoteBitrateEstimatorAbsSendTimeTest, RateIncreaseReordering) {
-  RateIncreaseReorderingTestHelper(674840);
+  RateIncreaseReorderingTestHelper(506422);
 }
 
 TEST_F(RemoteBitrateEstimatorAbsSendTimeTest, RateIncreaseRtpTimestamps) {
-  RateIncreaseRtpTimestampsTestHelper(1232);
+  RateIncreaseRtpTimestampsTestHelper(1240);
 }
 
 TEST_F(RemoteBitrateEstimatorAbsSendTimeTest, CapacityDropOneStream) {
-  CapacityDropTestHelper(1, false, 633);
+  CapacityDropTestHelper(1, false, 600);
 }
 
 TEST_F(RemoteBitrateEstimatorAbsSendTimeTest, CapacityDropOneStreamWrap) {
-  CapacityDropTestHelper(1, true, 633);
+  CapacityDropTestHelper(1, true, 600);
 }
 
 TEST_F(RemoteBitrateEstimatorAbsSendTimeTest, CapacityDropTwoStreamsWrap) {
-  CapacityDropTestHelper(2, true, 633);
+  CapacityDropTestHelper(2, true, 533);
 }
 
 TEST_F(RemoteBitrateEstimatorAbsSendTimeTest, CapacityDropThreeStreamsWrap) {
-  CapacityDropTestHelper(3, true, 633);
+  CapacityDropTestHelper(3, true, 700);
 }
 
 TEST_F(RemoteBitrateEstimatorAbsSendTimeTest, CapacityDropThirteenStreamsWrap) {
-  CapacityDropTestHelper(13, true, 667);
+  CapacityDropTestHelper(13, true, 700);
 }
 
 TEST_F(RemoteBitrateEstimatorAbsSendTimeTest, CapacityDropNineteenStreamsWrap) {
-  CapacityDropTestHelper(19, true, 667);
+  CapacityDropTestHelper(19, true, 700);
 }
 
 TEST_F(RemoteBitrateEstimatorAbsSendTimeTest, CapacityDropThirtyStreamsWrap) {
-  CapacityDropTestHelper(30, true, 667);
+  CapacityDropTestHelper(30, true, 700);
 }
 
 TEST_F(RemoteBitrateEstimatorAbsSendTimeTest, TestTimestampGrouping) {
   TestTimestampGroupingTestHelper();
+}
+
+TEST_F(RemoteBitrateEstimatorAbsSendTimeTest, TestGetStats) {
+  TestGetStatsHelper();
 }
 
 TEST_F(RemoteBitrateEstimatorAbsSendTimeTest, TestShortTimeoutAndWrap) {
@@ -93,10 +98,10 @@ TEST_F(RemoteBitrateEstimatorAbsSendTimeTest, TestProcessAfterTimeout) {
   IncomingPacket(0, 1000, clock_.TimeInMilliseconds(), 0, 0, true);
   clock_.AdvanceTimeMilliseconds(kStreamTimeOutMs + 1);
   // Trigger timeout.
-  bitrate_estimator_->Process();
+  EXPECT_EQ(0, bitrate_estimator_->Process());
   clock_.AdvanceTimeMilliseconds(kProcessIntervalMs);
   // This shouldn't crash.
-  bitrate_estimator_->Process();
+  EXPECT_EQ(0, bitrate_estimator_->Process());
 }
 
 TEST_F(RemoteBitrateEstimatorAbsSendTimeTest, TestProbeDetection) {
@@ -118,7 +123,7 @@ TEST_F(RemoteBitrateEstimatorAbsSendTimeTest, TestProbeDetection) {
                    true);
   }
 
-  bitrate_estimator_->Process();
+  EXPECT_EQ(0, bitrate_estimator_->Process());
   EXPECT_TRUE(bitrate_observer_->updated());
   EXPECT_GT(bitrate_observer_->latest_bitrate(), 1500000u);
 }
@@ -140,7 +145,7 @@ TEST_F(RemoteBitrateEstimatorAbsSendTimeTest,
                    false);
   }
 
-  bitrate_estimator_->Process();
+  EXPECT_EQ(0, bitrate_estimator_->Process());
   EXPECT_TRUE(bitrate_observer_->updated());
   EXPECT_GT(bitrate_observer_->latest_bitrate(), 800000u);
 }
@@ -171,7 +176,7 @@ TEST_F(RemoteBitrateEstimatorAbsSendTimeTest,
                    AbsSendTime(send_time_ms, 1000), true);
   }
 
-  bitrate_estimator_->Process();
+  EXPECT_EQ(0, bitrate_estimator_->Process());
   EXPECT_TRUE(bitrate_observer_->updated());
   EXPECT_NEAR(bitrate_observer_->latest_bitrate(), 800000u, 10000);
 }
@@ -191,7 +196,7 @@ TEST_F(RemoteBitrateEstimatorAbsSendTimeTest,
                    AbsSendTime(send_time_ms, 1000), true);
   }
 
-  bitrate_estimator_->Process();
+  EXPECT_EQ(0, bitrate_estimator_->Process());
   EXPECT_TRUE(bitrate_observer_->updated());
   EXPECT_GT(bitrate_observer_->latest_bitrate(), 800000u);
 }
@@ -210,7 +215,7 @@ TEST_F(RemoteBitrateEstimatorAbsSendTimeTest, TestProbeDetectionFasterArrival) {
                    AbsSendTime(send_time_ms, 1000), true);
   }
 
-  bitrate_estimator_->Process();
+  EXPECT_EQ(0, bitrate_estimator_->Process());
   EXPECT_FALSE(bitrate_observer_->updated());
 }
 
@@ -228,7 +233,7 @@ TEST_F(RemoteBitrateEstimatorAbsSendTimeTest, TestProbeDetectionSlowerArrival) {
                    AbsSendTime(send_time_ms, 1000), true);
   }
 
-  bitrate_estimator_->Process();
+  EXPECT_EQ(0, bitrate_estimator_->Process());
   EXPECT_TRUE(bitrate_observer_->updated());
   EXPECT_NEAR(bitrate_observer_->latest_bitrate(), 1140000, 10000);
 }
@@ -248,7 +253,7 @@ TEST_F(RemoteBitrateEstimatorAbsSendTimeTest,
                    AbsSendTime(send_time_ms, 1000), true);
   }
 
-  bitrate_estimator_->Process();
+  EXPECT_EQ(0, bitrate_estimator_->Process());
   EXPECT_TRUE(bitrate_observer_->updated());
   EXPECT_NEAR(bitrate_observer_->latest_bitrate(), 4000000u, 10000);
 }
@@ -265,7 +270,7 @@ TEST_F(RemoteBitrateEstimatorAbsSendTimeTest, ProbingIgnoresSmallPackets) {
                    true);
   }
 
-  bitrate_estimator_->Process();
+  EXPECT_EQ(0, bitrate_estimator_->Process());
   EXPECT_FALSE(bitrate_observer_->updated());
 
   // Followed by a probe with 1000 bytes packets, should be detected as a
@@ -280,7 +285,7 @@ TEST_F(RemoteBitrateEstimatorAbsSendTimeTest, ProbingIgnoresSmallPackets) {
   // Wait long enough so that we can call Process again.
   clock_.AdvanceTimeMilliseconds(1000);
 
-  bitrate_estimator_->Process();
+  EXPECT_EQ(0, bitrate_estimator_->Process());
   EXPECT_TRUE(bitrate_observer_->updated());
   EXPECT_NEAR(bitrate_observer_->latest_bitrate(), 800000u, 10000);
 }

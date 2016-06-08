@@ -11,11 +11,9 @@
 #ifndef WEBRTC_AUDIO_DEVICE_AUDIO_DEVICE_WAVE_WIN_H
 #define WEBRTC_AUDIO_DEVICE_AUDIO_DEVICE_WAVE_WIN_H
 
-#include <memory>
-
-#include "webrtc/base/platform_thread.h"
 #include "webrtc/modules/audio_device/audio_device_generic.h"
 #include "webrtc/modules/audio_device/win/audio_mixer_manager_win.h"
+#include "webrtc/system_wrappers/include/thread_wrapper.h"
 
 #pragma comment( lib, "winmm.lib" )
 
@@ -224,8 +222,7 @@ private:
     HANDLE                                  _hShutdownSetVolumeEvent;
     HANDLE                                  _hSetCaptureVolumeEvent;
 
-    // TODO(pbos): Remove unique_ptr usage and use PlatformThread directly
-    std::unique_ptr<rtc::PlatformThread>    _ptrThread;
+    rtc::scoped_ptr<ThreadWrapper>          _ptrThread;
 
     CriticalSectionWrapper&                 _critSectCb;
 

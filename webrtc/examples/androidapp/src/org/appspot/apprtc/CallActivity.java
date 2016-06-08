@@ -22,6 +22,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
@@ -32,7 +33,6 @@ import android.widget.Toast;
 
 import org.webrtc.EglBase;
 import org.webrtc.IceCandidate;
-import org.webrtc.PeerConnectionFactory;
 import org.webrtc.SessionDescription;
 import org.webrtc.StatsReport;
 import org.webrtc.RendererCommon.ScalingType;
@@ -67,21 +67,16 @@ public class CallActivity extends Activity
       "org.appspot.apprtc.VIDEOCODEC";
   public static final String EXTRA_HWCODEC_ENABLED =
       "org.appspot.apprtc.HWCODEC";
-  public static final String EXTRA_CAPTURETOTEXTURE_ENABLED =
-      "org.appspot.apprtc.CAPTURETOTEXTURE";
   public static final String EXTRA_AUDIO_BITRATE =
       "org.appspot.apprtc.AUDIO_BITRATE";
   public static final String EXTRA_AUDIOCODEC =
       "org.appspot.apprtc.AUDIOCODEC";
   public static final String EXTRA_NOAUDIOPROCESSING_ENABLED =
       "org.appspot.apprtc.NOAUDIOPROCESSING";
-  public static final String EXTRA_AECDUMP_ENABLED =
-      "org.appspot.apprtc.AECDUMP";
-  public static final String EXTRA_OPENSLES_ENABLED =
-      "org.appspot.apprtc.OPENSLES";
+  public static final String EXTRA_CPUOVERUSE_DETECTION =
+      "org.appspot.apprtc.CPUOVERUSE_DETECTION";
   public static final String EXTRA_DISPLAY_HUD =
       "org.appspot.apprtc.DISPLAY_HUD";
-  public static final String EXTRA_TRACING = "org.appspot.apprtc.TRACING";
   public static final String EXTRA_CMDLINE =
       "org.appspot.apprtc.CMDLINE";
   public static final String EXTRA_RUNTIME =
@@ -132,13 +127,10 @@ public class CallActivity extends Activity
   private boolean isError;
   private boolean callControlFragmentVisible = true;
   private long callStartedTimeMs = 0;
-  private boolean micEnabled = true;
 
   // Controls
-  private CallFragment callFragment;
-  private HudFragment hudFragment;
-  private CpuMonitor cpuMonitor;
-
+  CallFragment callFragment;
+  HudFragment hudFragment;
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
@@ -185,9 +177,9 @@ public class CallActivity extends Activity
     remoteRender.setOnClickListener(listener);
 
     // Create video renderers.
-    rootEglBase = EglBase.create();
-    localRender.init(rootEglBase.getEglBaseContext(), null);
-    remoteRender.init(rootEglBase.getEglBaseContext(), null);
+    rootEglBase = new EglBase();
+    localRender.init(rootEglBase.getContext(), null);
+    remoteRender.init(rootEglBase.getContext(), null);
     localRender.setZOrderMediaOverlay(true);
     updateVideoView();
 
@@ -220,23 +212,19 @@ public class CallActivity extends Activity
       return;
     }
     boolean loopback = intent.getBooleanExtra(EXTRA_LOOPBACK, false);
-    boolean tracing = intent.getBooleanExtra(EXTRA_TRACING, false);
     peerConnectionParameters = new PeerConnectionParameters(
         intent.getBooleanExtra(EXTRA_VIDEO_CALL, true),
         loopback,
-        tracing,
         intent.getIntExtra(EXTRA_VIDEO_WIDTH, 0),
         intent.getIntExtra(EXTRA_VIDEO_HEIGHT, 0),
         intent.getIntExtra(EXTRA_VIDEO_FPS, 0),
         intent.getIntExtra(EXTRA_VIDEO_BITRATE, 0),
         intent.getStringExtra(EXTRA_VIDEOCODEC),
         intent.getBooleanExtra(EXTRA_HWCODEC_ENABLED, true),
-        intent.getBooleanExtra(EXTRA_CAPTURETOTEXTURE_ENABLED, false),
         intent.getIntExtra(EXTRA_AUDIO_BITRATE, 0),
         intent.getStringExtra(EXTRA_AUDIOCODEC),
         intent.getBooleanExtra(EXTRA_NOAUDIOPROCESSING_ENABLED, false),
-        intent.getBooleanExtra(EXTRA_AECDUMP_ENABLED, false),
-        intent.getBooleanExtra(EXTRA_OPENSLES_ENABLED, false));
+        intent.getBooleanExtra(EXTRA_CPUOVERUSE_DETECTION, true));
     commandLineRun = intent.getBooleanExtra(EXTRA_CMDLINE, false);
     runTimeMs = intent.getIntExtra(EXTRA_RUNTIME, 0);
 
@@ -244,10 +232,6 @@ public class CallActivity extends Activity
     appRtcClient = new WebSocketRTCClient(this, new LooperExecutor());
     roomConnectionParameters = new RoomConnectionParameters(
         roomUri.toString(), roomId, loopback);
-
-    // Create CPU monitor
-    cpuMonitor = new CpuMonitor(this);
-    hudFragment.setCpuMonitor(cpuMonitor);
 
     // Send intent arguments to fragments.
     callFragment.setArguments(intent.getExtras());
@@ -262,7 +246,6 @@ public class CallActivity extends Activity
     // For command line execution run connection for <runTimeMs> and exit.
     if (commandLineRun && runTimeMs > 0) {
       (new Handler()).postDelayed(new Runnable() {
-        @Override
         public void run() {
           disconnect();
         }
@@ -270,11 +253,6 @@ public class CallActivity extends Activity
     }
 
     peerConnectionClient = PeerConnectionClient.getInstance();
-    if (loopback) {
-      PeerConnectionFactory.Options options = new PeerConnectionFactory.Options();
-      options.networkIgnoreMask = 0;
-      peerConnectionClient.setPeerConnectionFactoryOptions(options);
-    }
     peerConnectionClient.createPeerConnectionFactory(
         CallActivity.this, peerConnectionParameters, CallActivity.this);
   }
@@ -287,7 +265,6 @@ public class CallActivity extends Activity
     if (peerConnectionClient != null) {
       peerConnectionClient.stopVideoSource();
     }
-    cpuMonitor.pause();
   }
 
   @Override
@@ -297,7 +274,6 @@ public class CallActivity extends Activity
     if (peerConnectionClient != null) {
       peerConnectionClient.startVideoSource();
     }
-    cpuMonitor.resume();
   }
 
   @Override
@@ -308,7 +284,6 @@ public class CallActivity extends Activity
     }
     activityRunning = false;
     rootEglBase.release();
-    cpuMonitor.release();
     super.onDestroy();
   }
 
@@ -336,15 +311,6 @@ public class CallActivity extends Activity
     if (peerConnectionClient != null) {
       peerConnectionClient.changeCaptureFormat(width, height, framerate);
     }
-  }
-
-  @Override
-  public boolean onToggleMic() {
-    if (peerConnectionClient != null) {
-      micEnabled = !micEnabled;
-      peerConnectionClient.setAudioEnabled(micEnabled);
-    }
-    return micEnabled;
   }
 
   // Helper functions.
@@ -514,7 +480,7 @@ public class CallActivity extends Activity
 
     signalingParameters = params;
     logAndToast("Creating peer connection, delay=" + delta + "ms");
-    peerConnectionClient.createPeerConnection(rootEglBase.getEglBaseContext(),
+    peerConnectionClient.createPeerConnection(rootEglBase.getContext(),
         localRender, remoteRender, signalingParameters);
 
     if (signalingParameters.initiator) {
@@ -577,24 +543,11 @@ public class CallActivity extends Activity
       @Override
       public void run() {
         if (peerConnectionClient == null) {
-          Log.e(TAG, "Received ICE candidate for a non-initialized peer connection.");
+          Log.e(TAG,
+              "Received ICE candidate for non-initilized peer connection.");
           return;
         }
         peerConnectionClient.addRemoteIceCandidate(candidate);
-      }
-    });
-  }
-
-  @Override
-  public void onRemoteIceCandidatesRemoved(final IceCandidate[] candidates) {
-    runOnUiThread(new Runnable() {
-      @Override
-      public void run() {
-        if (peerConnectionClient == null) {
-          Log.e(TAG, "Received ICE candidate removals for a non-initialized peer connection.");
-          return;
-        }
-        peerConnectionClient.removeRemoteIceCandidates(candidates);
       }
     });
   }
@@ -644,18 +597,6 @@ public class CallActivity extends Activity
       public void run() {
         if (appRtcClient != null) {
           appRtcClient.sendLocalIceCandidate(candidate);
-        }
-      }
-    });
-  }
-
-  @Override
-  public void onIceCandidatesRemoved(final IceCandidate[] candidates) {
-    runOnUiThread(new Runnable() {
-      @Override
-      public void run() {
-        if (appRtcClient != null) {
-          appRtcClient.sendLocalIceCandidateRemovals(candidates);
         }
       }
     });

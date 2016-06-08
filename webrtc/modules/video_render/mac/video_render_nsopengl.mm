@@ -11,11 +11,11 @@
 #include "webrtc/engine_configurations.h"
 #if defined(COCOA_RENDERING)
 
-#include "webrtc/base/platform_thread.h"
 #include "webrtc/common_video/libyuv/include/webrtc_libyuv.h"
 #include "webrtc/modules/video_render/mac/video_render_nsopengl.h"
 #include "webrtc/system_wrappers/include/critical_section_wrapper.h"
 #include "webrtc/system_wrappers/include/event_wrapper.h"
+#include "webrtc/system_wrappers/include/thread_wrapper.h"
 #include "webrtc/system_wrappers/include/trace.h"
 
 namespace webrtc {
@@ -378,8 +378,8 @@ _renderingIsPaused (FALSE),
 _windowRefSuperView(NULL),
 _windowRefSuperViewFrame(NSMakeRect(0,0,0,0))
 {
-  _screenUpdateThread.reset(new rtc::PlatformThread(
-      ScreenUpdateThreadProc, this, "ScreenUpdateNSOpenGL"));
+    _screenUpdateThread = ThreadWrapper::CreateThread(ScreenUpdateThreadProc,
+            this, "ScreenUpdateNSOpenGL");
 }
 
 int VideoRenderNSOpenGL::ChangeWindow(CocoaRenderView* newWindowRef)
@@ -427,15 +427,15 @@ int32_t VideoRenderNSOpenGL::StartRender()
         WEBRTC_TRACE(kTraceDebug, kTraceVideoRenderer, _id, "Restarting screenUpdateThread");
 
         // we already have the thread. Most likely StopRender() was called and they were paused
-        _screenUpdateThread->Start();
-        if (FALSE ==
-            _screenUpdateEvent->StartTimer(true, 1000 / MONITOR_FREQ)) {
+        if(FALSE == _screenUpdateThread->Start() ||
+                FALSE == _screenUpdateEvent->StartTimer(true, 1000/MONITOR_FREQ))
+        {
             WEBRTC_TRACE(kTraceError, kTraceVideoRenderer, _id, "Failed to restart screenUpdateThread or screenUpdateEvent");
             UnlockAGLCntx();
             return -1;
         }
 
-        _screenUpdateThread->SetPriority(rtc::kRealtimePriority);
+        _screenUpdateThread->SetPriority(kRealtimePriority);
 
         UnlockAGLCntx();
         return 0;
@@ -471,8 +471,8 @@ int32_t VideoRenderNSOpenGL::StopRender()
         return 0;
     }
 
-    _screenUpdateThread->Stop();
-    if (FALSE == _screenUpdateEvent->StopTimer()) {
+    if(FALSE == _screenUpdateThread->Stop() || FALSE == _screenUpdateEvent->StopTimer())
+    {
         _renderingIsPaused = FALSE;
 
         UnlockAGLCntx();
@@ -657,15 +657,17 @@ VideoRenderNSOpenGL::~VideoRenderNSOpenGL()
     }
 
     // Signal event to exit thread, then delete it
-    rtc::PlatformThread* tmpPtr = _screenUpdateThread.release();
+    ThreadWrapper* tmpPtr = _screenUpdateThread.release();
 
     if (tmpPtr)
     {
         _screenUpdateEvent->Set();
         _screenUpdateEvent->StopTimer();
 
-        tmpPtr->Stop();
-        delete tmpPtr;
+        if (tmpPtr->Stop())
+        {
+            delete tmpPtr;
+        }
         delete _screenUpdateEvent;
         _screenUpdateEvent = NULL;
     }
@@ -714,7 +716,7 @@ int VideoRenderNSOpenGL::Init()
     }
 
     _screenUpdateThread->Start();
-    _screenUpdateThread->SetPriority(rtc::kRealtimePriority);
+    _screenUpdateThread->SetPriority(kRealtimePriority);
 
     // Start the event triggering the render process
     unsigned int monitorFreq = 60;
@@ -862,15 +864,17 @@ int32_t VideoRenderNSOpenGL::GetChannelProperties(const uint16_t streamId,
 int VideoRenderNSOpenGL::StopThread()
 {
 
-    rtc::PlatformThread* tmpPtr = _screenUpdateThread.release();
+    ThreadWrapper* tmpPtr = _screenUpdateThread.release();
     WEBRTC_TRACE(kTraceInfo, kTraceVideoRenderer, _id,
                  "%s Stopping thread ", __FUNCTION__, tmpPtr);
 
     if (tmpPtr)
     {
         _screenUpdateEvent->Set();
-        tmpPtr->Stop();
-        delete tmpPtr;
+        if (tmpPtr->Stop())
+        {
+            delete tmpPtr;
+        }
     }
 
     delete _screenUpdateEvent;

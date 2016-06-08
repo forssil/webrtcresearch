@@ -95,9 +95,7 @@ bool UpdateRtcpList(uint32_t ntp_secs,
 bool RtpToNtpMs(int64_t rtp_timestamp,
                 const RtcpList& rtcp,
                 int64_t* rtp_timestamp_in_ms) {
-  if (rtcp.size() != 2)
-    return false;
-
+  assert(rtcp.size() == 2);
   int64_t rtcp_ntp_ms_new = Clock::NtpToMs(rtcp.front().ntp_secs,
                                            rtcp.front().ntp_frac);
   int64_t rtcp_ntp_ms_old = Clock::NtpToMs(rtcp.back().ntp_secs,

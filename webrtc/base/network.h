@@ -18,7 +18,6 @@
 
 #include "webrtc/base/basictypes.h"
 #include "webrtc/base/ipaddress.h"
-#include "webrtc/base/networkmonitor.h"
 #include "webrtc/base/messagehandler.h"
 #include "webrtc/base/scoped_ptr.h"
 #include "webrtc/base/sigslot.h"
@@ -32,11 +31,19 @@ namespace rtc {
 extern const char kPublicIPv4Host[];
 extern const char kPublicIPv6Host[];
 
-class IfAddrsConverter;
 class Network;
 class NetworkMonitorInterface;
 class Thread;
 
+enum AdapterType {
+  // This enum resembles the one in Chromium net::ConnectionType.
+  ADAPTER_TYPE_UNKNOWN = 0,
+  ADAPTER_TYPE_ETHERNET = 1 << 0,
+  ADAPTER_TYPE_WIFI = 1 << 1,
+  ADAPTER_TYPE_CELLULAR = 1 << 2,
+  ADAPTER_TYPE_VPN = 1 << 3,
+  ADAPTER_TYPE_LOOPBACK = 1 << 4
+};
 
 // By default, ignore loopback interfaces on the host.
 const int kDefaultNetworkIgnoreMask = ADAPTER_TYPE_LOOPBACK;
@@ -104,9 +111,10 @@ class NetworkManager : public DefaultLocalAddressProvider {
   // TODO(guoweis): remove this body when chromium implements this.
   virtual void GetAnyAddressNetworks(NetworkList* networks) {}
 
-  // Dumps the current list of networks in the network manager.
-  virtual void DumpNetworks() {}
   bool GetDefaultLocalAddress(int family, IPAddress* ipaddr) const override;
+
+  // Dumps a list of networks available to LS_INFO.
+  virtual void DumpNetworks(bool include_ignored) {}
 
   struct Stats {
     int ipv4_network_count;
@@ -173,11 +181,6 @@ class NetworkManagerBase : public NetworkManager {
 
   IPAddress default_local_ipv4_address_;
   IPAddress default_local_ipv6_address_;
-  // We use 16 bits to save the bandwidth consumption when sending the network
-  // id over the Internet. It is OK that the 16-bit integer overflows to get a
-  // network id 0 because we only compare the network ids in the old and the new
-  // best connections in the transport channel.
-  uint16_t next_available_network_id_ = 1;
 };
 
 // Basic implementation of the NetworkManager interface that gets list
@@ -192,7 +195,8 @@ class BasicNetworkManager : public NetworkManagerBase,
   void StartUpdating() override;
   void StopUpdating() override;
 
-  void DumpNetworks() override;
+  // Logs the available networks.
+  void DumpNetworks(bool include_ignored) override;
 
   // MessageHandler interface.
   void OnMessage(Message* msg) override;
@@ -203,6 +207,18 @@ class BasicNetworkManager : public NetworkManagerBase,
   void set_network_ignore_list(const std::vector<std::string>& list) {
     network_ignore_list_ = list;
   }
+
+  // Sets the network types to ignore. For instance, calling this with
+  // ADAPTER_TYPE_ETHERNET | ADAPTER_TYPE_LOOPBACK will ignore Ethernet and
+  // loopback interfaces. Set to kDefaultNetworkIgnoreMask by default.
+  void set_network_ignore_mask(int network_ignore_mask) {
+    // TODO(phoglund): implement support for other types than loopback.
+    // See https://code.google.com/p/webrtc/issues/detail?id=4288.
+    // Then remove set_network_ignore_list.
+    network_ignore_mask_ = network_ignore_mask;
+  }
+
+  int network_ignore_mask() const { return network_ignore_mask_; }
 
 #if defined(WEBRTC_LINUX)
   // Sets the flag for ignoring non-default routes.
@@ -215,7 +231,6 @@ class BasicNetworkManager : public NetworkManagerBase,
 #if defined(WEBRTC_POSIX)
   // Separated from CreateNetworks for tests.
   void ConvertIfAddrs(ifaddrs* interfaces,
-                      IfAddrsConverter* converter,
                       bool include_ignored,
                       NetworkList* networks) const;
 #endif  // defined(WEBRTC_POSIX)
@@ -251,6 +266,7 @@ class BasicNetworkManager : public NetworkManagerBase,
   bool sent_first_update_;
   int start_count_;
   std::vector<std::string> network_ignore_list_;
+  int network_ignore_mask_;
   bool ignore_non_default_routes_;
   scoped_ptr<NetworkMonitorInterface> network_monitor_;
 };
@@ -269,8 +285,6 @@ class Network {
           int prefix_length,
           AdapterType type);
   ~Network();
-
-  sigslot::signal1<const Network*> SignalInactive;
 
   const DefaultLocalAddressProvider* default_local_address_provider() {
     return default_local_address_provider_;
@@ -342,29 +356,8 @@ class Network {
   void set_ignored(bool ignored) { ignored_ = ignored; }
 
   AdapterType type() const { return type_; }
-  void set_type(AdapterType type) { type_ = type; }
-
-  // A unique id assigned by the network manager, which may be signaled
-  // to the remote side in the candidate.
-  uint16_t id() const { return id_; }
-  void set_id(uint16_t id) { id_ = id; }
-
   int preference() const { return preference_; }
   void set_preference(int preference) { preference_ = preference; }
-
-  // When we enumerate networks and find a previously-seen network is missing,
-  // we do not remove it (because it may be used elsewhere). Instead, we mark
-  // it inactive, so that we can detect network changes properly.
-  bool active() const { return active_; }
-  void set_active(bool active) {
-    if (active_ == active) {
-      return;
-    }
-    active_ = active;
-    if (!active) {
-      SignalInactive(this);
-    }
-  }
 
   // Debugging description of this network
   std::string ToString() const;
@@ -381,8 +374,6 @@ class Network {
   bool ignored_;
   AdapterType type_;
   int preference_;
-  bool active_ = true;
-  uint16_t id_ = 0;
 
   friend class NetworkManager;
 };

@@ -15,7 +15,6 @@
 
 #include "webrtc/base/scoped_ptr.h"
 #include "webrtc/common_video/libyuv/include/webrtc_libyuv.h"
-#include "webrtc/tools/frame_editing/frame_editing_lib.h"
 #include "webrtc/typedefs.h"
 
 using std::string;

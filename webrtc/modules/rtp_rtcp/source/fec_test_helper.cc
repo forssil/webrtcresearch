@@ -25,8 +25,8 @@ void FrameGenerator::NewFrame(int num_packets) {
 
 uint16_t FrameGenerator::NextSeqNum() { return ++seq_num_; }
 
-test::RawRtpPacket* FrameGenerator::NextPacket(int offset, size_t length) {
-  test::RawRtpPacket* rtp_packet = new test::RawRtpPacket;
+RtpPacket* FrameGenerator::NextPacket(int offset, size_t length) {
+  RtpPacket* rtp_packet = new RtpPacket;
   for (size_t i = 0; i < length; ++i)
     rtp_packet->data[i + kRtpHeaderSize] = offset + i;
   rtp_packet->length = length + kRtpHeaderSize;
@@ -44,10 +44,9 @@ test::RawRtpPacket* FrameGenerator::NextPacket(int offset, size_t length) {
 }
 
 // Creates a new RtpPacket with the RED header added to the packet.
-test::RawRtpPacket* FrameGenerator::BuildMediaRedPacket(
-    const test::RawRtpPacket* packet) {
+RtpPacket* FrameGenerator::BuildMediaRedPacket(const RtpPacket* packet) {
   const size_t kHeaderLength = packet->header.header.headerLength;
-  test::RawRtpPacket* red_packet = new test::RawRtpPacket;
+  RtpPacket* red_packet = new RtpPacket;
   red_packet->header = packet->header;
   red_packet->length = packet->length + 1;  // 1 byte RED header.
   memset(red_packet->data, 0, red_packet->length);
@@ -62,11 +61,10 @@ test::RawRtpPacket* FrameGenerator::BuildMediaRedPacket(
 // Creates a new RtpPacket with FEC payload and red header. Does this by
 // creating a new fake media RtpPacket, clears the marker bit and adds a RED
 // header. Finally replaces the payload with the content of |packet->data|.
-test::RawRtpPacket* FrameGenerator::BuildFecRedPacket(
-    const ForwardErrorCorrection::Packet* packet) {
+RtpPacket* FrameGenerator::BuildFecRedPacket(const Packet* packet) {
   // Create a fake media packet to get a correct header. 1 byte RED header.
   ++num_packets_;
-  test::RawRtpPacket* red_packet = NextPacket(0, packet->length + 1);
+  RtpPacket* red_packet = NextPacket(0, packet->length + 1);
   red_packet->data[1] &= ~0x80;  // Clear marker bit.
   const size_t kHeaderLength = red_packet->header.header.headerLength;
   SetRedHeader(red_packet, kFecPayloadType, kHeaderLength);
@@ -75,8 +73,7 @@ test::RawRtpPacket* FrameGenerator::BuildFecRedPacket(
   return red_packet;
 }
 
-void FrameGenerator::SetRedHeader(ForwardErrorCorrection::Packet* red_packet,
-                                  uint8_t payload_type,
+void FrameGenerator::SetRedHeader(Packet* red_packet, uint8_t payload_type,
                                   size_t header_length) const {
   // Replace pltype.
   red_packet->data[1] &= 0x80;             // Reset.

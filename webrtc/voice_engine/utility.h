@@ -40,15 +40,15 @@ void RemixAndResample(const AudioFrame& src_frame,
 // parameters.
 void RemixAndResample(const int16_t* src_data,
                       size_t samples_per_channel,
-                      size_t num_channels,
+                      int num_channels,
                       int sample_rate_hz,
                       PushResampler<int16_t>* resampler,
                       AudioFrame* dst_frame);
 
 void MixWithSat(int16_t target[],
-                size_t target_channel,
+                int target_channel,
                 const int16_t source[],
-                size_t source_channel,
+                int source_channel,
                 size_t source_len);
 
 }  // namespace voe

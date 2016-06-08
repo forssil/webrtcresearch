@@ -15,6 +15,10 @@
 #include <shlobj.h>
 #endif  // WEBRTC_WIN
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
 #include <SystemConfiguration/SystemConfiguration.h>
 #include <CoreFoundation/CoreFoundation.h>

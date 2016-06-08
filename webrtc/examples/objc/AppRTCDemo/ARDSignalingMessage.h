@@ -9,8 +9,9 @@
  */
 
 #import <Foundation/Foundation.h>
-#import "webrtc/api/objc/RTCIceCandidate.h"
-#import "webrtc/api/objc/RTCSessionDescription.h"
+
+#import "RTCICECandidate.h"
+#import "RTCSessionDescription.h"
 
 typedef enum {
   kARDSignalingMessageTypeCandidate,
@@ -30,9 +31,9 @@ typedef enum {
 
 @interface ARDICECandidateMessage : ARDSignalingMessage
 
-@property(nonatomic, readonly) RTCIceCandidate *candidate;
+@property(nonatomic, readonly) RTCICECandidate *candidate;
 
-- (instancetype)initWithCandidate:(RTCIceCandidate *)candidate;
+- (instancetype)initWithCandidate:(RTCICECandidate *)candidate;
 
 @end
 

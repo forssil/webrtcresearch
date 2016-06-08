@@ -50,7 +50,7 @@ void StatisticsCalculator::PeriodicUmaLogger::AdvanceClock(int step_ms) {
 }
 
 void StatisticsCalculator::PeriodicUmaLogger::LogToUma(int value) const {
-  RTC_HISTOGRAM_COUNTS_SPARSE(uma_name_, value, 1, max_value_, 50);
+  RTC_HISTOGRAM_COUNTS(uma_name_, value, 1, max_value_, 50);
 }
 
 StatisticsCalculator::PeriodicUmaCount::PeriodicUmaCount(
@@ -95,7 +95,7 @@ void StatisticsCalculator::PeriodicUmaAverage::RegisterSample(int value) {
 }
 
 int StatisticsCalculator::PeriodicUmaAverage::Metric() const {
-  return counter_ == 0 ? 0 : static_cast<int>(sum_ / counter_);
+  return static_cast<int>(sum_ / counter_);
 }
 
 void StatisticsCalculator::PeriodicUmaAverage::Reset() {

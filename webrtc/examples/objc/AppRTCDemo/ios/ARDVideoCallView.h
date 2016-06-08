@@ -10,8 +10,7 @@
 
 #import <UIKit/UIKit.h>
 
-#import "webrtc/api/objc/RTCEAGLVideoView.h"
-#import "webrtc/base/objc/RTCCameraPreviewView.h"
+#import "RTCEAGLVideoView.h"
 
 #import "ARDStatsView.h"
 
@@ -20,9 +19,6 @@
 
 // Called when the camera switch button is pressed.
 - (void)videoCallViewDidSwitchCamera:(ARDVideoCallView *)view;
-
-// Called when the route change button is pressed.
-- (void)videoCallViewDidChangeRoute:(ARDVideoCallView *)view;
 
 // Called when the hangup button is pressed.
 - (void)videoCallViewDidHangup:(ARDVideoCallView *)view;
@@ -37,7 +33,7 @@
 @interface ARDVideoCallView : UIView
 
 @property(nonatomic, readonly) UILabel *statusLabel;
-@property(nonatomic, readonly) RTCCameraPreviewView *localVideoView;
+@property(nonatomic, readonly) RTCEAGLVideoView *localVideoView;
 @property(nonatomic, readonly) RTCEAGLVideoView *remoteVideoView;
 @property(nonatomic, readonly) ARDStatsView *statsView;
 @property(nonatomic, weak) id<ARDVideoCallViewDelegate> delegate;

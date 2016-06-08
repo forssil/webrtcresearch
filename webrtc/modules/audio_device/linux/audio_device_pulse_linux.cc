@@ -200,17 +200,33 @@ int32_t AudioDeviceLinuxPulse::Init()
     }
 
     // RECORDING
-    _ptrThreadRec.reset(new rtc::PlatformThread(
-        RecThreadFunc, this, "webrtc_audio_module_rec_thread"));
+    const char* threadName = "webrtc_audio_module_rec_thread";
+    _ptrThreadRec = ThreadWrapper::CreateThread(RecThreadFunc, this,
+                                                threadName);
+    if (!_ptrThreadRec->Start())
+    {
+        WEBRTC_TRACE(kTraceCritical, kTraceAudioDevice, _id,
+                     "  failed to start the rec audio thread");
 
-    _ptrThreadRec->Start();
-    _ptrThreadRec->SetPriority(rtc::kRealtimePriority);
+        _ptrThreadRec.reset();
+        return -1;
+    }
+
+    _ptrThreadRec->SetPriority(kRealtimePriority);
 
     // PLAYOUT
-    _ptrThreadPlay.reset(new rtc::PlatformThread(
-        PlayThreadFunc, this, "webrtc_audio_module_play_thread"));
-    _ptrThreadPlay->Start();
-    _ptrThreadPlay->SetPriority(rtc::kRealtimePriority);
+    threadName = "webrtc_audio_module_play_thread";
+    _ptrThreadPlay = ThreadWrapper::CreateThread(PlayThreadFunc, this,
+                                                 threadName);
+    if (!_ptrThreadPlay->Start())
+    {
+        WEBRTC_TRACE(kTraceCritical, kTraceAudioDevice, _id,
+                     "  failed to start the play audio thread");
+
+        _ptrThreadPlay.reset();
+        return -1;
+    }
+    _ptrThreadPlay->SetPriority(kRealtimePriority);
 
     _initialized = true;
 
@@ -230,7 +246,7 @@ int32_t AudioDeviceLinuxPulse::Terminate()
     // RECORDING
     if (_ptrThreadRec)
     {
-        rtc::PlatformThread* tmpThread = _ptrThreadRec.release();
+        ThreadWrapper* tmpThread = _ptrThreadRec.release();
 
         _timeEventRec.Set();
         tmpThread->Stop();
@@ -240,7 +256,7 @@ int32_t AudioDeviceLinuxPulse::Terminate()
     // PLAYOUT
     if (_ptrThreadPlay)
     {
-        rtc::PlatformThread* tmpThread = _ptrThreadPlay.release();
+        ThreadWrapper* tmpThread = _ptrThreadPlay.release();
 
         _timeEventPlay.Set();
         tmpThread->Stop();

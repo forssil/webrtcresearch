@@ -11,28 +11,31 @@
 #ifndef WEBRTC_MODULES_AUDIO_PROCESSING_VOICE_DETECTION_IMPL_H_
 #define WEBRTC_MODULES_AUDIO_PROCESSING_VOICE_DETECTION_IMPL_H_
 
-#include <memory>
-
-#include "webrtc/base/constructormagic.h"
-#include "webrtc/base/criticalsection.h"
 #include "webrtc/modules/audio_processing/include/audio_processing.h"
+#include "webrtc/modules/audio_processing/processing_component.h"
 
 namespace webrtc {
 
 class AudioBuffer;
+class CriticalSectionWrapper;
 
-class VoiceDetectionImpl : public VoiceDetection {
+class VoiceDetectionImpl : public VoiceDetection,
+                           public ProcessingComponent {
  public:
-  explicit VoiceDetectionImpl(rtc::CriticalSection* crit);
-  ~VoiceDetectionImpl() override;
+  VoiceDetectionImpl(const AudioProcessing* apm, CriticalSectionWrapper* crit);
+  virtual ~VoiceDetectionImpl();
 
-  // TODO(peah): Fold into ctor, once public API is removed.
-  void Initialize(int sample_rate_hz);
-  void ProcessCaptureAudio(AudioBuffer* audio);
+  int ProcessCaptureAudio(AudioBuffer* audio);
 
   // VoiceDetection implementation.
-  int Enable(bool enable) override;
   bool is_enabled() const override;
+
+  // ProcessingComponent implementation.
+  int Initialize() override;
+
+ private:
+  // VoiceDetection implementation.
+  int Enable(bool enable) override;
   int set_stream_has_voice(bool has_voice) override;
   bool stream_has_voice() const override;
   int set_likelihood(Likelihood likelihood) override;
@@ -40,18 +43,21 @@ class VoiceDetectionImpl : public VoiceDetection {
   int set_frame_size_ms(int size) override;
   int frame_size_ms() const override;
 
- private:
-  class Vad;
-  rtc::CriticalSection* const crit_;
-  bool enabled_ GUARDED_BY(crit_) = false;
-  bool stream_has_voice_ GUARDED_BY(crit_) = false;
-  bool using_external_vad_ GUARDED_BY(crit_) = false;
-  Likelihood likelihood_ GUARDED_BY(crit_) = kLowLikelihood;
-  int frame_size_ms_ GUARDED_BY(crit_) = 10;
-  size_t frame_size_samples_ GUARDED_BY(crit_) = 0;
-  int sample_rate_hz_ GUARDED_BY(crit_) = 0;
-  std::unique_ptr<Vad> vad_ GUARDED_BY(crit_);
-  RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(VoiceDetectionImpl);
+  // ProcessingComponent implementation.
+  void* CreateHandle() const override;
+  int InitializeHandle(void* handle) const override;
+  int ConfigureHandle(void* handle) const override;
+  void DestroyHandle(void* handle) const override;
+  int num_handles_required() const override;
+  int GetHandleError(void* handle) const override;
+
+  const AudioProcessing* apm_;
+  CriticalSectionWrapper* crit_;
+  bool stream_has_voice_;
+  bool using_external_vad_;
+  Likelihood likelihood_;
+  int frame_size_ms_;
+  size_t frame_size_samples_;
 };
 }  // namespace webrtc
 

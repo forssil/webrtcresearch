@@ -8,8 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_EXAMPLES_PEERCONNECTION_SERVER_DATA_SOCKET_H_
-#define WEBRTC_EXAMPLES_PEERCONNECTION_SERVER_DATA_SOCKET_H_
+#ifndef TALK_EXAMPLES_PEERCONNECTION_SERVER_DATA_SOCKET_H_
+#define TALK_EXAMPLES_PEERCONNECTION_SERVER_DATA_SOCKET_H_
 #pragma once
 
 #ifdef WIN32
@@ -150,4 +150,4 @@ class ListeningSocket : public SocketBase {
   DataSocket* Accept() const;
 };
 
-#endif  // WEBRTC_EXAMPLES_PEERCONNECTION_SERVER_DATA_SOCKET_H_
+#endif  // TALK_EXAMPLES_PEERCONNECTION_SERVER_DATA_SOCKET_H_

@@ -10,43 +10,110 @@
 
 #include "webrtc/modules/rtp_rtcp/source/ssrc_database.h"
 
-#include "webrtc/base/checks.h"
-#include "webrtc/system_wrappers/include/tick_util.h"
+#include <assert.h>
+#include <stdlib.h>
+
+#include "webrtc/system_wrappers/include/critical_section_wrapper.h"
+
+#ifdef _WIN32
+    #include <windows.h>
+    #include <MMSystem.h> //timeGetTime
+
+// TODO(hellner): investigate if it is necessary to disable these warnings.
+    #pragma warning(disable:4311)
+    #pragma warning(disable:4312)
+#else
+    #include <stdio.h>
+    #include <string.h>
+    #include <time.h>
+    #include <sys/time.h>
+#endif
 
 namespace webrtc {
-
-SSRCDatabase* SSRCDatabase::GetSSRCDatabase() {
-  return GetStaticInstance<SSRCDatabase>(kAddRef);
+SSRCDatabase*
+SSRCDatabase::StaticInstance(CountOperation count_operation)
+{
+  SSRCDatabase* impl =
+      GetStaticInstance<SSRCDatabase>(count_operation);
+  return impl;
 }
 
-void SSRCDatabase::ReturnSSRCDatabase() {
-  GetStaticInstance<SSRCDatabase>(kRelease);
+SSRCDatabase*
+SSRCDatabase::GetSSRCDatabase()
+{
+    return StaticInstance(kAddRef);
 }
 
-uint32_t SSRCDatabase::CreateSSRC() {
-  rtc::CritScope lock(&crit_);
+void
+SSRCDatabase::ReturnSSRCDatabase()
+{
+    StaticInstance(kRelease);
+}
 
-  while (true) {  // Try until get a new ssrc.
-    // 0 and 0xffffffff are invalid values for SSRC.
-    uint32_t ssrc = random_.Rand(1u, 0xfffffffe);
-    if (ssrcs_.insert(ssrc).second) {
-      return ssrc;
+uint32_t
+SSRCDatabase::CreateSSRC()
+{
+    CriticalSectionScoped lock(_critSect);
+
+    uint32_t ssrc = GenerateRandom();
+
+    while(_ssrcMap.find(ssrc) != _ssrcMap.end())
+    {
+        ssrc = GenerateRandom();
     }
-  }
+    _ssrcMap[ssrc] = 0;
+
+    return ssrc;
 }
 
-void SSRCDatabase::RegisterSSRC(uint32_t ssrc) {
-  rtc::CritScope lock(&crit_);
-  ssrcs_.insert(ssrc);
+int32_t
+SSRCDatabase::RegisterSSRC(const uint32_t ssrc)
+{
+    CriticalSectionScoped lock(_critSect);
+    _ssrcMap[ssrc] = 0;
+    return 0;
 }
 
-void SSRCDatabase::ReturnSSRC(uint32_t ssrc) {
-  rtc::CritScope lock(&crit_);
-  ssrcs_.erase(ssrc);
+int32_t
+SSRCDatabase::ReturnSSRC(const uint32_t ssrc)
+{
+    CriticalSectionScoped lock(_critSect);
+    _ssrcMap.erase(ssrc);
+    return 0;
 }
 
-SSRCDatabase::SSRCDatabase() : random_(TickTime::Now().Ticks()) {}
+SSRCDatabase::SSRCDatabase()
+{
+    // we need to seed the random generator, otherwise we get 26500 each time, hardly a random value :)
+#ifdef _WIN32
+    srand(timeGetTime());
+#else
+    struct timeval tv;
+    struct timezone tz;
+    gettimeofday(&tv, &tz);
+    srand(tv.tv_usec);
+#endif
 
-SSRCDatabase::~SSRCDatabase() {}
+    _critSect = CriticalSectionWrapper::CreateCriticalSection();
+}
 
+SSRCDatabase::~SSRCDatabase()
+{
+    _ssrcMap.clear();
+    delete _critSect;
+}
+
+uint32_t SSRCDatabase::GenerateRandom()
+{
+    uint32_t ssrc = 0;
+    do
+    {
+        ssrc = rand();
+        ssrc = ssrc <<16;
+        ssrc += rand();
+
+    } while (ssrc == 0 || ssrc == 0xffffffff);
+
+    return ssrc;
+}
 }  // namespace webrtc

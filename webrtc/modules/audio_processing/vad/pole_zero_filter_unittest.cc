@@ -13,9 +13,8 @@
 #include <math.h>
 #include <stdio.h>
 
-#include <memory>
-
 #include "testing/gtest/include/gtest/gtest.h"
+#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/modules/audio_processing/vad/vad_audio_proc_internal.h"
 #include "webrtc/test/testsupport/fileutils.h"
 
@@ -59,7 +58,7 @@ class PoleZeroFilterTest : public ::testing::Test {
 
  private:
   void TestClean();
-  std::unique_ptr<PoleZeroFilter> my_filter_;
+  rtc::scoped_ptr<PoleZeroFilter> my_filter_;
 };
 
 void PoleZeroFilterTest::FilterSubframes(int num_subframes) {

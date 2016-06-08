@@ -116,8 +116,7 @@ gboolean Redraw(gpointer data) {
   wnd->OnRedraw();
   return false;
 }
-
-}  // namespace
+}  // end anonymous
 
 //
 // GtkMainWnd implementation.
@@ -175,8 +174,7 @@ void GtkMainWnd::StopLocalRenderer() {
   local_renderer_.reset();
 }
 
-void GtkMainWnd::StartRemoteRenderer(
-    webrtc::VideoTrackInterface* remote_video) {
+void GtkMainWnd::StartRemoteRenderer(webrtc::VideoTrackInterface* remote_video) {
   remote_renderer_.reset(new VideoRenderer(this, remote_video));
 }
 
@@ -460,11 +458,11 @@ GtkMainWnd::VideoRenderer::VideoRenderer(
       height_(0),
       main_wnd_(main_wnd),
       rendered_track_(track_to_render) {
-  rendered_track_->AddOrUpdateSink(this, rtc::VideoSinkWants());
+  rendered_track_->AddRenderer(this);
 }
 
 GtkMainWnd::VideoRenderer::~VideoRenderer() {
-  rendered_track_->RemoveSink(this);
+  rendered_track_->RemoveRenderer(this);
 }
 
 void GtkMainWnd::VideoRenderer::SetSize(int width, int height) {
@@ -480,17 +478,17 @@ void GtkMainWnd::VideoRenderer::SetSize(int width, int height) {
   gdk_threads_leave();
 }
 
-void GtkMainWnd::VideoRenderer::OnFrame(
-    const cricket::VideoFrame& video_frame) {
+void GtkMainWnd::VideoRenderer::RenderFrame(
+    const cricket::VideoFrame* video_frame) {
   gdk_threads_enter();
 
-  const cricket::VideoFrame* frame = video_frame.GetCopyWithRotationApplied();
+  const cricket::VideoFrame* frame = video_frame->GetCopyWithRotationApplied();
 
   SetSize(static_cast<int>(frame->GetWidth()),
           static_cast<int>(frame->GetHeight()));
 
   int size = width_ * height_ * 4;
-  // TODO(henrike): Convert directly to RGBA
+  // TODO: Convert directly to RGBA
   frame->ConvertToRgbBuffer(cricket::FOURCC_ARGB,
                             image_.get(),
                             size,
@@ -511,3 +509,5 @@ void GtkMainWnd::VideoRenderer::OnFrame(
 
   g_idle_add(Redraw, main_wnd_);
 }
+
+

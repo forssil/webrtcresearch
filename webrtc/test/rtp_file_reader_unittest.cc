@@ -85,8 +85,7 @@ class TestPcapFileReader : public ::testing::Test {
     while (rtp_packet_source_->NextPacket(&packet)) {
       RtpUtility::RtpHeaderParser rtp_header_parser(packet.data, packet.length);
       webrtc::RTPHeader header;
-      if (!rtp_header_parser.RTCP() &&
-          rtp_header_parser.Parse(&header, nullptr)) {
+      if (!rtp_header_parser.RTCP() && rtp_header_parser.Parse(header, NULL)) {
         pps[header.ssrc]++;
       }
     }

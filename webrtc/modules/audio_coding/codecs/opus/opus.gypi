@@ -39,14 +39,17 @@
       'dependencies': [
         'audio_encoder_interface',
       ],
+      'include_dirs': [
+        '<(webrtc_root)',
+      ],
       'sources': [
         'audio_decoder_opus.cc',
-        'audio_decoder_opus.h',
         'audio_encoder_opus.cc',
-        'audio_encoder_opus.h',
+        'include/audio_decoder_opus.h',
+        'include/audio_encoder_opus.h',
+        'include/opus_interface.h',
         'opus_inst.h',
         'opus_interface.c',
-        'opus_interface.h',
       ],
     },
   ],
@@ -61,6 +64,9 @@
             '<(webrtc_root)/common_audio/common_audio.gyp:common_audio',
             '<(webrtc_root)/test/test.gyp:test_support_main',
             '<(DEPTH)/testing/gtest.gyp:gtest',
+          ],
+          'include_dirs': [
+            '<(webrtc_root)',
           ],
           'sources': [
             'opus_fec_test.cc',

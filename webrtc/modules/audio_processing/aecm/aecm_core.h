@@ -25,7 +25,14 @@
 #define ALIGN8_BEG
 #define ALIGN8_END __attribute__((aligned(8)))
 #endif
+
 #define FLOATPRO
+
+
+ 
+#ifdef AEC_DEBUG
+#include <stdio.h>
+#endif
 
 
 typedef struct {

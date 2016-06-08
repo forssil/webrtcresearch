@@ -11,55 +11,86 @@
 #include "webrtc/modules/rtp_rtcp/source/tmmbr_help.h"
 
 #include <assert.h>
-#include <string.h>
-
 #include <limits>
-
-#include "webrtc/base/checks.h"
+#include <string.h>
 #include "webrtc/modules/rtp_rtcp/source/rtp_rtcp_config.h"
 
 namespace webrtc {
+TMMBRSet::TMMBRSet() :
+    _sizeOfSet(0),
+    _lengthOfSet(0)
+{
+}
+
+TMMBRSet::~TMMBRSet()
+{
+    _sizeOfSet = 0;
+    _lengthOfSet = 0;
+}
+
 void
 TMMBRSet::VerifyAndAllocateSet(uint32_t minimumSize)
 {
-  clear();
-  reserve(minimumSize);
+    if(minimumSize > _sizeOfSet)
+    {
+        // make sure that our buffers are big enough
+        _data.resize(minimumSize);
+        _sizeOfSet = minimumSize;
+    }
+    // reset memory
+    for(uint32_t i = 0; i < _sizeOfSet; i++)
+    {
+        _data.at(i).tmmbr = 0;
+        _data.at(i).packet_oh = 0;
+        _data.at(i).ssrc = 0;
+    }
+    _lengthOfSet = 0;
 }
 
 void
 TMMBRSet::VerifyAndAllocateSetKeepingData(uint32_t minimumSize)
 {
-  reserve(minimumSize);
+    if(minimumSize > _sizeOfSet)
+    {
+        {
+          _data.resize(minimumSize);
+        }
+        _sizeOfSet = minimumSize;
+    }
 }
 
 void TMMBRSet::SetEntry(unsigned int i,
                          uint32_t tmmbrSet,
                          uint32_t packetOHSet,
                          uint32_t ssrcSet) {
-  RTC_DCHECK_LT(i, capacity());
-  if (i >= size()) {
-    resize(i+1);
+  assert(i < _sizeOfSet);
+  _data.at(i).tmmbr = tmmbrSet;
+  _data.at(i).packet_oh = packetOHSet;
+  _data.at(i).ssrc = ssrcSet;
+  if (i >= _lengthOfSet) {
+    _lengthOfSet = i + 1;
   }
-  (*this)[i].set_bitrate_bps(tmmbrSet * 1000);
-  (*this)[i].set_packet_overhead(packetOHSet);
-  (*this)[i].set_ssrc(ssrcSet);
 }
 
 void TMMBRSet::AddEntry(uint32_t tmmbrSet,
                         uint32_t packetOHSet,
                         uint32_t ssrcSet) {
-  RTC_DCHECK_LT(size(), capacity());
-  SetEntry(size(), tmmbrSet, packetOHSet, ssrcSet);
+  assert(_lengthOfSet < _sizeOfSet);
+  SetEntry(_lengthOfSet, tmmbrSet, packetOHSet, ssrcSet);
 }
 
 void TMMBRSet::RemoveEntry(uint32_t sourceIdx) {
-  RTC_DCHECK_LT(sourceIdx, size());
-  erase(begin() + sourceIdx);
+  assert(sourceIdx < _lengthOfSet);
+  _data.erase(_data.begin() + sourceIdx);
+  _lengthOfSet--;
+  _data.resize(_sizeOfSet);  // Ensure that size remains the same.
 }
 
 void TMMBRSet::SwapEntries(uint32_t i, uint32_t j) {
-  using std::swap;
-  swap((*this)[i], (*this)[j]);
+    SetElement temp;
+    temp = _data[i];
+    _data[i] = _data[j];
+    _data[j] = temp;
 }
 
 void TMMBRSet::ClearEntry(uint32_t idx) {
@@ -88,7 +119,7 @@ TMMBRHelp::VerifyAndAllocateBoundingSet(uint32_t minimumSize)
 {
     CriticalSectionScoped lock(_criticalSection);
 
-    if(minimumSize > _boundingSet.capacity())
+    if(minimumSize > _boundingSet.sizeOfSet())
     {
         // make sure that our buffers are big enough
         if(_ptrIntersectionBoundingSet)
@@ -108,7 +139,8 @@ TMMBRSet* TMMBRHelp::BoundingSet() {
 }
 
 int32_t
-TMMBRHelp::SetTMMBRBoundingSetToSend(const TMMBRSet* boundingSetToSend)
+TMMBRHelp::SetTMMBRBoundingSetToSend(const TMMBRSet* boundingSetToSend,
+                                     const uint32_t maxBitrateKbit)
 {
     CriticalSectionScoped lock(_criticalSection);
 
@@ -124,6 +156,14 @@ TMMBRHelp::SetTMMBRBoundingSetToSend(const TMMBRSet* boundingSetToSend)
     {
         // cap at our configured max bitrate
         uint32_t bitrate = boundingSetToSend->Tmmbr(i);
+        if(maxBitrateKbit)
+        {
+            // do we have a configured max bitrate?
+            if(bitrate > maxBitrateKbit)
+            {
+                bitrate = maxBitrateKbit;
+            }
+        }
         _boundingSetToSend.SetEntry(i, bitrate,
                                     boundingSetToSend->PacketOH(i),
                                     boundingSetToSend->Ssrc(i));
@@ -168,9 +208,10 @@ TMMBRHelp::FindTMMBRBoundingSet(TMMBRSet*& boundingSet)
 
     // Work on local variable, will be modified
     TMMBRSet    candidateSet;
-    candidateSet.VerifyAndAllocateSet(_candidateSet.capacity());
+    candidateSet.VerifyAndAllocateSet(_candidateSet.sizeOfSet());
 
-    for (uint32_t i = 0; i < _candidateSet.size(); i++)
+    // TODO(hta) Figure out if this should be lengthOfSet instead.
+    for (uint32_t i = 0; i < _candidateSet.sizeOfSet(); i++)
     {
         if(_candidateSet.Tmmbr(i))
         {
@@ -194,7 +235,7 @@ TMMBRHelp::FindTMMBRBoundingSet(TMMBRSet*& boundingSet)
     if (numSetCandidates > 0)
     {
         numBoundingSet =  FindTMMBRBoundingSet(numSetCandidates, candidateSet);
-        if(numBoundingSet < 1 || (numBoundingSet > _candidateSet.size()))
+        if(numBoundingSet < 1 || (numBoundingSet > _candidateSet.sizeOfSet()))
         {
             return -1;
         }
@@ -210,11 +251,12 @@ TMMBRHelp::FindTMMBRBoundingSet(int32_t numCandidates, TMMBRSet& candidateSet)
     CriticalSectionScoped lock(_criticalSection);
 
     uint32_t numBoundingSet = 0;
-    VerifyAndAllocateBoundingSet(candidateSet.capacity());
+    VerifyAndAllocateBoundingSet(candidateSet.sizeOfSet());
 
     if (numCandidates == 1)
     {
-        for (uint32_t i = 0; i < candidateSet.size(); i++)
+        // TODO(hta): lengthOfSet instead of sizeOfSet?
+        for (uint32_t i = 0; i < candidateSet.sizeOfSet(); i++)
         {
             if (candidateSet.Tmmbr(i) > 0)
             {
@@ -228,7 +270,7 @@ TMMBRHelp::FindTMMBRBoundingSet(int32_t numCandidates, TMMBRSet& candidateSet)
     }
 
     // 1. Sort by increasing packetOH
-    for (int i = candidateSet.size() - 1; i >= 0; i--)
+    for (int i = candidateSet.sizeOfSet() - 1; i >= 0; i--)
     {
         for (int j = 1; j <= i; j++)
         {
@@ -239,7 +281,7 @@ TMMBRHelp::FindTMMBRBoundingSet(int32_t numCandidates, TMMBRSet& candidateSet)
         }
     }
     // 2. For tuples with same OH, keep the one w/ the lowest bitrate
-    for (uint32_t i = 0; i < candidateSet.size(); i++)
+    for (uint32_t i = 0; i < candidateSet.sizeOfSet(); i++)
     {
         if (candidateSet.Tmmbr(i) > 0)
         {
@@ -247,7 +289,7 @@ TMMBRHelp::FindTMMBRBoundingSet(int32_t numCandidates, TMMBRSet& candidateSet)
             uint32_t currentPacketOH = candidateSet.PacketOH(i);
             uint32_t currentMinTMMBR = candidateSet.Tmmbr(i);
             uint32_t currentMinIndexTMMBR = i;
-            for (uint32_t j = i+1; j < candidateSet.size(); j++)
+            for (uint32_t j = i+1; j < candidateSet.sizeOfSet(); j++)
             {
                 if(candidateSet.PacketOH(j) == currentPacketOH)
                 {
@@ -259,13 +301,12 @@ TMMBRHelp::FindTMMBRBoundingSet(int32_t numCandidates, TMMBRSet& candidateSet)
                 }
             }
             // keep lowest bitrate
-            for (uint32_t j = 0; j < candidateSet.size(); j++)
+            for (uint32_t j = 0; j < candidateSet.sizeOfSet(); j++)
             {
               if(candidateSet.PacketOH(j) == currentPacketOH
                   && j != currentMinIndexTMMBR)
                 {
                     candidateSet.ClearEntry(j);
-                    numCandidates--;
                 }
             }
         }
@@ -274,7 +315,7 @@ TMMBRHelp::FindTMMBRBoundingSet(int32_t numCandidates, TMMBRSet& candidateSet)
     // (If more than 1, choose the one w/ highest OH).
     uint32_t minTMMBR = 0;
     uint32_t minIndexTMMBR = 0;
-    for (uint32_t i = 0; i < candidateSet.size(); i++)
+    for (uint32_t i = 0; i < candidateSet.sizeOfSet(); i++)
     {
         if (candidateSet.Tmmbr(i) > 0)
         {
@@ -284,7 +325,7 @@ TMMBRHelp::FindTMMBRBoundingSet(int32_t numCandidates, TMMBRSet& candidateSet)
         }
     }
 
-    for (uint32_t i = 0; i < candidateSet.size(); i++)
+    for (uint32_t i = 0; i < candidateSet.sizeOfSet(); i++)
     {
         if (candidateSet.Tmmbr(i) > 0 && candidateSet.Tmmbr(i) <= minTMMBR)
         {
@@ -302,15 +343,9 @@ TMMBRHelp::FindTMMBRBoundingSet(int32_t numCandidates, TMMBRSet& candidateSet)
     // set intersection value
     _ptrIntersectionBoundingSet[numBoundingSet] = 0;
     // calculate its maximum packet rate (where its line crosses x-axis)
-    uint32_t packet_overhead_bits = 8 * _boundingSet.PacketOH(numBoundingSet);
-    if (packet_overhead_bits == 0) {
-      // Avoid division by zero.
-      _ptrMaxPRBoundingSet[numBoundingSet] = std::numeric_limits<float>::max();
-    } else {
-      _ptrMaxPRBoundingSet[numBoundingSet] =
-          _boundingSet.Tmmbr(numBoundingSet) * 1000 /
-          static_cast<float>(packet_overhead_bits);
-    }
+    _ptrMaxPRBoundingSet[numBoundingSet]
+        = _boundingSet.Tmmbr(numBoundingSet) * 1000
+        / float(8 * _boundingSet.PacketOH(numBoundingSet));
     numBoundingSet++;
     // remove from candidate list
     candidateSet.ClearEntry(minIndexTMMBR);
@@ -318,7 +353,7 @@ TMMBRHelp::FindTMMBRBoundingSet(int32_t numCandidates, TMMBRSet& candidateSet)
 
     // 4. Discard from candidate list all tuple w/ lower OH
     // (next tuple must be steeper)
-    for (uint32_t i = 0; i < candidateSet.size(); i++)
+    for (uint32_t i = 0; i < candidateSet.sizeOfSet(); i++)
     {
         if(candidateSet.Tmmbr(i) > 0
             && candidateSet.PacketOH(i) < _boundingSet.PacketOH(0))
@@ -336,16 +371,16 @@ TMMBRHelp::FindTMMBRBoundingSet(int32_t numCandidates, TMMBRSet& candidateSet)
     }
 
     bool getNewCandidate = true;
-    uint32_t curCandidateTMMBR = 0;
-    size_t curCandidateIndex = 0;
-    uint32_t curCandidatePacketOH = 0;
-    uint32_t curCandidateSSRC = 0;
+    int curCandidateTMMBR = 0;
+    int curCandidateIndex = 0;
+    int curCandidatePacketOH = 0;
+    int curCandidateSSRC = 0;
     do
     {
         if (getNewCandidate)
         {
             // 5. Remove first remaining tuple from candidate list
-            for (uint32_t i = 0; i < candidateSet.size(); i++)
+            for (uint32_t i = 0; i < candidateSet.sizeOfSet(); i++)
             {
                 if (candidateSet.Tmmbr(i) > 0)
                 {
@@ -361,8 +396,6 @@ TMMBRHelp::FindTMMBRBoundingSet(int32_t numCandidates, TMMBRSet& candidateSet)
 
         // 6. Calculate packet rate and intersection of the current
         // line with line of last tuple in selected list
-        RTC_DCHECK_NE(curCandidatePacketOH,
-                      _boundingSet.PacketOH(numBoundingSet - 1));
         float packetRate
             = float(curCandidateTMMBR
                     - _boundingSet.Tmmbr(numBoundingSet-1))*1000
@@ -392,12 +425,9 @@ TMMBRHelp::FindTMMBRBoundingSet(int32_t numCandidates, TMMBRSet& candidateSet)
                                       curCandidatePacketOH,
                                       curCandidateSSRC);
                 _ptrIntersectionBoundingSet[numBoundingSet] = packetRate;
-                float packet_overhead_bits =
-                    8 * _boundingSet.PacketOH(numBoundingSet);
-                RTC_DCHECK_NE(packet_overhead_bits, 0.0f);
-                _ptrMaxPRBoundingSet[numBoundingSet] =
-                    _boundingSet.Tmmbr(numBoundingSet) * 1000 /
-                    packet_overhead_bits;
+                _ptrMaxPRBoundingSet[numBoundingSet]
+                    = _boundingSet.Tmmbr(numBoundingSet)*1000
+                    / float(8*_boundingSet.PacketOH(numBoundingSet));
                 numBoundingSet++;
             }
             numCandidates--;
@@ -419,7 +449,7 @@ bool TMMBRHelp::IsOwner(const uint32_t ssrc,
     return false;
   }
   for(uint32_t i = 0;
-      (i < length) && (i < _boundingSet.size()); ++i) {
+      (i < length) && (i < _boundingSet.sizeOfSet()); ++i) {
     if(_boundingSet.Ssrc(i) == ssrc) {
       return true;
     }
@@ -430,7 +460,7 @@ bool TMMBRHelp::IsOwner(const uint32_t ssrc,
 bool TMMBRHelp::CalcMinBitRate( uint32_t* minBitrateKbit) const {
   CriticalSectionScoped lock(_criticalSection);
 
-  if (_candidateSet.size() == 0) {
+  if (_candidateSet.sizeOfSet() == 0) {
     // Empty bounding set.
     return false;
   }

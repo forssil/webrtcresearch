@@ -11,13 +11,14 @@
 #ifndef WEBRTC_VOICE_ENGINE_STATISTICS_H
 #define WEBRTC_VOICE_ENGINE_STATISTICS_H
 
-#include "webrtc/base/criticalsection.h"
 #include "webrtc/common_types.h"
 #include "webrtc/typedefs.h"
 #include "webrtc/voice_engine/include/voe_errors.h"
 #include "webrtc/voice_engine/voice_engine_defines.h"
 
 namespace webrtc {
+class CriticalSectionWrapper;
+
 namespace voe {
 
 class Statistics
@@ -39,7 +40,7 @@ class Statistics
     int32_t LastError() const;
 
  private:
-    rtc::CriticalSection lock_;
+    CriticalSectionWrapper* _critPtr;
     const uint32_t _instanceId;
     mutable int32_t _lastError;
     bool _isInitialized;

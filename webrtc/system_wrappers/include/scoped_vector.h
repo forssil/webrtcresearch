@@ -43,7 +43,9 @@ class ScopedVector {
   ~ScopedVector() { clear(); }
 
   // Move construction and assignment.
-  ScopedVector(ScopedVector&& other) { *this = std::move(other); }
+  ScopedVector(ScopedVector&& other) {
+    *this = static_cast<ScopedVector&&>(other);
+  }
   ScopedVector& operator=(ScopedVector&& other) {
     std::swap(v_, other.v_);  // The arguments are std::vectors, so std::swap
                               // is the one that we want.
@@ -54,6 +56,9 @@ class ScopedVector {
   // Deleted copy constructor and copy assignment, to make the type move-only.
   ScopedVector(const ScopedVector& other) = delete;
   ScopedVector& operator=(const ScopedVector& other) = delete;
+
+  // Get an rvalue reference. (sv.Pass() does the same thing as std::move(sv).)
+  ScopedVector&& Pass() { return static_cast<ScopedVector&&>(*this); }
 
   reference operator[](size_t index) { return v_[index]; }
   const_reference operator[](size_t index) const { return v_[index]; }

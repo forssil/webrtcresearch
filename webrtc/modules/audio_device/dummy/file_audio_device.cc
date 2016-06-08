@@ -7,20 +7,21 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
-#include "webrtc/base/platform_thread.h"
+#include <iostream>
 #include "webrtc/modules/audio_device/dummy/file_audio_device.h"
 #include "webrtc/system_wrappers/include/sleep.h"
+#include "webrtc/system_wrappers/include/thread_wrapper.h"
 
 namespace webrtc {
 
-const int kRecordingFixedSampleRate = 48000;
-const size_t kRecordingNumChannels = 2;
-const int kPlayoutFixedSampleRate = 48000;
-const size_t kPlayoutNumChannels = 2;
-const size_t kPlayoutBufferSize =
-    kPlayoutFixedSampleRate / 100 * kPlayoutNumChannels * 2;
-const size_t kRecordingBufferSize =
-    kRecordingFixedSampleRate / 100 * kRecordingNumChannels * 2;
+int kRecordingFixedSampleRate = 48000;
+int kRecordingNumChannels = 2;
+int kPlayoutFixedSampleRate = 48000;
+int kPlayoutNumChannels = 2;
+int kPlayoutBufferSize = kPlayoutFixedSampleRate / 100
+                         * kPlayoutNumChannels * 2;
+int kRecordingBufferSize = kRecordingFixedSampleRate / 100
+                           * kRecordingNumChannels * 2;
 
 FileAudioDevice::FileAudioDevice(const int32_t id,
                                  const char* inputFilename,
@@ -194,7 +195,9 @@ int32_t FileAudioDevice::StartPlayout() {
   _playoutFramesLeft = 0;
 
   if (!_playoutBuffer) {
-      _playoutBuffer = new int8_t[kPlayoutBufferSize];
+      _playoutBuffer = new int8_t[2 *
+                                  kPlayoutNumChannels *
+                                  kPlayoutFixedSampleRate/100];
   }
   if (!_playoutBuffer) {
     _playing = false;
@@ -211,10 +214,17 @@ int32_t FileAudioDevice::StartPlayout() {
     return -1;
   }
 
-  _ptrThreadPlay.reset(new rtc::PlatformThread(
-      PlayThreadFunc, this, "webrtc_audio_module_play_thread"));
-  _ptrThreadPlay->Start();
-  _ptrThreadPlay->SetPriority(rtc::kRealtimePriority);
+  const char* threadName = "webrtc_audio_module_play_thread";
+  _ptrThreadPlay = ThreadWrapper::CreateThread(PlayThreadFunc, this,
+                                               threadName);
+  if (!_ptrThreadPlay->Start()) {
+      _ptrThreadPlay.reset();
+      _playing = false;
+      delete [] _playoutBuffer;
+      _playoutBuffer = NULL;
+      return -1;
+  }
+  _ptrThreadPlay->SetPriority(kRealtimePriority);
   return 0;
 }
 
@@ -267,11 +277,17 @@ int32_t FileAudioDevice::StartRecording() {
     return -1;
   }
 
-  _ptrThreadRec.reset(new rtc::PlatformThread(
-      RecThreadFunc, this, "webrtc_audio_module_capture_thread"));
+  const char* threadName = "webrtc_audio_module_capture_thread";
+  _ptrThreadRec = ThreadWrapper::CreateThread(RecThreadFunc, this, threadName);
 
-  _ptrThreadRec->Start();
-  _ptrThreadRec->SetPriority(rtc::kRealtimePriority);
+  if (!_ptrThreadRec->Start()) {
+      _ptrThreadRec.reset();
+      _recording = false;
+      delete [] _recordingBuffer;
+      _recordingBuffer = NULL;
+      return -1;
+  }
+  _ptrThreadRec->SetPriority(kRealtimePriority);
 
   return 0;
 }
@@ -498,12 +514,7 @@ bool FileAudioDevice::PlayThreadProcess()
     }
     _playoutFramesLeft = 0;
     _critSect.Leave();
-
-    uint64_t deltaTimeMillis = _clock->CurrentNtpInMilliseconds() - currentTime;
-    if(deltaTimeMillis < 10) {
-      SleepMs(10 - deltaTimeMillis);
-    }
-
+    SleepMs(10 - (_clock->CurrentNtpInMilliseconds() - currentTime));
     return true;
 }
 
@@ -533,12 +544,7 @@ bool FileAudioDevice::RecThreadProcess()
     }
 
     _critSect.Leave();
-
-    uint64_t deltaTimeMillis = _clock->CurrentNtpInMilliseconds() - currentTime;
-    if(deltaTimeMillis < 10) {
-      SleepMs(10 - deltaTimeMillis);
-    }
-
+    SleepMs(10 - (_clock->CurrentNtpInMilliseconds() - currentTime));
     return true;
 }
 

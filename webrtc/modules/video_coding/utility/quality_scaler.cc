@@ -7,15 +7,13 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
-#include "webrtc/modules/video_coding/utility/quality_scaler.h"
+#include "webrtc/modules/video_coding/utility/include/quality_scaler.h"
 
 namespace webrtc {
 
 static const int kMinFps = 10;
 static const int kMeasureSeconds = 5;
 static const int kFramedropPercentThreshold = 60;
-static const int kHdResolutionThreshold = 700 * 500;
-static const int kHdBitrateThresholdKbps = 500;
 
 const int QualityScaler::kDefaultLowQpDenominator = 3;
 // Note that this is the same for width and height to permit 120x90 in both
@@ -28,33 +26,16 @@ QualityScaler::QualityScaler()
       downscale_shift_(0),
       framerate_down_(false),
       min_width_(kDefaultMinDownscaleDimension),
-      min_height_(kDefaultMinDownscaleDimension) {}
+      min_height_(kDefaultMinDownscaleDimension) {
+}
 
 void QualityScaler::Init(int low_qp_threshold,
                          int high_qp_threshold,
-                         bool use_framerate_reduction,
-                         int initial_bitrate_kbps,
-                         int width,
-                         int height) {
+                         bool use_framerate_reduction) {
   ClearSamples();
   low_qp_threshold_ = low_qp_threshold;
   high_qp_threshold_ = high_qp_threshold;
   use_framerate_reduction_ = use_framerate_reduction;
-  downscale_shift_ = 0;
-  const int init_width = width;
-  const int init_height = height;
-  // TODO(glaznev): Investigate using thresholds for other resolutions
-  // or threshold tables.
-  if (initial_bitrate_kbps > 0 &&
-      initial_bitrate_kbps < kHdBitrateThresholdKbps) {
-    // Start scaling to roughly VGA.
-    while (width * height > kHdResolutionThreshold) {
-      ++downscale_shift_;
-      width /= 2;
-      height /= 2;
-    }
-  }
-  UpdateTargetResolution(init_width, init_height);
   target_framerate_ = -1;
 }
 
@@ -83,6 +64,8 @@ void QualityScaler::OnEncodeFrame(const VideoFrame& frame) {
   // Should be set through InitEncode -> Should be set by now.
   assert(low_qp_threshold_ >= 0);
   assert(num_samples_ > 0);
+  res_.width = frame.width();
+  res_.height = frame.height();
 
   // Update scale factor.
   int avg_drop = 0;
@@ -108,7 +91,7 @@ void QualityScaler::OnEncodeFrame(const VideoFrame& frame) {
       AdjustScale(false);
     }
   } else if (average_qp_.GetAverage(num_samples_, &avg_qp) &&
-             avg_qp <= low_qp_threshold_) {
+      avg_qp <= low_qp_threshold_) {
     if (use_framerate_reduction_ && framerate_down_) {
       target_framerate_ = -1;
       framerate_down_ = false;
@@ -117,7 +100,15 @@ void QualityScaler::OnEncodeFrame(const VideoFrame& frame) {
       AdjustScale(true);
     }
   }
-  UpdateTargetResolution(frame.width(), frame.height());
+
+  assert(downscale_shift_ >= 0);
+  for (int shift = downscale_shift_;
+       shift > 0 && (res_.width / 2 >= min_width_) &&
+           (res_.height / 2 >= min_height_);
+       --shift) {
+    res_.width /= 2;
+    res_.height /= 2;
+  }
 }
 
 QualityScaler::Resolution QualityScaler::GetScaledResolution() const {
@@ -133,8 +124,13 @@ const VideoFrame& QualityScaler::GetScaledFrame(const VideoFrame& frame) {
   if (res.width == frame.width())
     return frame;
 
-  scaler_.Set(frame.width(), frame.height(), res.width, res.height, kI420,
-              kI420, kScaleBox);
+  scaler_.Set(frame.width(),
+              frame.height(),
+              res.width,
+              res.height,
+              kI420,
+              kI420,
+              kScaleBox);
   if (scaler_.Scale(frame, &scaled_frame_) != 0)
     return frame;
 
@@ -143,19 +139,6 @@ const VideoFrame& QualityScaler::GetScaledFrame(const VideoFrame& frame) {
   scaled_frame_.set_render_time_ms(frame.render_time_ms());
 
   return scaled_frame_;
-}
-
-void QualityScaler::UpdateTargetResolution(int frame_width, int frame_height) {
-  assert(downscale_shift_ >= 0);
-  res_.width = frame_width;
-  res_.height = frame_height;
-  for (int shift = downscale_shift_;
-       shift > 0 && (res_.width / 2 >= min_width_) &&
-       (res_.height / 2 >= min_height_);
-       --shift) {
-    res_.width /= 2;
-    res_.height /= 2;
-  }
 }
 
 void QualityScaler::ClearSamples() {

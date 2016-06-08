@@ -9,7 +9,6 @@
 # TODO(kjellander): Rebase this to webrtc/build/common.gypi changes after r6330.
 
 import("//build/config/linux/pkg_config.gni")
-import("//build/config/sanitizers/sanitizers.gni")
 import("build/webrtc.gni")
 import("//third_party/protobuf/proto_library.gni")
 
@@ -178,8 +177,8 @@ source_set("webrtc") {
   public_configs = [ ":common_inherited_config" ]
 
   deps = [
-    ":webrtc_common",
     "audio",
+    ":webrtc_common",
     "base:rtc_base",
     "call",
     "common_audio",
@@ -219,8 +218,8 @@ if (!build_with_chromium) {
     testonly = true
     deps = [
       ":webrtc",
-      "modules/video_capture:video_capture_internal_impl",
       "modules/video_render:video_render_internal_impl",
+      "modules/video_capture:video_capture_internal_impl",
       "test",
     ]
   }
@@ -228,7 +227,6 @@ if (!build_with_chromium) {
 
 source_set("webrtc_common") {
   sources = [
-    "audio_sink.h",
     "common_types.cc",
     "common_types.h",
     "config.cc",
@@ -239,12 +237,12 @@ source_set("webrtc_common") {
 
   configs += [ ":common_config" ]
   public_configs = [ ":common_inherited_config" ]
+}
 
-  if (is_clang && !is_nacl) {
-    # Suppress warnings from Chrome's Clang plugins.
-    # See http://code.google.com/p/webrtc/issues/detail?id=163 for details.
-    configs -= [ "//build/config/clang:find_bad_constructs" ]
-  }
+source_set("gtest_prod") {
+  sources = [
+    "test/testsupport/gtest_prod_util.h",
+  ]
 }
 
 if (rtc_enable_protobuf) {
@@ -278,16 +276,5 @@ source_set("rtc_event_log") {
     # Suppress warnings from Chrome's Clang plugins.
     # See http://code.google.com/p/webrtc/issues/detail?id=163 for details.
     configs -= [ "//build/config/clang:find_bad_constructs" ]
-  }
-}
-
-if (use_libfuzzer || use_drfuzz) {
-  # This target is only here for gn to discover fuzzer build targets under
-  # webrtc/test/fuzzers/.
-  group("webrtc_fuzzers_dummy") {
-    testonly = true
-    deps = [
-      "test/fuzzers:webrtc_fuzzer_main",
-    ]
   }
 }

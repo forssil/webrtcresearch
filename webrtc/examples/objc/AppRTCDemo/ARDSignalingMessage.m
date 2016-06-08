@@ -10,10 +10,10 @@
 
 #import "ARDSignalingMessage.h"
 
-#import "webrtc/base/objc/RTCLogging.h"
+#import "RTCLogging.h"
 
 #import "ARDUtilities.h"
-#import "RTCIceCandidate+JSON.h"
+#import "RTCICECandidate+JSON.h"
 #import "RTCSessionDescription+JSON.h"
 
 static NSString const *kARDSignalingMessageTypeKey = @"type";
@@ -44,8 +44,8 @@ static NSString const *kARDSignalingMessageTypeKey = @"type";
   NSString *typeString = values[kARDSignalingMessageTypeKey];
   ARDSignalingMessage *message = nil;
   if ([typeString isEqualToString:@"candidate"]) {
-    RTCIceCandidate *candidate =
-        [RTCIceCandidate candidateFromJSONDictionary:values];
+    RTCICECandidate *candidate =
+        [RTCICECandidate candidateFromJSONDictionary:values];
     message = [[ARDICECandidateMessage alloc] initWithCandidate:candidate];
   } else if ([typeString isEqualToString:@"offer"] ||
              [typeString isEqualToString:@"answer"]) {
@@ -71,7 +71,7 @@ static NSString const *kARDSignalingMessageTypeKey = @"type";
 
 @synthesize candidate = _candidate;
 
-- (instancetype)initWithCandidate:(RTCIceCandidate *)candidate {
+- (instancetype)initWithCandidate:(RTCICECandidate *)candidate {
   if (self = [super initWithType:kARDSignalingMessageTypeCandidate]) {
     _candidate = candidate;
   }
@@ -89,21 +89,16 @@ static NSString const *kARDSignalingMessageTypeKey = @"type";
 @synthesize sessionDescription = _sessionDescription;
 
 - (instancetype)initWithDescription:(RTCSessionDescription *)description {
-  ARDSignalingMessageType messageType = kARDSignalingMessageTypeOffer;
-  RTCSdpType sdpType = description.type;
-  switch (sdpType) {
-    case RTCSdpTypeOffer:
-      messageType = kARDSignalingMessageTypeOffer;
-      break;
-    case RTCSdpTypeAnswer:
-      messageType = kARDSignalingMessageTypeAnswer;
-      break;
-    case RTCSdpTypePrAnswer:
-      NSAssert(NO, @"Unexpected type: %@",
-          [RTCSessionDescription stringForType:sdpType]);
-      break;
+  ARDSignalingMessageType type = kARDSignalingMessageTypeOffer;
+  NSString *typeString = description.type;
+  if ([typeString isEqualToString:@"offer"]) {
+    type = kARDSignalingMessageTypeOffer;
+  } else if ([typeString isEqualToString:@"answer"]) {
+    type = kARDSignalingMessageTypeAnswer;
+  } else {
+    NSAssert(NO, @"Unexpected type: %@", typeString);
   }
-  if (self = [super initWithType:messageType]) {
+  if (self = [super initWithType:type]) {
     _sessionDescription = description;
   }
   return self;

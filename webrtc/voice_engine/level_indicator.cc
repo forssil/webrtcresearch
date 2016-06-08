@@ -10,6 +10,7 @@
 
 #include "webrtc/common_audio/signal_processing/include/signal_processing_library.h"
 #include "webrtc/modules/include/module_common_types.h"
+#include "webrtc/system_wrappers/include/critical_section_wrapper.h"
 #include "webrtc/voice_engine/level_indicator.h"
 
 namespace webrtc {
@@ -24,6 +25,7 @@ const int8_t permutation[33] =
 
 
 AudioLevel::AudioLevel() :
+    _critSect(*CriticalSectionWrapper::CreateCriticalSection()),
     _absMax(0),
     _count(0),
     _currentLevel(0),
@@ -31,11 +33,12 @@ AudioLevel::AudioLevel() :
 }
 
 AudioLevel::~AudioLevel() {
+    delete &_critSect;
 }
 
 void AudioLevel::Clear()
 {
-    rtc::CritScope cs(&_critSect);
+    CriticalSectionScoped cs(&_critSect);
     _absMax = 0;
     _count = 0;
     _currentLevel = 0;
@@ -53,7 +56,7 @@ void AudioLevel::ComputeLevel(const AudioFrame& audioFrame)
 
     // Protect member access using a lock since this method is called on a
     // dedicated audio thread in the RecordedDataIsAvailable() callback.
-    rtc::CritScope cs(&_critSect);
+    CriticalSectionScoped cs(&_critSect);
 
     if (absValue > _absMax)
     _absMax = absValue;
@@ -85,13 +88,13 @@ void AudioLevel::ComputeLevel(const AudioFrame& audioFrame)
 
 int8_t AudioLevel::Level() const
 {
-    rtc::CritScope cs(&_critSect);
+    CriticalSectionScoped cs(&_critSect);
     return _currentLevel;
 }
 
 int16_t AudioLevel::LevelFullRange() const
 {
-    rtc::CritScope cs(&_critSect);
+    CriticalSectionScoped cs(&_critSect);
     return _currentLevelFullRange;
 }
 

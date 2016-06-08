@@ -20,6 +20,7 @@
 #include "webrtc/base/md5digest.h"
 #include "webrtc/base/stringencode.h"
 #include "webrtc/test/testsupport/fileutils.h"
+#include "webrtc/test/testsupport/gtest_disable.h"
 
 DEFINE_bool(file_player_output, false, "Generate reference files.");
 
@@ -81,12 +82,7 @@ class FilePlayerTest : public ::testing::Test {
   FILE* output_file_;
 };
 
-#if defined(WEBRTC_IOS)
-#define MAYBE_PlayWavPcmuFile DISABLED_PlayWavPcmuFile
-#else
-#define MAYBE_PlayWavPcmuFile PlayWavPcmuFile
-#endif
-TEST_F(FilePlayerTest, MAYBE_PlayWavPcmuFile) {
+TEST_F(FilePlayerTest, DISABLED_ON_IOS(PlayWavPcmuFile)) {
   const std::string kFileName =
       test::ResourcePath("utility/encapsulated_pcmu_8khz", "wav");
   // The file is longer than this, but keeping the output shorter limits the
@@ -97,12 +93,7 @@ TEST_F(FilePlayerTest, MAYBE_PlayWavPcmuFile) {
   PlayFileAndCheck(kFileName, kRefChecksum, kOutputLengthMs);
 }
 
-#if defined(WEBRTC_IOS)
-#define MAYBE_PlayWavPcm16File DISABLED_PlayWavPcm16File
-#else
-#define MAYBE_PlayWavPcm16File PlayWavPcm16File
-#endif
-TEST_F(FilePlayerTest, MAYBE_PlayWavPcm16File) {
+TEST_F(FilePlayerTest, DISABLED_ON_IOS(PlayWavPcm16File)) {
   const std::string kFileName =
       test::ResourcePath("utility/encapsulated_pcm16b_8khz", "wav");
   // The file is longer than this, but keeping the output shorter limits the

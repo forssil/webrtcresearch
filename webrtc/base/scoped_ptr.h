@@ -42,39 +42,55 @@
 //   }
 //
 // These scopers also implement part of the functionality of C++11 unique_ptr
-// in that they are "movable but not copyable." You can use the scopers in the
-// parameter and return types of functions to signify ownership transfer in to
-// and out of a function. When calling a function that has a scoper as the
-// argument type, it must be called with the result of calling std::move on an
-// analogous scoper, or another function that generates a temporary; passing by
-// copy will NOT work. Here is an example using scoped_ptr:
+// in that they are "movable but not copyable."  You can use the scopers in
+// the parameter and return types of functions to signify ownership transfer
+// in to and out of a function.  When calling a function that has a scoper
+// as the argument type, it must be called with the result of an analogous
+// scoper's Pass() function or another function that generates a temporary;
+// passing by copy will NOT work.  Here is an example using scoped_ptr:
 //
 //   void TakesOwnership(scoped_ptr<Foo> arg) {
 //     // Do something with arg
 //   }
 //   scoped_ptr<Foo> CreateFoo() {
-//     // No need for calling std::move because we are constructing a temporary
+//     // No need for calling Pass() because we are constructing a temporary
 //     // for the return value.
 //     return scoped_ptr<Foo>(new Foo("new"));
 //   }
 //   scoped_ptr<Foo> PassThru(scoped_ptr<Foo> arg) {
-//     return std::move(arg);
+//     return arg.Pass();
 //   }
 //
 //   {
 //     scoped_ptr<Foo> ptr(new Foo("yay"));  // ptr manages Foo("yay").
-//     TakesOwnership(std::move(ptr));       // ptr no longer owns Foo("yay").
+//     TakesOwnership(ptr.Pass());           // ptr no longer owns Foo("yay").
 //     scoped_ptr<Foo> ptr2 = CreateFoo();   // ptr2 owns the return Foo.
 //     scoped_ptr<Foo> ptr3 =                // ptr3 now owns what was in ptr2.
-//         PassThru(std::move(ptr2));        // ptr2 is correspondingly nullptr.
+//         PassThru(ptr2.Pass());            // ptr2 is correspondingly nullptr.
 //   }
 //
-// Notice that if you do not call std::move when returning from PassThru(), or
+// Notice that if you do not call Pass() when returning from PassThru(), or
 // when invoking TakesOwnership(), the code will not compile because scopers
 // are not copyable; they only implement move semantics which require calling
-// std::move to signify a destructive transfer of state. CreateFoo() is
-// different though because we are constructing a temporary on the return line
-// and thus can avoid needing to call std::move.
+// the Pass() function to signify a destructive transfer of state. CreateFoo()
+// is different though because we are constructing a temporary on the return
+// line and thus can avoid needing to call Pass().
+//
+// Pass() properly handles upcast in initialization, i.e. you can use a
+// scoped_ptr<Child> to initialize a scoped_ptr<Parent>:
+//
+//   scoped_ptr<Foo> foo(new Foo());
+//   scoped_ptr<FooParent> parent(foo.Pass());
+//
+// PassAs<>() should be used to upcast return value in return statement:
+//
+//   scoped_ptr<Foo> CreateFoo() {
+//     scoped_ptr<FooChild> result(new FooChild());
+//     return result.PassAs<Foo>();
+//   }
+//
+// Note that PassAs<>() is implemented only for scoped_ptr<T>, but not for
+// scoped_ptr<T[]>. This is because casting array pointers may not be safe.
 
 #ifndef WEBRTC_BASE_SCOPED_PTR_H__
 #define WEBRTC_BASE_SCOPED_PTR_H__
@@ -87,8 +103,6 @@
 #include <stdlib.h>
 
 #include <algorithm>  // For std::swap().
-#include <cstddef>
-#include <memory>
 
 #include "webrtc/base/constructormagic.h"
 #include "webrtc/base/template_util.h"
@@ -328,7 +342,7 @@ class scoped_ptr {
   scoped_ptr(element_type* p, const D& d) : impl_(p, d) {}
 
   // Constructor.  Allows construction from a nullptr.
-  scoped_ptr(std::nullptr_t) : impl_(nullptr) {}
+  scoped_ptr(decltype(nullptr)) : impl_(nullptr) {}
 
   // Constructor.  Allows construction from a scoped_ptr rvalue for a
   // convertible type and deleter.
@@ -365,7 +379,7 @@ class scoped_ptr {
 
   // operator=.  Allows assignment from a nullptr. Deletes the currently owned
   // object, if any.
-  scoped_ptr& operator=(std::nullptr_t) {
+  scoped_ptr& operator=(decltype(nullptr)) {
     reset();
     return *this;
   }
@@ -373,6 +387,9 @@ class scoped_ptr {
   // Deleted copy constructor and copy assignment, to make the type move-only.
   scoped_ptr(const scoped_ptr& other) = delete;
   scoped_ptr& operator=(const scoped_ptr& other) = delete;
+
+  // Get an rvalue reference. (sp.Pass() does the same thing as std::move(sp).)
+  scoped_ptr&& Pass() { return static_cast<scoped_ptr&&>(*this); }
 
   // Reset.  Deletes the currently owned object, if any.
   // Then takes ownership of a new object, if given.
@@ -482,7 +499,7 @@ class scoped_ptr<T[], D> {
   explicit scoped_ptr(element_type* array) : impl_(array) {}
 
   // Constructor.  Allows construction from a nullptr.
-  scoped_ptr(std::nullptr_t) : impl_(nullptr) {}
+  scoped_ptr(decltype(nullptr)) : impl_(nullptr) {}
 
   // Constructor.  Allows construction from a scoped_ptr rvalue.
   scoped_ptr(scoped_ptr&& other) : impl_(&other.impl_) {}
@@ -495,7 +512,7 @@ class scoped_ptr<T[], D> {
 
   // operator=.  Allows assignment from a nullptr. Deletes the currently owned
   // array, if any.
-  scoped_ptr& operator=(std::nullptr_t) {
+  scoped_ptr& operator=(decltype(nullptr)) {
     reset();
     return *this;
   }
@@ -503,6 +520,9 @@ class scoped_ptr<T[], D> {
   // Deleted copy constructor and copy assignment, to make the type move-only.
   scoped_ptr(const scoped_ptr& other) = delete;
   scoped_ptr& operator=(const scoped_ptr& other) = delete;
+
+  // Get an rvalue reference. (sp.Pass() does the same thing as std::move(sp).)
+  scoped_ptr&& Pass() { return static_cast<scoped_ptr&&>(*this); }
 
   // Reset.  Deletes the currently owned array, if any.
   // Then takes ownership of a new object, if given.
@@ -591,16 +611,6 @@ class scoped_ptr<T[], D> {
 template <class T, class D>
 void swap(rtc::scoped_ptr<T, D>& p1, rtc::scoped_ptr<T, D>& p2) {
   p1.swap(p2);
-}
-
-// Convert between the most common kinds of scoped_ptr and unique_ptr.
-template <typename T>
-std::unique_ptr<T> ScopedToUnique(scoped_ptr<T> sp) {
-  return std::unique_ptr<T>(sp.release());
-}
-template <typename T>
-scoped_ptr<T> UniqueToScoped(std::unique_ptr<T> up) {
-  return scoped_ptr<T>(up.release());
 }
 
 }  // namespace rtc

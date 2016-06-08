@@ -12,8 +12,6 @@
 
 #include <assert.h>
 
-#include <utility>
-
 #include "webrtc/modules/desktop_capture/desktop_capture_options.h"
 #include "webrtc/modules/desktop_capture/desktop_frame.h"
 #include "webrtc/modules/desktop_capture/desktop_frame_win.h"
@@ -35,22 +33,6 @@ const UINT DWM_EC_DISABLECOMPOSITION = 0;
 const UINT DWM_EC_ENABLECOMPOSITION = 1;
 
 const wchar_t kDwmapiLibraryName[] = L"dwmapi.dll";
-
-// SharedMemoryFactory that creates SharedMemory using the deprecated
-// DesktopCapturer::Callback::CreateSharedMemory().
-class CallbackSharedMemoryFactory : public SharedMemoryFactory {
- public:
-  CallbackSharedMemoryFactory(DesktopCapturer::Callback* callback)
-      : callback_(callback) {}
-  ~CallbackSharedMemoryFactory() override {}
-
-  rtc::scoped_ptr<SharedMemory> CreateSharedMemory(size_t size) override {
-    return rtc::scoped_ptr<SharedMemory>(callback_->CreateSharedMemory(size));
-  }
-
- private:
-  DesktopCapturer::Callback* callback_;
-};
 
 }  // namespace
 
@@ -86,12 +68,6 @@ ScreenCapturerWinGdi::~ScreenCapturerWinGdi() {
 
   if (dwmapi_library_)
     FreeLibrary(dwmapi_library_);
-}
-
-void ScreenCapturerWinGdi::SetSharedMemoryFactory(
-    rtc::scoped_ptr<SharedMemoryFactory> shared_memory_factory) {
-  shared_memory_factory_ =
-      rtc::ScopedToUnique(std::move(shared_memory_factory));
 }
 
 void ScreenCapturerWinGdi::Capture(const DesktopRegion& region) {
@@ -172,8 +148,6 @@ void ScreenCapturerWinGdi::Start(Callback* callback) {
   assert(callback);
 
   callback_ = callback;
-  if (!shared_memory_factory_)
-    shared_memory_factory_.reset(new CallbackSharedMemoryFactory(callback));
 
   // Vote to disable Aero composited desktop effects while capturing. Windows
   // will restore Aero automatically if the process exits. This has no effect
@@ -185,7 +159,7 @@ void ScreenCapturerWinGdi::Start(Callback* callback) {
 void ScreenCapturerWinGdi::PrepareCaptureResources() {
   // Switch to the desktop receiving user input if different from the current
   // one.
-  std::unique_ptr<Desktop> input_desktop(Desktop::GetInputDesktop());
+  rtc::scoped_ptr<Desktop> input_desktop(Desktop::GetInputDesktop());
   if (input_desktop.get() != NULL && !desktop_.IsSame(*input_desktop)) {
     // Release GDI resources otherwise SetThreadDesktop will fail.
     if (desktop_dc_) {
@@ -263,8 +237,12 @@ bool ScreenCapturerWinGdi::CaptureImage() {
     assert(desktop_dc_ != NULL);
     assert(memory_dc_ != NULL);
 
-    std::unique_ptr<DesktopFrame> buffer(DesktopFrameWin::Create(
-        size, shared_memory_factory_.get(), desktop_dc_));
+    size_t buffer_size = size.width() * size.height() *
+        DesktopFrame::kBytesPerPixel;
+    SharedMemory* shared_memory = callback_->CreateSharedMemory(buffer_size);
+
+    rtc::scoped_ptr<DesktopFrame> buffer(
+        DesktopFrameWin::Create(size, shared_memory, desktop_dc_));
     if (!buffer.get())
       return false;
     queue_.ReplaceCurrentFrame(buffer.release());

@@ -8,11 +8,10 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <memory>
-
 #include "webrtc/modules/desktop_capture/mouse_cursor_monitor.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
+#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/modules/desktop_capture/desktop_capture_options.h"
 #include "webrtc/modules/desktop_capture/desktop_frame.h"
 #include "webrtc/modules/desktop_capture/mouse_cursor.h"
@@ -41,7 +40,7 @@ class MouseCursorMonitorTest : public testing::Test,
   }
 
  protected:
-  std::unique_ptr<MouseCursor> cursor_image_;
+  rtc::scoped_ptr<MouseCursor> cursor_image_;
   MouseCursorMonitor::CursorState state_;
   DesktopVector position_;
   bool position_received_;
@@ -63,7 +62,7 @@ class MouseCursorMonitorTest : public testing::Test,
 #endif
 
 TEST_F(MouseCursorMonitorTest, MAYBE(FromScreen)) {
-  std::unique_ptr<MouseCursorMonitor> capturer(
+  rtc::scoped_ptr<MouseCursorMonitor> capturer(
       MouseCursorMonitor::CreateForScreen(
           DesktopCaptureOptions::CreateDefault(),
           webrtc::kFullDesktopScreenId));
@@ -87,7 +86,7 @@ TEST_F(MouseCursorMonitorTest, MAYBE(FromWindow)) {
   DesktopCaptureOptions options = DesktopCaptureOptions::CreateDefault();
 
   // First get list of windows.
-  std::unique_ptr<WindowCapturer> window_capturer(
+  rtc::scoped_ptr<WindowCapturer> window_capturer(
       WindowCapturer::Create(options));
 
   // If window capturing is not supported then skip this test.
@@ -102,7 +101,7 @@ TEST_F(MouseCursorMonitorTest, MAYBE(FromWindow)) {
     cursor_image_.reset();
     position_received_ = false;
 
-    std::unique_ptr<MouseCursorMonitor> capturer(
+    rtc::scoped_ptr<MouseCursorMonitor> capturer(
         MouseCursorMonitor::CreateForWindow(
             DesktopCaptureOptions::CreateDefault(), windows[i].id));
     assert(capturer.get());
@@ -117,7 +116,7 @@ TEST_F(MouseCursorMonitorTest, MAYBE(FromWindow)) {
 
 // Make sure that OnMouseCursorPosition() is not called in the SHAPE_ONLY mode.
 TEST_F(MouseCursorMonitorTest, MAYBE(ShapeOnly)) {
-  std::unique_ptr<MouseCursorMonitor> capturer(
+  rtc::scoped_ptr<MouseCursorMonitor> capturer(
       MouseCursorMonitor::CreateForScreen(
           DesktopCaptureOptions::CreateDefault(),
           webrtc::kFullDesktopScreenId));

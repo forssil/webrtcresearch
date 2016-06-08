@@ -14,6 +14,7 @@
 #include <complex>
 
 #include "webrtc/base/checks.h"
+#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/modules/audio_processing/beamformer/matrix.h"
 
 namespace webrtc {
@@ -26,10 +27,10 @@ class ComplexMatrix : public Matrix<complex<T> > {
  public:
   ComplexMatrix() : Matrix<complex<T> >() {}
 
-  ComplexMatrix(size_t num_rows, size_t num_columns)
+  ComplexMatrix(int num_rows, int num_columns)
       : Matrix<complex<T> >(num_rows, num_columns) {}
 
-  ComplexMatrix(const complex<T>* data, size_t num_rows, size_t num_columns)
+  ComplexMatrix(const complex<T>* data, int num_rows, int num_columns)
       : Matrix<complex<T> >(data, num_rows, num_columns) {}
 
   // Complex Matrix operations.
@@ -50,7 +51,7 @@ class ComplexMatrix : public Matrix<complex<T> > {
 
   ComplexMatrix& ConjugateTranspose() {
     this->CopyDataToScratch();
-    size_t num_rows = this->num_rows();
+    int num_rows = this->num_rows();
     this->SetNumRows(this->num_columns());
     this->SetNumColumns(num_rows);
     this->Resize();
@@ -81,8 +82,8 @@ class ComplexMatrix : public Matrix<complex<T> > {
  private:
   ComplexMatrix& ConjugateTranspose(const complex<T>* const* src) {
     complex<T>* const* elements = this->elements();
-    for (size_t i = 0; i < this->num_rows(); ++i) {
-      for (size_t j = 0; j < this->num_columns(); ++j) {
+    for (int i = 0; i < this->num_rows(); ++i) {
+      for (int j = 0; j < this->num_columns(); ++j) {
         elements[i][j] = conj(src[j][i]);
       }
     }

@@ -11,9 +11,8 @@
 #ifndef WEBRTC_COMMON_AUDIO_AUDIO_CONVERTER_H_
 #define WEBRTC_COMMON_AUDIO_AUDIO_CONVERTER_H_
 
-#include <memory>
-
 #include "webrtc/base/constructormagic.h"
+#include "webrtc/base/scoped_ptr.h"
 
 namespace webrtc {
 
@@ -27,9 +26,9 @@ class AudioConverter {
  public:
   // Returns a new AudioConverter, which will use the supplied format for its
   // lifetime. Caller is responsible for the memory.
-  static std::unique_ptr<AudioConverter> Create(size_t src_channels,
+  static rtc::scoped_ptr<AudioConverter> Create(int src_channels,
                                                 size_t src_frames,
-                                                size_t dst_channels,
+                                                int dst_channels,
                                                 size_t dst_frames);
   virtual ~AudioConverter() {};
 
@@ -40,23 +39,23 @@ class AudioConverter {
   virtual void Convert(const float* const* src, size_t src_size,
                        float* const* dst, size_t dst_capacity) = 0;
 
-  size_t src_channels() const { return src_channels_; }
+  int src_channels() const { return src_channels_; }
   size_t src_frames() const { return src_frames_; }
-  size_t dst_channels() const { return dst_channels_; }
+  int dst_channels() const { return dst_channels_; }
   size_t dst_frames() const { return dst_frames_; }
 
  protected:
   AudioConverter();
-  AudioConverter(size_t src_channels, size_t src_frames, size_t dst_channels,
+  AudioConverter(int src_channels, size_t src_frames, int dst_channels,
                  size_t dst_frames);
 
   // Helper to RTC_CHECK that inputs are correctly sized.
   void CheckSizes(size_t src_size, size_t dst_capacity) const;
 
  private:
-  const size_t src_channels_;
+  const int src_channels_;
   const size_t src_frames_;
-  const size_t dst_channels_;
+  const int dst_channels_;
   const size_t dst_frames_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(AudioConverter);

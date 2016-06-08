@@ -8,11 +8,10 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <memory>
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 #include "webrtc/audio/audio_state.h"
+#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/test/mock_voice_engine.h"
 
 namespace webrtc {
@@ -31,7 +30,7 @@ struct ConfigHelper {
   MockVoiceEngine& voice_engine() { return voice_engine_; }
 
  private:
-  testing::StrictMock<MockVoiceEngine> voice_engine_;
+  MockVoiceEngine voice_engine_;
   AudioState::Config config_;
 };
 }  // namespace
@@ -45,20 +44,20 @@ TEST(AudioStateTest, Create) {
 
 TEST(AudioStateTest, ConstructDestruct) {
   ConfigHelper helper;
-  std::unique_ptr<internal::AudioState> audio_state(
+  rtc::scoped_ptr<internal::AudioState> audio_state(
       new internal::AudioState(helper.config()));
 }
 
 TEST(AudioStateTest, GetVoiceEngine) {
   ConfigHelper helper;
-  std::unique_ptr<internal::AudioState> audio_state(
+  rtc::scoped_ptr<internal::AudioState> audio_state(
       new internal::AudioState(helper.config()));
   EXPECT_EQ(audio_state->voice_engine(), &helper.voice_engine());
 }
 
 TEST(AudioStateTest, TypingNoiseDetected) {
   ConfigHelper helper;
-  std::unique_ptr<internal::AudioState> audio_state(
+  rtc::scoped_ptr<internal::AudioState> audio_state(
       new internal::AudioState(helper.config()));
   VoiceEngineObserver* voe_observer =
       static_cast<VoiceEngineObserver*>(audio_state.get());

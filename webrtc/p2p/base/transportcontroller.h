@@ -15,7 +15,6 @@
 #include <string>
 #include <vector>
 
-#include "webrtc/base/asyncinvoker.h"
 #include "webrtc/base/sigslot.h"
 #include "webrtc/base/sslstreamadapter.h"
 #include "webrtc/p2p/base/candidate.h"
@@ -49,7 +48,11 @@ class TransportController : public sigslot::has_slots<>,
   void SetIceConfig(const IceConfig& config);
   void SetIceRole(IceRole ice_role);
 
-  bool GetSslRole(const std::string& transport_name, rtc::SSLRole* role);
+  // TODO(deadbeef) - Return role of each transport, as role may differ from
+  // one another.
+  // In current implementaion we just return the role of the first transport
+  // alphabetically.
+  bool GetSslRole(rtc::SSLRole* role);
 
   // Specifies the identity to use in this session.
   // Can only be called once.
@@ -75,7 +78,6 @@ class TransportController : public sigslot::has_slots<>,
   bool AddRemoteCandidates(const std::string& transport_name,
                            const Candidates& candidates,
                            std::string* err);
-  bool RemoveRemoteCandidates(const Candidates& candidates, std::string* err);
   bool ReadyForRemoteCandidates(const std::string& transport_name);
   bool GetStats(const std::string& transport_name, TransportStats* stats);
 
@@ -109,8 +111,6 @@ class TransportController : public sigslot::has_slots<>,
   // (transport_name, candidates)
   sigslot::signal2<const std::string&, const Candidates&>
       SignalCandidatesGathered;
-
-  sigslot::signal1<const Candidates&> SignalCandidatesRemoved;
 
   // for unit test
   const rtc::scoped_refptr<rtc::RTCCertificate>& certificate_for_testing();
@@ -160,7 +160,7 @@ class TransportController : public sigslot::has_slots<>,
   bool SetSslMaxProtocolVersion_w(rtc::SSLProtocolVersion version);
   void SetIceConfig_w(const IceConfig& config);
   void SetIceRole_w(IceRole ice_role);
-  bool GetSslRole_w(const std::string& transport_name, rtc::SSLRole* role);
+  bool GetSslRole_w(rtc::SSLRole* role);
   bool SetLocalCertificate_w(
       const rtc::scoped_refptr<rtc::RTCCertificate>& certificate);
   bool GetLocalCertificate_w(
@@ -180,7 +180,6 @@ class TransportController : public sigslot::has_slots<>,
   bool AddRemoteCandidates_w(const std::string& transport_name,
                              const Candidates& candidates,
                              std::string* err);
-  bool RemoveRemoteCandidates_w(const Candidates& candidates, std::string* err);
   bool ReadyForRemoteCandidates_w(const std::string& transport_name);
   bool GetStats_w(const std::string& transport_name, TransportStats* stats);
 
@@ -190,9 +189,6 @@ class TransportController : public sigslot::has_slots<>,
   void OnChannelGatheringState_w(TransportChannelImpl* channel);
   void OnChannelCandidateGathered_w(TransportChannelImpl* channel,
                                     const Candidate& candidate);
-  void OnChannelCandidatesRemoved(const Candidates& candidates);
-  void OnChannelCandidatesRemoved_w(TransportChannelImpl* channel,
-                                    const Candidates& candidates);
   void OnChannelRoleConflict_w(TransportChannelImpl* channel);
   void OnChannelConnectionRemoved_w(TransportChannelImpl* channel);
 
@@ -206,7 +202,7 @@ class TransportController : public sigslot::has_slots<>,
   std::vector<RefCountedChannel> channels_;
 
   PortAllocator* const port_allocator_ = nullptr;
-  rtc::SSLProtocolVersion ssl_max_version_ = rtc::SSL_PROTOCOL_DTLS_12;
+  rtc::SSLProtocolVersion ssl_max_version_ = rtc::SSL_PROTOCOL_DTLS_10;
 
   // Aggregate state for TransportChannelImpls.
   IceConnectionState connection_state_ = kIceConnectionConnecting;
@@ -220,7 +216,6 @@ class TransportController : public sigslot::has_slots<>,
   bool ice_role_switch_ = false;
   uint64_t ice_tiebreaker_ = rtc::CreateRandomId64();
   rtc::scoped_refptr<rtc::RTCCertificate> certificate_;
-  rtc::AsyncInvoker invoker_;
 };
 
 }  // namespace cricket

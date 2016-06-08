@@ -17,7 +17,7 @@
 
 namespace webrtc {
 
-static inline size_t ChannelsFromLayout(AudioProcessing::ChannelLayout layout) {
+static inline int ChannelsFromLayout(AudioProcessing::ChannelLayout layout) {
   switch (layout) {
     case AudioProcessing::kMono:
     case AudioProcessing::kMonoAndKeyboard:
@@ -27,7 +27,7 @@ static inline size_t ChannelsFromLayout(AudioProcessing::ChannelLayout layout) {
       return 2;
   }
   assert(false);
-  return 0;
+  return -1;
 }
 
 }  // namespace webrtc

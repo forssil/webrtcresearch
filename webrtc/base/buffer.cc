@@ -10,20 +10,20 @@
 
 #include "webrtc/base/buffer.h"
 
-#include <algorithm>
-#include <utility>
+#include <cassert>
 
 namespace rtc {
 
 Buffer::Buffer() : size_(0), capacity_(0), data_(nullptr) {
-  RTC_DCHECK(IsConsistent());
+  assert(IsConsistent());
+}
+
+Buffer::Buffer(const Buffer& buf) : Buffer(buf.data(), buf.size()) {
 }
 
 Buffer::Buffer(Buffer&& buf)
-    : size_(buf.size()),
-      capacity_(buf.capacity()),
-      data_(std::move(buf.data_)) {
-  RTC_DCHECK(IsConsistent());
+    : size_(buf.size()), capacity_(buf.capacity()), data_(buf.data_.Pass()) {
+  assert(IsConsistent());
   buf.OnMovedFrom();
 }
 
@@ -34,7 +34,7 @@ Buffer::Buffer(size_t size, size_t capacity)
     : size_(size),
       capacity_(std::max(size, capacity)),
       data_(new uint8_t[capacity_]) {
-  RTC_DCHECK(IsConsistent());
+  assert(IsConsistent());
 }
 
 // Note: The destructor works even if the buffer has been moved from.

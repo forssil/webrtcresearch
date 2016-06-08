@@ -11,25 +11,24 @@
 #ifndef WEBRTC_MODULES_AUDIO_PROCESSING_AEC_AEC_CORE_INTERNAL_H_
 #define WEBRTC_MODULES_AUDIO_PROCESSING_AEC_AEC_CORE_INTERNAL_H_
 
-extern "C" {
 #include "webrtc/common_audio/ring_buffer.h"
-}
 #include "webrtc/common_audio/wav_file.h"
 #include "webrtc/modules/audio_processing/aec/aec_common.h"
 #include "webrtc/modules/audio_processing/aec/aec_core.h"
-#include "webrtc/modules/audio_processing/utility/block_mean_calculator.h"
 #include "webrtc/typedefs.h"
-
-namespace webrtc {
 
 // Number of partitions for the extended filter mode. The first one is an enum
 // to be used in array declarations, as it represents the maximum filter length.
-enum { kExtendedNumPartitions = 32 };
+enum {
+  kExtendedNumPartitions = 32
+};
 static const int kNormalNumPartitions = 12;
 
 // Delay estimator constants, used for logging and delay compensation if
 // if reported delays are disabled.
-enum { kLookaheadBlocks = 15 };
+enum {
+  kLookaheadBlocks = 15
+};
 enum {
   // 500 ms for 16 kHz which is equivalent with the limit of reported delays.
   kHistorySizeBlocks = 125
@@ -41,16 +40,16 @@ static const float kExtendedMu = 0.4f;
 static const float kExtendedErrorThreshold = 1.0e-6f;
 
 typedef struct PowerLevel {
-  PowerLevel();
-
-  BlockMeanCalculator framelevel;
-  BlockMeanCalculator averagelevel;
+  float sfrsum;
+  int sfrcounter;
+  float framelevel;
+  float frsum;
+  int frcounter;
   float minlevel;
+  float averagelevel;
 } PowerLevel;
 
 struct AecCore {
-  AecCore();
-
   int farBufWritePos, farBufReadPos;
 
   int knownDelay;
@@ -96,8 +95,8 @@ struct AecCore {
 
   int xfBufBlockPos;
 
-  RingBuffer* far_time_buf;
-
+  RingBuffer* far_buf;
+  RingBuffer* far_buf_windowed;
   int system_delay;  // Current system delay buffered in AEC.
 
   int mult;  // sampling frequency multiple
@@ -150,15 +149,8 @@ struct AecCore {
   int delay_agnostic_enabled;
   // 1 = extended filter mode enabled, 0 = disabled.
   int extended_filter_enabled;
-  // 1 = next generation aec mode enabled, 0 = disabled.
-  int aec3_enabled;
-
   // Runtime selection of number of filter partitions.
   int num_partitions;
-
-  // Flag that extreme filter divergence has been detected by the Echo
-  // Suppressor.
-  int extreme_filter_divergence;
 
 #ifdef WEBRTC_AEC_DEBUG_DUMP
   // Sequence number of this AEC instance, so that different instances can
@@ -169,6 +161,7 @@ struct AecCore {
   // each time.
   int debug_dump_count;
 
+  RingBuffer* far_time_buf;
   rtc_WavWriter* farFile;
   rtc_WavWriter* nearFile;
   rtc_WavWriter* outFile;
@@ -177,25 +170,13 @@ struct AecCore {
 #endif
 };
 
-typedef void (*WebRtcAecFilterFar)(
-    int num_partitions,
-    int x_fft_buf_block_pos,
-    float x_fft_buf[2][kExtendedNumPartitions * PART_LEN1],
-    float h_fft_buf[2][kExtendedNumPartitions * PART_LEN1],
-    float y_fft[2][PART_LEN1]);
+typedef void (*WebRtcAecFilterFar)(AecCore* aec, float yf[2][PART_LEN1]);
 extern WebRtcAecFilterFar WebRtcAec_FilterFar;
-typedef void (*WebRtcAecScaleErrorSignal)(int extended_filter_enabled,
-                                          float normal_mu,
-                                          float normal_error_threshold,
-                                          float x_pow[PART_LEN1],
-                                          float ef[2][PART_LEN1]);
+typedef void (*WebRtcAecScaleErrorSignal)(AecCore* aec, float ef[2][PART_LEN1]);
 extern WebRtcAecScaleErrorSignal WebRtcAec_ScaleErrorSignal;
-typedef void (*WebRtcAecFilterAdaptation)(
-    int num_partitions,
-    int x_fft_buf_block_pos,
-    float x_fft_buf[2][kExtendedNumPartitions * PART_LEN1],
-    float e_fft[2][PART_LEN1],
-    float h_fft_buf[2][kExtendedNumPartitions * PART_LEN1]);
+typedef void (*WebRtcAecFilterAdaptation)(AecCore* aec,
+                                          float* fft,
+                                          float ef[2][PART_LEN1]);
 extern WebRtcAecFilterAdaptation WebRtcAec_FilterAdaptation;
 typedef void (*WebRtcAecOverdriveAndSuppress)(AecCore* aec,
                                               float hNl[PART_LEN1],
@@ -205,31 +186,17 @@ extern WebRtcAecOverdriveAndSuppress WebRtcAec_OverdriveAndSuppress;
 
 typedef void (*WebRtcAecComfortNoise)(AecCore* aec,
                                       float efw[2][PART_LEN1],
-                                      float comfortNoiseHband[2][PART_LEN1],
+                                      complex_t* comfortNoiseHband,
                                       const float* noisePow,
                                       const float* lambda);
 extern WebRtcAecComfortNoise WebRtcAec_ComfortNoise;
 
 typedef void (*WebRtcAecSubBandCoherence)(AecCore* aec,
                                           float efw[2][PART_LEN1],
-                                          float dfw[2][PART_LEN1],
                                           float xfw[2][PART_LEN1],
                                           float* fft,
                                           float* cohde,
-                                          float* cohxd,
-                                          int* extreme_filter_divergence);
+                                          float* cohxd);
 extern WebRtcAecSubBandCoherence WebRtcAec_SubbandCoherence;
-
-typedef int (*WebRtcAecPartitionDelay)(const AecCore* aec);
-extern WebRtcAecPartitionDelay WebRtcAec_PartitionDelay;
-
-typedef void (*WebRtcAecStoreAsComplex)(const float* data,
-                                        float data_complex[2][PART_LEN1]);
-extern WebRtcAecStoreAsComplex WebRtcAec_StoreAsComplex;
-
-typedef void (*WebRtcAecWindowData)(float* x_windowed, const float* x);
-extern WebRtcAecWindowData WebRtcAec_WindowData;
-
-}  // namespace webrtc
 
 #endif  // WEBRTC_MODULES_AUDIO_PROCESSING_AEC_AEC_CORE_INTERNAL_H_

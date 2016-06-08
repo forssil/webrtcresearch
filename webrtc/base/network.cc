@@ -8,6 +8,10 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "webrtc/base/network.h"
 
 #if defined(WEBRTC_POSIX)
@@ -20,13 +24,23 @@
 #elif !defined(__native_client__)
 #include <net/if.h>
 #endif
+#include <sys/socket.h>
+#include <sys/utsname.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+#include <errno.h>
+
+#if defined(WEBRTC_ANDROID)
+#include "webrtc/base/ifaddrs-android.h"
+#elif !defined(__native_client__)
+#include <ifaddrs.h>
+#endif
+
 #endif  // WEBRTC_POSIX
 
 #if defined(WEBRTC_WIN)
 #include "webrtc/base/win32.h"
 #include <Iphlpapi.h>
-#elif !defined(__native_client__)
-#include "webrtc/base/ifaddrs_converter.h"
 #endif
 
 #include <stdio.h>
@@ -115,8 +129,7 @@ std::string AdapterTypeToString(AdapterType type) {
   }
 }
 
-#if !defined(__native_client__)
-bool IsIgnoredIPv6(const InterfaceAddress& ip) {
+bool IsIgnoredIPv6(const IPAddress& ip) {
   if (ip.family() != AF_INET6) {
     return false;
   }
@@ -133,14 +146,8 @@ bool IsIgnoredIPv6(const InterfaceAddress& ip) {
     return true;
   }
 
-  // Ignore deprecated IPv6.
-  if (ip.ipv6_flags() & IPV6_ADDRESS_FLAG_DEPRECATED) {
-    return true;
-  }
-
   return false;
 }
-#endif  // !defined(__native_client__)
 
 }  // namespace
 
@@ -235,12 +242,20 @@ void NetworkManagerBase::MergeNetworkList(const NetworkList& new_networks,
 void NetworkManagerBase::MergeNetworkList(const NetworkList& new_networks,
                                           bool* changed,
                                           NetworkManager::Stats* stats) {
-  *changed = false;
   // AddressList in this map will track IP addresses for all Networks
   // with the same key.
   std::map<std::string, AddressList> consolidated_address_list;
   NetworkList list(new_networks);
+
+  // Result of Network merge. Element in this list should have unique key.
+  NetworkList merged_list;
   std::sort(list.begin(), list.end(), CompareNetworks);
+
+  *changed = false;
+
+  if (networks_.size() != list.size())
+    *changed = true;
+
   // First, build a set of network-keys to the ipaddresses.
   for (Network* network : list) {
     bool might_add_to_merged_list = false;
@@ -272,8 +287,6 @@ void NetworkManagerBase::MergeNetworkList(const NetworkList& new_networks,
   }
 
   // Next, look for existing network objects to re-use.
-  // Result of Network merge. Element in this list should have unique key.
-  NetworkList merged_list;
   for (const auto& kv : consolidated_address_list) {
     const std::string& key = kv.first;
     Network* net = kv.second.net;
@@ -282,44 +295,23 @@ void NetworkManagerBase::MergeNetworkList(const NetworkList& new_networks,
       // This network is new. Place it in the network map.
       merged_list.push_back(net);
       networks_map_[key] = net;
-      net->set_id(next_available_network_id_++);
       // Also, we might have accumulated IPAddresses from the first
       // step, set it here.
       net->SetIPs(kv.second.ips, true);
       *changed = true;
     } else {
       // This network exists in the map already. Reset its IP addresses.
-      Network* existing_net = existing->second;
-      *changed = existing_net->SetIPs(kv.second.ips, *changed);
-      merged_list.push_back(existing_net);
-      // If the existing network was not active, networks have changed.
-      if (!existing_net->active()) {
-        *changed = true;
-      }
-      ASSERT(net->active());
-      if (existing_net != net) {
+      *changed = existing->second->SetIPs(kv.second.ips, *changed);
+      merged_list.push_back(existing->second);
+      if (existing->second != net) {
         delete net;
       }
     }
   }
-  // It may still happen that the merged list is a subset of |networks_|.
-  // To detect this change, we compare their sizes.
-  if (merged_list.size() != networks_.size()) {
-    *changed = true;
-  }
+  networks_ = merged_list;
 
-  // If the network list changes, we re-assign |networks_| to the merged list
-  // and re-sort it.
+  // If the network lists changes, we resort it.
   if (*changed) {
-    networks_ = merged_list;
-    // Reset the active states of all networks.
-    for (const auto& kv : networks_map_) {
-      Network* network = kv.second;
-      // If |network| is in the newly generated |networks_|, it is active.
-      bool found = std::find(networks_.begin(), networks_.end(), network) !=
-                   networks_.end();
-      network->set_active(found);
-    }
     std::sort(networks_.begin(), networks_.end(), SortNetworks);
     // Now network interfaces are sorted, we should set the preference value
     // for each of the interfaces we are planning to use.
@@ -353,10 +345,10 @@ void NetworkManagerBase::set_default_local_addresses(const IPAddress& ipv4,
 
 bool NetworkManagerBase::GetDefaultLocalAddress(int family,
                                                 IPAddress* ipaddr) const {
-  if (family == AF_INET && !default_local_ipv4_address_.IsNil()) {
+  if (family == AF_INET) {
     *ipaddr = default_local_ipv4_address_;
     return true;
-  } else if (family == AF_INET6 && !default_local_ipv6_address_.IsNil()) {
+  } else if (family == AF_INET6) {
     *ipaddr = default_local_ipv6_address_;
     return true;
   }
@@ -365,6 +357,7 @@ bool NetworkManagerBase::GetDefaultLocalAddress(int family,
 
 BasicNetworkManager::BasicNetworkManager()
     : thread_(NULL), sent_first_update_(false), start_count_(0),
+      network_ignore_mask_(kDefaultNetworkIgnoreMask),
       ignore_non_default_routes_(false) {
 }
 
@@ -387,47 +380,49 @@ bool BasicNetworkManager::CreateNetworks(bool include_ignored,
 
 #elif defined(WEBRTC_POSIX)
 void BasicNetworkManager::ConvertIfAddrs(struct ifaddrs* interfaces,
-                                         IfAddrsConverter* ifaddrs_converter,
                                          bool include_ignored,
                                          NetworkList* networks) const {
   NetworkMap current_networks;
-
   for (struct ifaddrs* cursor = interfaces;
        cursor != NULL; cursor = cursor->ifa_next) {
     IPAddress prefix;
     IPAddress mask;
-    InterfaceAddress ip;
+    IPAddress ip;
     int scope_id = 0;
 
     // Some interfaces may not have address assigned.
-    if (!cursor->ifa_addr || !cursor->ifa_netmask) {
+    if (!cursor->ifa_addr || !cursor->ifa_netmask)
       continue;
-    }
-    // Skip ones which are down.
-    if (!(cursor->ifa_flags & IFF_RUNNING)) {
-      continue;
-    }
-    // Skip unknown family.
-    if (cursor->ifa_addr->sa_family != AF_INET &&
-        cursor->ifa_addr->sa_family != AF_INET6) {
-      continue;
-    }
-    // Skip IPv6 if not enabled.
-    if (cursor->ifa_addr->sa_family == AF_INET6 && !ipv6_enabled()) {
-      continue;
-    }
-    // Convert to InterfaceAddress.
-    if (!ifaddrs_converter->ConvertIfAddrsToIPAddress(cursor, &ip, &mask)) {
-      continue;
-    }
 
-    // Special case for IPv6 address.
-    if (cursor->ifa_addr->sa_family == AF_INET6) {
-      if (IsIgnoredIPv6(ip)) {
+    switch (cursor->ifa_addr->sa_family) {
+      case AF_INET: {
+        ip = IPAddress(
+            reinterpret_cast<sockaddr_in*>(cursor->ifa_addr)->sin_addr);
+        mask = IPAddress(
+            reinterpret_cast<sockaddr_in*>(cursor->ifa_netmask)->sin_addr);
+        break;
+      }
+      case AF_INET6: {
+        if (ipv6_enabled()) {
+          ip = IPAddress(
+              reinterpret_cast<sockaddr_in6*>(cursor->ifa_addr)->sin6_addr);
+
+          if (IsIgnoredIPv6(ip)) {
+            continue;
+          }
+
+          mask = IPAddress(
+              reinterpret_cast<sockaddr_in6*>(cursor->ifa_netmask)->sin6_addr);
+          scope_id =
+              reinterpret_cast<sockaddr_in6*>(cursor->ifa_addr)->sin6_scope_id;
+          break;
+        } else {
+          continue;
+        }
+      }
+      default: {
         continue;
       }
-      scope_id =
-          reinterpret_cast<sockaddr_in6*>(cursor->ifa_addr)->sin6_scope_id;
     }
 
     int prefix_length = CountIPMaskBits(mask);
@@ -439,8 +434,6 @@ void BasicNetworkManager::ConvertIfAddrs(struct ifaddrs* interfaces,
       AdapterType adapter_type = ADAPTER_TYPE_UNKNOWN;
       if (cursor->ifa_flags & IFF_LOOPBACK) {
         adapter_type = ADAPTER_TYPE_LOOPBACK;
-      } else if (network_monitor_) {
-        adapter_type = network_monitor_->GetAdapterType(cursor->ifa_name);
       }
 #if defined(WEBRTC_IOS)
       // Cell networks are pdp_ipN on iOS.
@@ -457,7 +450,6 @@ void BasicNetworkManager::ConvertIfAddrs(struct ifaddrs* interfaces,
       network->AddIP(ip);
       network->set_ignored(IsIgnoredNetwork(*network));
       if (include_ignored || !network->ignored()) {
-        current_networks[key] = network.get();
         networks->push_back(network.release());
       }
     } else {
@@ -475,9 +467,7 @@ bool BasicNetworkManager::CreateNetworks(bool include_ignored,
     return false;
   }
 
-  rtc::scoped_ptr<IfAddrsConverter> ifaddrs_converter(CreateIfAddrsConverter());
-  ConvertIfAddrs(interfaces, ifaddrs_converter.get(), include_ignored,
-                 networks);
+  ConvertIfAddrs(interfaces, include_ignored, networks);
 
   freeifaddrs(interfaces);
   return true;
@@ -614,7 +604,6 @@ bool BasicNetworkManager::CreateNetworks(bool include_ignored,
           bool ignored = IsIgnoredNetwork(*network);
           network->set_ignored(ignored);
           if (include_ignored || !network->ignored()) {
-            current_networks[key] = network.get();
             networks->push_back(network.release());
           }
         } else {
@@ -666,6 +655,9 @@ bool BasicNetworkManager::IsIgnoredNetwork(const Network& network) const {
     }
   }
 
+  if (network_ignore_mask_ & network.type()) {
+    return true;
+  }
 #if defined(WEBRTC_POSIX)
   // Filter out VMware/VirtualBox interfaces, typically named vmnet1,
   // vmnet8, or vboxnet0.
@@ -731,13 +723,10 @@ void BasicNetworkManager::StartNetworkMonitor() {
   if (factory == nullptr) {
     return;
   }
+  network_monitor_.reset(factory->CreateNetworkMonitor());
   if (!network_monitor_) {
-    network_monitor_.reset(factory->CreateNetworkMonitor());
-    if (!network_monitor_) {
-      return;
-    }
+    return;
   }
-
   network_monitor_->SignalNetworksChanged.connect(
       this, &BasicNetworkManager::OnNetworksChanged);
   network_monitor_->Start();
@@ -748,6 +737,7 @@ void BasicNetworkManager::StopNetworkMonitor() {
     return;
   }
   network_monitor_->Stop();
+  network_monitor_.reset();
 }
 
 void BasicNetworkManager::OnMessage(Message* msg) {
@@ -773,14 +763,12 @@ IPAddress BasicNetworkManager::QueryDefaultLocalAddress(int family) const {
   scoped_ptr<AsyncSocket> socket(
       thread_->socketserver()->CreateAsyncSocket(family, SOCK_DGRAM));
   if (!socket) {
-    LOG_ERR(LERROR) << "Socket creation failed";
     return IPAddress();
   }
 
-  if (socket->Connect(SocketAddress(
-          family == AF_INET ? kPublicIPv4Host : kPublicIPv6Host, kPublicPort)) <
-      0) {
-    LOG(LS_INFO) << "Connect failed with " << socket->GetError();
+  if (!socket->Connect(
+          SocketAddress(family == AF_INET ? kPublicIPv4Host : kPublicIPv6Host,
+                        kPublicPort))) {
     return IPAddress();
   }
   return socket->GetLocalAddress().ipaddr();
@@ -813,14 +801,21 @@ void BasicNetworkManager::UpdateNetworksContinually() {
   thread_->PostDelayed(kNetworksUpdateIntervalMs, this, kUpdateNetworksMessage);
 }
 
-void BasicNetworkManager::DumpNetworks() {
+void BasicNetworkManager::DumpNetworks(bool include_ignored) {
   NetworkList list;
-  GetNetworks(&list);
+  CreateNetworks(include_ignored, &list);
   LOG(LS_INFO) << "NetworkManager detected " << list.size() << " networks:";
   for (const Network* network : list) {
-    LOG(LS_INFO) << network->ToString() << ": " << network->description()
-                 << ", active ? " << network->active()
-                 << ((network->ignored()) ? ", Ignored" : "");
+    if (!network->ignored() || include_ignored) {
+      LOG(LS_INFO) << network->ToString() << ": "
+                   << network->description()
+                   << ((network->ignored()) ? ", Ignored" : "");
+    }
+  }
+  // Release the network list created previously.
+  // Do this in a seperated for loop for better readability.
+  for (Network* network : list) {
+    delete network;
   }
 }
 

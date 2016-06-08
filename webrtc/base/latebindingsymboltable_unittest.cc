@@ -21,10 +21,9 @@ namespace rtc {
 
 #define LIBM_SYMBOLS_CLASS_NAME LibmTestSymbolTable
 #define LIBM_SYMBOLS_LIST \
-  X(acosf) \
-  X(sinf) \
-  X(tanf)
-
+  X(acos) \
+  X(sin) \
+  X(tan)
 
 #define LATE_BINDING_SYMBOL_TABLE_CLASS_NAME LIBM_SYMBOLS_CLASS_NAME
 #define LATE_BINDING_SYMBOL_TABLE_SYMBOLS_LIST LIBM_SYMBOLS_LIST
@@ -40,9 +39,9 @@ TEST(LateBindingSymbolTable, libm) {
   EXPECT_FALSE(table.IsLoaded());
   ASSERT_TRUE(table.Load());
   EXPECT_TRUE(table.IsLoaded());
-  EXPECT_EQ(table.acosf()(0.5f), acosf(0.5f));
-  EXPECT_EQ(table.sinf()(0.5f), sinf(0.5f));
-  EXPECT_EQ(table.tanf()(0.5f), tanf(0.5f));
+  EXPECT_EQ(table.acos()(0.5), acos(0.5));
+  EXPECT_EQ(table.sin()(0.5), sin(0.5));
+  EXPECT_EQ(table.tan()(0.5), tan(0.5));
   // It would be nice to check that the addresses are the same, but the nature
   // of dynamic linking and relocation makes them actually be different.
   table.Unload();

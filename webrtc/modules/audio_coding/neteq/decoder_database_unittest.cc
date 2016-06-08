@@ -19,6 +19,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #include "webrtc/modules/audio_coding/neteq/mock/mock_audio_decoder.h"
+#include "webrtc/test/testsupport/gtest_disable.h"
 
 namespace webrtc {
 
@@ -31,10 +32,8 @@ TEST(DecoderDatabase, CreateAndDestroy) {
 TEST(DecoderDatabase, InsertAndRemove) {
   DecoderDatabase db;
   const uint8_t kPayloadType = 0;
-  const std::string kCodecName = "Robert\'); DROP TABLE Students;";
-  EXPECT_EQ(
-      DecoderDatabase::kOK,
-      db.RegisterPayload(kPayloadType, NetEqDecoder::kDecoderPCMu, kCodecName));
+  EXPECT_EQ(DecoderDatabase::kOK,
+            db.RegisterPayload(kPayloadType, NetEqDecoder::kDecoderPCMu));
   EXPECT_EQ(1, db.Size());
   EXPECT_FALSE(db.Empty());
   EXPECT_EQ(DecoderDatabase::kOK, db.Remove(kPayloadType));
@@ -45,17 +44,14 @@ TEST(DecoderDatabase, InsertAndRemove) {
 TEST(DecoderDatabase, GetDecoderInfo) {
   DecoderDatabase db;
   const uint8_t kPayloadType = 0;
-  const std::string kCodecName = "Robert\'); DROP TABLE Students;";
-  EXPECT_EQ(
-      DecoderDatabase::kOK,
-      db.RegisterPayload(kPayloadType, NetEqDecoder::kDecoderPCMu, kCodecName));
+  EXPECT_EQ(DecoderDatabase::kOK,
+            db.RegisterPayload(kPayloadType, NetEqDecoder::kDecoderPCMu));
   const DecoderDatabase::DecoderInfo* info;
   info = db.GetDecoderInfo(kPayloadType);
   ASSERT_TRUE(info != NULL);
   EXPECT_EQ(NetEqDecoder::kDecoderPCMu, info->codec_type);
   EXPECT_EQ(NULL, info->decoder);
   EXPECT_EQ(8000, info->fs_hz);
-  EXPECT_EQ(kCodecName, info->name);
   EXPECT_FALSE(info->external);
   info = db.GetDecoderInfo(kPayloadType + 1);  // Other payload type.
   EXPECT_TRUE(info == NULL);  // Should not be found.
@@ -64,10 +60,8 @@ TEST(DecoderDatabase, GetDecoderInfo) {
 TEST(DecoderDatabase, GetRtpPayloadType) {
   DecoderDatabase db;
   const uint8_t kPayloadType = 0;
-  const std::string kCodecName = "Robert\'); DROP TABLE Students;";
-  EXPECT_EQ(
-      DecoderDatabase::kOK,
-      db.RegisterPayload(kPayloadType, NetEqDecoder::kDecoderPCMu, kCodecName));
+  EXPECT_EQ(DecoderDatabase::kOK,
+            db.RegisterPayload(kPayloadType, NetEqDecoder::kDecoderPCMu));
   EXPECT_EQ(kPayloadType, db.GetRtpPayloadType(NetEqDecoder::kDecoderPCMu));
   const uint8_t expected_value = DecoderDatabase::kRtpPayloadTypeError;
   EXPECT_EQ(expected_value,
@@ -78,10 +72,8 @@ TEST(DecoderDatabase, GetRtpPayloadType) {
 TEST(DecoderDatabase, GetDecoder) {
   DecoderDatabase db;
   const uint8_t kPayloadType = 0;
-  const std::string kCodecName = "Robert\'); DROP TABLE Students;";
   EXPECT_EQ(DecoderDatabase::kOK,
-            db.RegisterPayload(kPayloadType, NetEqDecoder::kDecoderPCM16B,
-                               kCodecName));
+            db.RegisterPayload(kPayloadType, NetEqDecoder::kDecoderPCM16B));
   AudioDecoder* dec = db.GetDecoder(kPayloadType);
   ASSERT_TRUE(dec != NULL);
 }
@@ -94,18 +86,14 @@ TEST(DecoderDatabase, TypeTests) {
   const uint8_t kPayloadTypeRed = 101;
   const uint8_t kPayloadNotUsed = 102;
   // Load into database.
-  EXPECT_EQ(
-      DecoderDatabase::kOK,
-      db.RegisterPayload(kPayloadTypePcmU, NetEqDecoder::kDecoderPCMu, "pcmu"));
   EXPECT_EQ(DecoderDatabase::kOK,
-            db.RegisterPayload(kPayloadTypeCng, NetEqDecoder::kDecoderCNGnb,
-                               "cng-nb"));
-  EXPECT_EQ(
-      DecoderDatabase::kOK,
-      db.RegisterPayload(kPayloadTypeDtmf, NetEqDecoder::kDecoderAVT, "avt"));
-  EXPECT_EQ(
-      DecoderDatabase::kOK,
-      db.RegisterPayload(kPayloadTypeRed, NetEqDecoder::kDecoderRED, "red"));
+            db.RegisterPayload(kPayloadTypePcmU, NetEqDecoder::kDecoderPCMu));
+  EXPECT_EQ(DecoderDatabase::kOK,
+            db.RegisterPayload(kPayloadTypeCng, NetEqDecoder::kDecoderCNGnb));
+  EXPECT_EQ(DecoderDatabase::kOK,
+            db.RegisterPayload(kPayloadTypeDtmf, NetEqDecoder::kDecoderAVT));
+  EXPECT_EQ(DecoderDatabase::kOK,
+            db.RegisterPayload(kPayloadTypeRed, NetEqDecoder::kDecoderRED));
   EXPECT_EQ(4, db.Size());
   // Test.
   EXPECT_FALSE(db.IsComfortNoise(kPayloadNotUsed));
@@ -124,12 +112,11 @@ TEST(DecoderDatabase, TypeTests) {
 TEST(DecoderDatabase, ExternalDecoder) {
   DecoderDatabase db;
   const uint8_t kPayloadType = 0;
-  const std::string kCodecName = "Robert\'); DROP TABLE Students;";
   MockAudioDecoder decoder;
   // Load into database.
   EXPECT_EQ(DecoderDatabase::kOK,
-            db.InsertExternal(kPayloadType, NetEqDecoder::kDecoderPCMu,
-                              kCodecName, 8000, &decoder));
+            db.InsertExternal(kPayloadType, NetEqDecoder::kDecoderPCMu, 8000,
+                              &decoder));
   EXPECT_EQ(1, db.Size());
   // Get decoder and make sure we get the external one.
   EXPECT_EQ(&decoder, db.GetDecoder(kPayloadType));
@@ -138,7 +125,6 @@ TEST(DecoderDatabase, ExternalDecoder) {
   info = db.GetDecoderInfo(kPayloadType);
   ASSERT_TRUE(info != NULL);
   EXPECT_EQ(NetEqDecoder::kDecoderPCMu, info->codec_type);
-  EXPECT_EQ(kCodecName, info->name);
   EXPECT_EQ(&decoder, info->decoder);
   EXPECT_EQ(8000, info->fs_hz);
   EXPECT_TRUE(info->external);
@@ -160,7 +146,7 @@ TEST(DecoderDatabase, CheckPayloadTypes) {
   for (uint8_t payload_type = 0; payload_type < kNumPayloads; ++payload_type) {
     EXPECT_EQ(
         DecoderDatabase::kOK,
-        db.RegisterPayload(payload_type, NetEqDecoder::kDecoderArbitrary, ""));
+        db.RegisterPayload(payload_type, NetEqDecoder::kDecoderArbitrary));
   }
   PacketList packet_list;
   for (int i = 0; i < kNumPayloads + 1; ++i) {
@@ -199,11 +185,11 @@ TEST(DecoderDatabase, IF_ISAC(ActiveDecoders)) {
   DecoderDatabase db;
   // Load payload types.
   ASSERT_EQ(DecoderDatabase::kOK,
-            db.RegisterPayload(0, NetEqDecoder::kDecoderPCMu, "pcmu"));
+            db.RegisterPayload(0, NetEqDecoder::kDecoderPCMu));
   ASSERT_EQ(DecoderDatabase::kOK,
-            db.RegisterPayload(103, NetEqDecoder::kDecoderISAC, "isac"));
+            db.RegisterPayload(103, NetEqDecoder::kDecoderISAC));
   ASSERT_EQ(DecoderDatabase::kOK,
-            db.RegisterPayload(13, NetEqDecoder::kDecoderCNGnb, "cng-nb"));
+            db.RegisterPayload(13, NetEqDecoder::kDecoderCNGnb));
   // Verify that no decoders are active from the start.
   EXPECT_EQ(NULL, db.GetActiveDecoder());
   EXPECT_EQ(NULL, db.GetActiveCngDecoder());

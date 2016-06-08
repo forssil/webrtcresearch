@@ -8,9 +8,6 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <map>
-#include <set>
-
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -18,7 +15,6 @@
 #include "webrtc/modules/rtp_rtcp/include/rtp_header_parser.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_packet.h"
-#include "webrtc/modules/rtp_rtcp/source/rtcp_packet/nack.h"
 #include "webrtc/modules/rtp_rtcp/source/rtp_rtcp_impl.h"
 #include "webrtc/system_wrappers/include/scoped_vector.h"
 #include "webrtc/test/rtcp_packet_parser.h"
@@ -98,7 +94,7 @@ class SendTransport : public Transport,
 
 class RtpRtcpModule : public RtcpPacketTypeCounterObserver {
  public:
-  explicit RtpRtcpModule(SimulatedClock* clock)
+  RtpRtcpModule(SimulatedClock* clock)
       : receive_statistics_(ReceiveStatistics::Create(clock)) {
     RtpRtcp::Configuration config;
     config.audio = false;
@@ -223,9 +219,9 @@ class RtpRtcpImplTest : public ::testing::Test {
     nack.From(sender ? kReceiverSsrc : kSenderSsrc);
     nack.To(sender ? kSenderSsrc : kReceiverSsrc);
     nack.WithList(list, kListLength);
-    rtc::Buffer packet = nack.Build();
-    EXPECT_EQ(0, module->impl_->IncomingRtcpPacket(packet.data(),
-                                                   packet.size()));
+    rtc::scoped_ptr<rtcp::RawPacket> packet(nack.Build());
+    EXPECT_EQ(0, module->impl_->IncomingRtcpPacket(packet->Buffer(),
+                                                   packet->Length()));
   }
 };
 
@@ -309,10 +305,10 @@ TEST_F(RtpRtcpImplTest, Rtt) {
   int64_t max_rtt;
   EXPECT_EQ(0,
       sender_.impl_->RTT(kReceiverSsrc, &rtt, &avg_rtt, &min_rtt, &max_rtt));
-  EXPECT_NEAR(2 * kOneWayNetworkDelayMs, rtt, 1);
-  EXPECT_NEAR(2 * kOneWayNetworkDelayMs, avg_rtt, 1);
-  EXPECT_NEAR(2 * kOneWayNetworkDelayMs, min_rtt, 1);
-  EXPECT_NEAR(2 * kOneWayNetworkDelayMs, max_rtt, 1);
+  EXPECT_EQ(2 * kOneWayNetworkDelayMs, rtt);
+  EXPECT_EQ(2 * kOneWayNetworkDelayMs, avg_rtt);
+  EXPECT_EQ(2 * kOneWayNetworkDelayMs, min_rtt);
+  EXPECT_EQ(2 * kOneWayNetworkDelayMs, max_rtt);
 
   // No RTT from other ssrc.
   EXPECT_EQ(-1,
@@ -322,9 +318,8 @@ TEST_F(RtpRtcpImplTest, Rtt) {
   EXPECT_EQ(0, sender_.rtt_stats_.LastProcessedRtt());
   EXPECT_EQ(0, sender_.impl_->rtt_ms());
   sender_.impl_->Process();
-  EXPECT_NEAR(2 * kOneWayNetworkDelayMs, sender_.rtt_stats_.LastProcessedRtt(),
-              1);
-  EXPECT_NEAR(2 * kOneWayNetworkDelayMs, sender_.impl_->rtt_ms(), 1);
+  EXPECT_EQ(2 * kOneWayNetworkDelayMs, sender_.rtt_stats_.LastProcessedRtt());
+  EXPECT_EQ(2 * kOneWayNetworkDelayMs, sender_.impl_->rtt_ms());
 }
 
 TEST_F(RtpRtcpImplTest, SetRtcpXrRrtrStatus) {
@@ -347,30 +342,8 @@ TEST_F(RtpRtcpImplTest, RttForReceiverOnly) {
   EXPECT_EQ(0, receiver_.rtt_stats_.LastProcessedRtt());
   EXPECT_EQ(0, receiver_.impl_->rtt_ms());
   receiver_.impl_->Process();
-  EXPECT_NEAR(2 * kOneWayNetworkDelayMs,
-              receiver_.rtt_stats_.LastProcessedRtt(), 1);
-  EXPECT_NEAR(2 * kOneWayNetworkDelayMs, receiver_.impl_->rtt_ms(), 1);
-}
-
-TEST_F(RtpRtcpImplTest, NoSrBeforeMedia) {
-  // Ignore fake transport delays in this test.
-  sender_.transport_.SimulateNetworkDelay(0, &clock_);
-  receiver_.transport_.SimulateNetworkDelay(0, &clock_);
-
-  sender_.impl_->Process();
-  EXPECT_EQ(-1, sender_.RtcpSent().first_packet_time_ms);
-
-  // Verify no SR is sent before media has been sent, RR should still be sent
-  // from the receiving module though.
-  clock_.AdvanceTimeMilliseconds(2000);
-  int64_t current_time = clock_.TimeInMilliseconds();
-  sender_.impl_->Process();
-  receiver_.impl_->Process();
-  EXPECT_EQ(-1, sender_.RtcpSent().first_packet_time_ms);
-  EXPECT_EQ(receiver_.RtcpSent().first_packet_time_ms, current_time);
-
-  SendFrame(&sender_, kBaseLayerTid);
-  EXPECT_EQ(sender_.RtcpSent().first_packet_time_ms, current_time);
+  EXPECT_EQ(2 * kOneWayNetworkDelayMs, receiver_.rtt_stats_.LastProcessedRtt());
+  EXPECT_EQ(2 * kOneWayNetworkDelayMs, receiver_.impl_->rtt_ms());
 }
 
 TEST_F(RtpRtcpImplTest, RtcpPacketTypeCounter_Nack) {
@@ -549,4 +522,5 @@ TEST_F(RtpRtcpImplTest, UniqueNackRequests) {
   EXPECT_EQ(6U, sender_.RtcpReceived().unique_nack_requests);
   EXPECT_EQ(75, sender_.RtcpReceived().UniqueNackRequestsInPercent());
 }
+
 }  // namespace webrtc

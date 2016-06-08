@@ -9,14 +9,14 @@
  */
 
 #include "webrtc/modules/rtp_rtcp/test/testAPI/test_api.h"
+#include "webrtc/test/null_transport.h"
 
 #include <algorithm>
 #include <vector>
 
-#include "webrtc/test/null_transport.h"
+using namespace webrtc;
 
 namespace webrtc {
-
 void LoopBackTransport::SetSendModule(RtpRtcp* rtp_rtcp_module,
                                       RTPPayloadRegistry* payload_registry,
                                       RtpReceiver* receiver,
@@ -76,6 +76,7 @@ int32_t TestRtpReceiver::OnReceivedPayloadData(
   payload_size_ = payload_size;
   return 0;
 }
+}  // namespace webrtc
 
 class RtpRtcpAPITest : public ::testing::Test {
  protected:
@@ -186,5 +187,3 @@ TEST_F(RtpRtcpAPITest, RtxReceiver) {
   rtx_header.payloadType = 0;
   EXPECT_TRUE(rtp_payload_registry_->IsRtx(rtx_header));
 }
-
-}  // namespace webrtc

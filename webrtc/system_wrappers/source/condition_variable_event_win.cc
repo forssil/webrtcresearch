@@ -84,8 +84,7 @@ Vanderbilt University to appear in their names.
  */
 
 #include "webrtc/system_wrappers/source/condition_variable_event_win.h"
-
-#include "webrtc/system_wrappers/include/critical_section_wrapper.h"
+#include "webrtc/system_wrappers/source/critical_section_win.h"
 
 namespace webrtc {
 
@@ -118,11 +117,11 @@ ConditionVariableEventWin::~ConditionVariableEventWin() {
   DeleteCriticalSection(&num_waiters_crit_sect_);
 }
 
-void ConditionVariableEventWin::SleepCS(CRITICAL_SECTION* crit_sect) {
+void ConditionVariableEventWin::SleepCS(CriticalSectionWrapper& crit_sect) {
   SleepCS(crit_sect, INFINITE);
 }
 
-bool ConditionVariableEventWin::SleepCS(CRITICAL_SECTION* crit_sect,
+bool ConditionVariableEventWin::SleepCS(CriticalSectionWrapper& crit_sect,
                                         unsigned long max_time_in_ms) {
   EnterCriticalSection(&num_waiters_crit_sect_);
 
@@ -134,7 +133,9 @@ bool ConditionVariableEventWin::SleepCS(CRITICAL_SECTION* crit_sect,
   ++(num_waiters_[eventID]);
   LeaveCriticalSection(&num_waiters_crit_sect_);
 
-  LeaveCriticalSection(crit_sect);
+  CriticalSectionWindows* cs =
+      static_cast<CriticalSectionWindows*>(&crit_sect);
+  LeaveCriticalSection(&cs->crit);
   HANDLE events[2];
   events[0] = events_[WAKE];
   events[1] = events_[eventID];
@@ -160,7 +161,7 @@ bool ConditionVariableEventWin::SleepCS(CRITICAL_SECTION* crit_sect,
     ResetEvent(events_[eventID]);
   }
 
-  EnterCriticalSection(crit_sect);
+  EnterCriticalSection(&cs->crit);
   return ret_val;
 }
 

@@ -11,10 +11,7 @@
 #ifndef WEBRTC_AUDIO_MOCK_VOICE_ENGINE_H_
 #define WEBRTC_AUDIO_MOCK_VOICE_ENGINE_H_
 
-#include <memory>
-
 #include "testing/gmock/include/gmock/gmock.h"
-#include "webrtc/test/mock_voe_channel_proxy.h"
 #include "webrtc/voice_engine/voice_engine_impl.h"
 
 namespace webrtc {
@@ -22,31 +19,17 @@ namespace test {
 
 // NOTE: This class inherits from VoiceEngineImpl so that its clients will be
 // able to get the various interfaces as usual, via T::GetInterface().
-class MockVoiceEngine : public VoiceEngineImpl {
+class MockVoiceEngine final : public VoiceEngineImpl {
  public:
   MockVoiceEngine() : VoiceEngineImpl(new Config(), true) {
     // Increase ref count so this object isn't automatically deleted whenever
     // interfaces are Release():d.
     ++_ref_count;
-    // We add this default behavior to make the mock easier to use in tests. It
-    // will create a NiceMock of a voe::ChannelProxy.
-    ON_CALL(*this, ChannelProxyFactory(testing::_))
-        .WillByDefault(
-            testing::Invoke([](int channel_id) {
-              return new testing::NiceMock<MockVoEChannelProxy>();
-            }));
   }
   ~MockVoiceEngine() override {
     // Decrease ref count before base class d-tor is called; otherwise it will
     // trigger an assertion.
     --_ref_count;
-  }
-  // Allows injecting a ChannelProxy factory.
-  MOCK_METHOD1(ChannelProxyFactory, voe::ChannelProxy*(int channel_id));
-
-  // VoiceEngineImpl
-  std::unique_ptr<voe::ChannelProxy> GetChannelProxy(int channel_id) override {
-    return std::unique_ptr<voe::ChannelProxy>(ChannelProxyFactory(channel_id));
   }
 
   // VoEAudioProcessing
@@ -142,6 +125,22 @@ class MockVoiceEngine : public VoiceEngineImpl {
   MOCK_METHOD2(SetOpusMaxPlaybackRate, int(int channel, int frequency_hz));
   MOCK_METHOD2(SetOpusDtx, int(int channel, bool enable_dtx));
   MOCK_METHOD0(GetEventLog, RtcEventLog*());
+
+  // VoEDtmf
+  MOCK_METHOD5(SendTelephoneEvent,
+               int(int channel,
+                   int eventCode,
+                   bool outOfBand,
+                   int lengthMs,
+                   int attenuationDb));
+  MOCK_METHOD2(SetSendTelephoneEventPayloadType,
+               int(int channel, unsigned char type));
+  MOCK_METHOD2(GetSendTelephoneEventPayloadType,
+               int(int channel, unsigned char& type));
+  MOCK_METHOD2(SetDtmfFeedbackStatus, int(bool enable, bool directFeedback));
+  MOCK_METHOD2(GetDtmfFeedbackStatus, int(bool& enabled, bool& directFeedback));
+  MOCK_METHOD3(PlayDtmfTone,
+               int(int eventCode, int lengthMs, int attenuationDb));
 
   // VoEExternalMedia
   MOCK_METHOD3(RegisterExternalMediaProcessing,

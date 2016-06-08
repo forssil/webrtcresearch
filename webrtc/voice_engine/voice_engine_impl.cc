@@ -15,10 +15,8 @@
 #include "webrtc/modules/utility/include/jvm_android.h"
 #endif
 
-#include "webrtc/base/checks.h"
-#include "webrtc/modules/audio_coding/include/audio_coding_module.h"
+#include "webrtc/modules/audio_coding/main/include/audio_coding_module.h"
 #include "webrtc/system_wrappers/include/trace.h"
-#include "webrtc/voice_engine/channel_proxy.h"
 #include "webrtc/voice_engine/voice_engine_impl.h"
 
 namespace webrtc {
@@ -30,6 +28,23 @@ namespace webrtc {
 static int32_t gVoiceEngineInstanceCounter = 0;
 
 VoiceEngine* GetVoiceEngine(const Config* config, bool owns_config) {
+#if (defined _WIN32)
+  HMODULE hmod = LoadLibrary(TEXT("VoiceEngineTestingDynamic.dll"));
+
+  if (hmod) {
+    typedef VoiceEngine* (*PfnGetVoiceEngine)(void);
+    PfnGetVoiceEngine pfn =
+        (PfnGetVoiceEngine)GetProcAddress(hmod, "GetVoiceEngine");
+    if (pfn) {
+      VoiceEngine* self = pfn();
+      if (owns_config) {
+        delete config;
+      }
+      return (self);
+    }
+  }
+#endif
+
   VoiceEngineImpl* self = new VoiceEngineImpl(config, owns_config);
   if (self != NULL) {
     self->AddRef();  // First reference.  Released in VoiceEngine::Delete.
@@ -60,15 +75,6 @@ int VoiceEngineImpl::Release() {
   }
 
   return new_ref;
-}
-
-std::unique_ptr<voe::ChannelProxy> VoiceEngineImpl::GetChannelProxy(
-    int channel_id) {
-  RTC_DCHECK(channel_id >= 0);
-  rtc::CritScope cs(crit_sec());
-  RTC_DCHECK(statistics().Initialized());
-  return std::unique_ptr<voe::ChannelProxy>(
-      new voe::ChannelProxy(channel_manager().GetChannel(channel_id)));
 }
 
 VoiceEngine* VoiceEngine::Create() {
@@ -146,13 +152,5 @@ int VoiceEngine::SetAndroidObjects(void* javaVM, void* context) {
 #endif
 }
 #endif
-
-std::string VoiceEngine::GetVersionString() {
-  std::string version = "VoiceEngine 4.1.0";
-#ifdef WEBRTC_EXTERNAL_TRANSPORT
-  version += " (External transport build)";
-#endif
-  return version;
-}
 
 }  // namespace webrtc

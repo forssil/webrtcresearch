@@ -11,10 +11,9 @@
 #ifndef WEBRTC_MODULES_UTILITY_SOURCE_CODER_H_
 #define WEBRTC_MODULES_UTILITY_SOURCE_CODER_H_
 
-#include <memory>
-
+#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/common_types.h"
-#include "webrtc/modules/audio_coding/include/audio_coding_module.h"
+#include "webrtc/modules/audio_coding/main/include/audio_coding_module.h"
 #include "webrtc/typedefs.h"
 
 namespace webrtc {
@@ -47,7 +46,7 @@ protected:
                   const RTPFragmentationHeader* fragmentation) override;
 
 private:
- std::unique_ptr<AudioCodingModule> _acm;
+ rtc::scoped_ptr<AudioCodingModule> _acm;
 
     CodecInst _receiveCodec;
 

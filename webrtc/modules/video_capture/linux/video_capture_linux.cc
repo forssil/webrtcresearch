@@ -21,22 +21,26 @@
 #include <iostream>
 #include <new>
 
-#include "webrtc/base/refcount.h"
-#include "webrtc/base/scoped_ref_ptr.h"
 #include "webrtc/modules/video_capture/linux/video_capture_linux.h"
 #include "webrtc/system_wrappers/include/critical_section_wrapper.h"
+#include "webrtc/system_wrappers/include/ref_count.h"
 #include "webrtc/system_wrappers/include/trace.h"
 
-namespace webrtc {
-namespace videocapturemodule {
-rtc::scoped_refptr<VideoCaptureModule> VideoCaptureImpl::Create(
-    const int32_t id,
-    const char* deviceUniqueId) {
-    rtc::scoped_refptr<VideoCaptureModuleV4L2> implementation(
-        new rtc::RefCountedObject<VideoCaptureModuleV4L2>(id));
+namespace webrtc
+{
+namespace videocapturemodule
+{
+VideoCaptureModule* VideoCaptureImpl::Create(const int32_t id,
+                                             const char* deviceUniqueId)
+{
+    RefCountImpl<videocapturemodule::VideoCaptureModuleV4L2>* implementation =
+        new RefCountImpl<videocapturemodule::VideoCaptureModuleV4L2>(id);
 
-    if (implementation->Init(deviceUniqueId) != 0)
-        return nullptr;
+    if (!implementation || implementation->Init(deviceUniqueId) != 0)
+    {
+        delete implementation;
+        implementation = NULL;
+    }
 
     return implementation;
 }
@@ -241,7 +245,7 @@ int32_t VideoCaptureModuleV4L2::StartCapture(
       // continue
     } else {
       // check the capability flag is set to V4L2_CAP_TIMEPERFRAME.
-      if (streamparms.parm.capture.capability & V4L2_CAP_TIMEPERFRAME) {
+      if (streamparms.parm.capture.capability == V4L2_CAP_TIMEPERFRAME) {
         // driver supports the feature. Set required framerate.
         memset(&streamparms, 0, sizeof(streamparms));
         streamparms.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -276,10 +280,10 @@ int32_t VideoCaptureModuleV4L2::StartCapture(
     //start capture thread;
     if (!_captureThread)
     {
-        _captureThread.reset(new rtc::PlatformThread(
-            VideoCaptureModuleV4L2::CaptureThread, this, "CaptureThread"));
+        _captureThread = ThreadWrapper::CreateThread(
+            VideoCaptureModuleV4L2::CaptureThread, this, "CaptureThread");
         _captureThread->Start();
-        _captureThread->SetPriority(rtc::kHighPriority);
+        _captureThread->SetPriority(kHighPriority);
     }
 
     // Needed to start UVC camera - from the uvcview application

@@ -17,7 +17,6 @@
 
 #include "gflags/gflags.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/modules/audio_processing/agc/agc.h"
 #include "webrtc/modules/audio_processing/agc/histogram.h"
 #include "webrtc/modules/audio_processing/agc/utility.h"
@@ -57,7 +56,7 @@ namespace webrtc {
 // silence frame. Otherwise true VAD would drift with respect to the audio.
 // We only consider mono inputs.
 static void DitherSilence(AudioFrame* frame) {
-  ASSERT_EQ(1u, frame->num_channels_);
+  ASSERT_EQ(1, frame->num_channels_);
   const double kRmsSilence = 5;
   const double sum_squared_silence = kRmsSilence * kRmsSilence *
       frame->samples_per_channel_;
@@ -66,7 +65,7 @@ static void DitherSilence(AudioFrame* frame) {
     sum_squared += frame->data_[n] * frame->data_[n];
   if (sum_squared <= sum_squared_silence) {
     for (size_t n = 0; n < frame->samples_per_channel_; n++)
-      frame->data_[n] = (rand() & 0xF) - 8;  // NOLINT: ignore non-threadsafe.
+      frame->data_[n] = (rand() & 0xF) - 8;
   }
 }
 

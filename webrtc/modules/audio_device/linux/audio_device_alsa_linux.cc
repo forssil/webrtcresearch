@@ -207,7 +207,7 @@ int32_t AudioDeviceLinuxALSA::Terminate()
     // RECORDING
     if (_ptrThreadRec)
     {
-        rtc::PlatformThread* tmpThread = _ptrThreadRec.release();
+        ThreadWrapper* tmpThread = _ptrThreadRec.release();
         _critSect.Leave();
 
         tmpThread->Stop();
@@ -219,7 +219,7 @@ int32_t AudioDeviceLinuxALSA::Terminate()
     // PLAYOUT
     if (_ptrThreadPlay)
     {
-        rtc::PlatformThread* tmpThread = _ptrThreadPlay.release();
+        ThreadWrapper* tmpThread = _ptrThreadPlay.release();
         _critSect.Leave();
 
         tmpThread->Stop();
@@ -1363,11 +1363,21 @@ int32_t AudioDeviceLinuxALSA::StartRecording()
         return -1;
     }
     // RECORDING
-    _ptrThreadRec.reset(new rtc::PlatformThread(
-        RecThreadFunc, this, "webrtc_audio_module_capture_thread"));
+    const char* threadName = "webrtc_audio_module_capture_thread";
+    _ptrThreadRec = ThreadWrapper::CreateThread(
+        RecThreadFunc, this, threadName);
 
-    _ptrThreadRec->Start();
-    _ptrThreadRec->SetPriority(rtc::kRealtimePriority);
+    if (!_ptrThreadRec->Start())
+    {
+        WEBRTC_TRACE(kTraceCritical, kTraceAudioDevice, _id,
+                     "  failed to start the rec audio thread");
+        _recording = false;
+        _ptrThreadRec.reset();
+        delete [] _recordingBuffer;
+        _recordingBuffer = NULL;
+        return -1;
+    }
+    _ptrThreadRec->SetPriority(kRealtimePriority);
 
     errVal = LATE(snd_pcm_prepare)(_handleRecord);
     if (errVal < 0)
@@ -1507,10 +1517,20 @@ int32_t AudioDeviceLinuxALSA::StartPlayout()
     }
 
     // PLAYOUT
-    _ptrThreadPlay.reset(new rtc::PlatformThread(
-        PlayThreadFunc, this, "webrtc_audio_module_play_thread"));
-    _ptrThreadPlay->Start();
-    _ptrThreadPlay->SetPriority(rtc::kRealtimePriority);
+    const char* threadName = "webrtc_audio_module_play_thread";
+    _ptrThreadPlay =  ThreadWrapper::CreateThread(PlayThreadFunc, this,
+                                                  threadName);
+    if (!_ptrThreadPlay->Start())
+    {
+        WEBRTC_TRACE(kTraceCritical, kTraceAudioDevice, _id,
+                     "  failed to start the play audio thread");
+        _playing = false;
+        _ptrThreadPlay.reset();
+        delete [] _playoutBuffer;
+        _playoutBuffer = NULL;
+        return -1;
+    }
+    _ptrThreadPlay->SetPriority(kRealtimePriority);
 
     int errVal = LATE(snd_pcm_prepare)(_handlePlayout);
     if (errVal < 0)

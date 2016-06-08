@@ -49,11 +49,10 @@ class TestTurnRedirector : public TurnRedirectInterface {
 class TestTurnServer : public TurnAuthInterface {
  public:
   TestTurnServer(rtc::Thread* thread,
-                 const rtc::SocketAddress& int_addr,
-                 const rtc::SocketAddress& udp_ext_addr,
-                 ProtocolType int_protocol = PROTO_UDP)
+                 const rtc::SocketAddress& udp_int_addr,
+                 const rtc::SocketAddress& udp_ext_addr)
       : server_(thread) {
-    AddInternalSocket(int_addr, int_protocol);
+    AddInternalSocket(udp_int_addr, cricket::PROTO_UDP);
     server_.SetExternalSocketFactory(new rtc::BasicPacketSocketFactory(),
         udp_ext_addr);
     server_.set_realm(kTestRealm);

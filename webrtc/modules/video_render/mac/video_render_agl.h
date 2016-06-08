@@ -15,8 +15,8 @@
 #ifndef WEBRTC_MODULES_VIDEO_RENDER_MAIN_SOURCE_MAC_VIDEO_RENDER_AGL_H_
 #define WEBRTC_MODULES_VIDEO_RENDER_MAIN_SOURCE_MAC_VIDEO_RENDER_AGL_H_
 
-#include "webrtc/base/platform_thread.h"
 #include "webrtc/modules/video_render/video_render_defines.h"
+#include "webrtc/system_wrappers/include/thread_wrapper.h"
 
 #define NEW_HIVIEW_PARENT_EVENT_HANDLER 1
 #define NEW_HIVIEW_EVENT_HANDLER 1
@@ -29,7 +29,6 @@
 #include <OpenGL/glu.h>
 #include <list>
 #include <map>
-#include <memory>
 
 class VideoRenderAGL;
 
@@ -143,8 +142,7 @@ class VideoRenderAGL {
   bool _fullScreen;
   int _id;
   webrtc::CriticalSectionWrapper& _renderCritSec;
-  // TODO(pbos): Remove unique_ptr and use PlatformThread directly.
-  std::unique_ptr<rtc::PlatformThread> _screenUpdateThread;
+  rtc::scoped_ptr<webrtc::ThreadWrapper> _screenUpdateThread;
   webrtc::EventWrapper* _screenUpdateEvent;
   bool _isHIViewRef;
   AGLContext _aglContext;

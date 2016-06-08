@@ -23,7 +23,7 @@ int LastHistogramSample(const std::string& name);
 // Returns the number of added samples to a histogram.
 int NumHistogramSamples(const std::string& name);
 
-// Removes all histogram samples.
+// Removes all histograms.
 void ClearHistograms();
 
 }  // namespace test

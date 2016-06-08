@@ -66,10 +66,9 @@ void TransportController::SetIceRole(IceRole ice_role) {
       rtc::Bind(&TransportController::SetIceRole_w, this, ice_role));
 }
 
-bool TransportController::GetSslRole(const std::string& transport_name,
-                                     rtc::SSLRole* role) {
-  return worker_thread_->Invoke<bool>(rtc::Bind(
-      &TransportController::GetSslRole_w, this, transport_name, role));
+bool TransportController::GetSslRole(rtc::SSLRole* role) {
+  return worker_thread_->Invoke<bool>(
+      rtc::Bind(&TransportController::GetSslRole_w, this, role));
 }
 
 bool TransportController::SetLocalCertificate(
@@ -127,12 +126,6 @@ bool TransportController::AddRemoteCandidates(const std::string& transport_name,
                 transport_name, candidates, err));
 }
 
-bool TransportController::RemoveRemoteCandidates(const Candidates& candidates,
-                                                 std::string* err) {
-  return worker_thread_->Invoke<bool>(rtc::Bind(
-      &TransportController::RemoveRemoteCandidates_w, this, candidates, err));
-}
-
 bool TransportController::ReadyForRemoteCandidates(
     const std::string& transport_name) {
   return worker_thread_->Invoke<bool>(rtc::Bind(
@@ -168,8 +161,6 @@ TransportChannel* TransportController::CreateTransportChannel_w(
       this, &TransportController::OnChannelGatheringState_w);
   channel->SignalCandidateGathered.connect(
       this, &TransportController::OnChannelCandidateGathered_w);
-  channel->SignalCandidatesRemoved.connect(
-      this, &TransportController::OnChannelCandidatesRemoved_w);
   channel->SignalRoleConflict.connect(
       this, &TransportController::OnChannelRoleConflict_w);
   channel->SignalConnectionRemoved.connect(
@@ -352,16 +343,13 @@ void TransportController::SetIceRole_w(IceRole ice_role) {
   }
 }
 
-bool TransportController::GetSslRole_w(const std::string& transport_name,
-                                       rtc::SSLRole* role) {
+bool TransportController::GetSslRole_w(rtc::SSLRole* role) {
   RTC_DCHECK(worker_thread()->IsCurrent());
 
-  Transport* t = GetTransport_w(transport_name);
-  if (!t) {
+  if (transports_.empty()) {
     return false;
   }
-
-  return t->GetSslRole(role);
+  return transports_.begin()->second->GetSslRole(role);
 }
 
 bool TransportController::SetLocalCertificate_w(
@@ -468,28 +456,6 @@ bool TransportController::AddRemoteCandidates_w(
   return transport->AddRemoteCandidates(candidates, err);
 }
 
-bool TransportController::RemoveRemoteCandidates_w(const Candidates& candidates,
-                                                   std::string* err) {
-  RTC_DCHECK(worker_thread()->IsCurrent());
-  std::map<std::string, Candidates> candidates_by_transport_name;
-  for (const Candidate& cand : candidates) {
-    RTC_DCHECK(!cand.transport_name().empty());
-    candidates_by_transport_name[cand.transport_name()].push_back(cand);
-  }
-
-  bool result = true;
-  for (auto kv : candidates_by_transport_name) {
-    Transport* transport = GetTransport_w(kv.first);
-    if (!transport) {
-      // If we didn't find a transport, that's not an error;
-      // it could have been deleted as a result of bundling.
-      continue;
-    }
-    result &= transport->RemoveRemoteCandidates(kv.second, err);
-  }
-  return result;
-}
-
 bool TransportController::ReadyForRemoteCandidates_w(
     const std::string& transport_name) {
   RTC_DCHECK(worker_thread()->IsCurrent());
@@ -546,21 +512,6 @@ void TransportController::OnChannelCandidateGathered_w(
   CandidatesData* data =
       new CandidatesData(channel->transport_name(), candidates);
   signaling_thread_->Post(this, MSG_CANDIDATESGATHERED, data);
-}
-
-void TransportController::OnChannelCandidatesRemoved_w(
-    TransportChannelImpl* channel,
-    const Candidates& candidates) {
-  invoker_.AsyncInvoke<void>(
-      signaling_thread_,
-      rtc::Bind(&TransportController::OnChannelCandidatesRemoved, this,
-                candidates));
-}
-
-void TransportController::OnChannelCandidatesRemoved(
-    const Candidates& candidates) {
-  RTC_DCHECK(signaling_thread_->IsCurrent());
-  SignalCandidatesRemoved(candidates);
 }
 
 void TransportController::OnChannelRoleConflict_w(

@@ -73,8 +73,6 @@
 
 #else  // WEBRTC_WIN
 
-#include <inttypes.h>
-
 #if !defined(PRId64)
 #define PRId64 "I64d"
 #endif

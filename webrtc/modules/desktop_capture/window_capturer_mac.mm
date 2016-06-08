@@ -82,12 +82,11 @@ WindowCapturerMac::~WindowCapturerMac() {
 bool WindowCapturerMac::GetWindowList(WindowList* windows) {
   // Only get on screen, non-desktop windows.
   CFArrayRef window_array = CGWindowListCopyWindowInfo(
-      kCGWindowListExcludeDesktopElements,
+      kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements,
       kCGNullWindowID);
   if (!window_array)
     return false;
-  MacDesktopConfiguration desktop_config = MacDesktopConfiguration::GetCurrent(
-      MacDesktopConfiguration::TopLeftOrigin);
+
   // Check windows to make sure they have an id, title, and use window layer
   // other than 0.
   CFIndex count = CFArrayGetCount(window_array);
@@ -109,11 +108,6 @@ bool WindowCapturerMac::GetWindowList(WindowList* windows) {
 
       int id;
       CFNumberGetValue(window_id, kCFNumberIntType, &id);
-
-      // Skip windows that are minimized and not full screen.
-      if (IsWindowMinimized(id) &&
-          !IsWindowFullScreen(desktop_config, window)) { continue;}
-
       WindowCapturer::Window window;
       window.id = id;
       if (!rtc::ToUtf8(window_title, &(window.title)) ||

@@ -10,9 +10,9 @@
 
 #include "webrtc/voice_engine/output_mixer.h"
 
-#include "webrtc/base/format_macros.h"
 #include "webrtc/modules/audio_processing/include/audio_processing.h"
 #include "webrtc/modules/utility/include/audio_frame_operations.h"
+#include "webrtc/system_wrappers/include/critical_section_wrapper.h"
 #include "webrtc/system_wrappers/include/file_wrapper.h"
 #include "webrtc/system_wrappers/include/trace.h"
 #include "webrtc/voice_engine/include/voe_external_media.h"
@@ -67,7 +67,7 @@ void OutputMixer::RecordFileEnded(int32_t id)
                  "OutputMixer::RecordFileEnded(id=%d)", id);
     assert(id == _instanceId);
 
-    rtc::CritScope cs(&_fileCritSect);
+    CriticalSectionScoped cs(&_fileCritSect);
     _outputFileRecording = false;
     WEBRTC_TRACE(kTraceStateInfo, kTraceVoice, VoEId(_instanceId,-1),
                  "OutputMixer::RecordFileEnded() =>"
@@ -91,8 +91,11 @@ OutputMixer::Create(OutputMixer*& mixer, uint32_t instanceId)
 }
 
 OutputMixer::OutputMixer(uint32_t instanceId) :
+    _callbackCritSect(*CriticalSectionWrapper::CreateCriticalSection()),
+    _fileCritSect(*CriticalSectionWrapper::CreateCriticalSection()),
     _mixerModule(*AudioConferenceMixer::Create(instanceId)),
     _audioLevel(),
+    _dtmfGenerator(instanceId),
     _instanceId(instanceId),
     _externalMediaCallbackPtr(NULL),
     _externalMedia(false),
@@ -111,6 +114,8 @@ OutputMixer::OutputMixer(uint32_t instanceId) :
                      "OutputMixer::OutputMixer() failed to register mixer"
                      "callbacks");
     }
+
+    _dtmfGenerator.Init();
 }
 
 void
@@ -132,7 +137,7 @@ OutputMixer::~OutputMixer()
         DeRegisterExternalMediaProcessing();
     }
     {
-        rtc::CritScope cs(&_fileCritSect);
+        CriticalSectionScoped cs(&_fileCritSect);
         if (_outputFileRecorderPtr)
         {
             _outputFileRecorderPtr->RegisterModuleFileCallback(NULL);
@@ -143,6 +148,8 @@ OutputMixer::~OutputMixer()
     }
     _mixerModule.UnRegisterMixedStreamCallback();
     delete &_mixerModule;
+    delete &_callbackCritSect;
+    delete &_fileCritSect;
 }
 
 int32_t
@@ -170,7 +177,7 @@ int OutputMixer::RegisterExternalMediaProcessing(
     WEBRTC_TRACE(kTraceInfo, kTraceVoice, VoEId(_instanceId,-1),
                "OutputMixer::RegisterExternalMediaProcessing()");
 
-    rtc::CritScope cs(&_callbackCritSect);
+    CriticalSectionScoped cs(&_callbackCritSect);
     _externalMediaCallbackPtr = &proccess_object;
     _externalMedia = true;
 
@@ -182,10 +189,25 @@ int OutputMixer::DeRegisterExternalMediaProcessing()
     WEBRTC_TRACE(kTraceInfo, kTraceVoice, VoEId(_instanceId,-1),
                  "OutputMixer::DeRegisterExternalMediaProcessing()");
 
-    rtc::CritScope cs(&_callbackCritSect);
+    CriticalSectionScoped cs(&_callbackCritSect);
     _externalMedia = false;
     _externalMediaCallbackPtr = NULL;
 
+    return 0;
+}
+
+int OutputMixer::PlayDtmfTone(uint8_t eventCode, int lengthMs,
+                              int attenuationDb)
+{
+    WEBRTC_TRACE(kTraceInfo, kTraceVoice, VoEId(_instanceId, -1),
+                 "OutputMixer::PlayDtmfTone()");
+    if (_dtmfGenerator.AddTone(eventCode, lengthMs, attenuationDb) != 0)
+    {
+        _engineStatisticsPtr->SetLastError(VE_STILL_PLAYING_PREV_DTMF,
+                                           kTraceError,
+                                           "OutputMixer::PlayDtmfTone()");
+        return -1;
+    }
     return 0;
 }
 
@@ -206,8 +228,7 @@ OutputMixer::SetAnonymousMixabilityStatus(MixerParticipant& participant,
 int32_t
 OutputMixer::MixActiveChannels()
 {
-    _mixerModule.Process();
-    return 0;
+    return _mixerModule.Process();
 }
 
 int
@@ -292,7 +313,7 @@ int OutputMixer::StartRecordingPlayout(const char* fileName,
         format = kFileFormatCompressedFile;
     }
 
-    rtc::CritScope cs(&_fileCritSect);
+    CriticalSectionScoped cs(&_fileCritSect);
 
     // Destroy the old instance
     if (_outputFileRecorderPtr)
@@ -372,7 +393,7 @@ int OutputMixer::StartRecordingPlayout(OutStream* stream,
         format = kFileFormatCompressedFile;
     }
 
-    rtc::CritScope cs(&_fileCritSect);
+    CriticalSectionScoped cs(&_fileCritSect);
 
     // Destroy the old instance
     if (_outputFileRecorderPtr)
@@ -423,7 +444,7 @@ int OutputMixer::StopRecordingPlayout()
         return -1;
     }
 
-    rtc::CritScope cs(&_fileCritSect);
+    CriticalSectionScoped cs(&_fileCritSect);
 
     if (_outputFileRecorderPtr->StopRecording() != 0)
     {
@@ -441,16 +462,15 @@ int OutputMixer::StopRecordingPlayout()
 }
 
 int OutputMixer::GetMixedAudio(int sample_rate_hz,
-                               size_t num_channels,
+                               int num_channels,
                                AudioFrame* frame) {
-  WEBRTC_TRACE(
-      kTraceStream, kTraceVoice, VoEId(_instanceId,-1),
-      "OutputMixer::GetMixedAudio(sample_rate_hz=%d, num_channels=%" PRIuS ")",
-      sample_rate_hz, num_channels);
+  WEBRTC_TRACE(kTraceStream, kTraceVoice, VoEId(_instanceId,-1),
+               "OutputMixer::GetMixedAudio(sample_rate_hz=%d, num_channels=%d)",
+               sample_rate_hz, num_channels);
 
   // --- Record playout if enabled
   {
-    rtc::CritScope cs(&_fileCritSect);
+    CriticalSectionScoped cs(&_fileCritSect);
     if (_outputFileRecording && _outputFileRecorderPtr)
       _outputFileRecorderPtr->RecordAudioToFile(_audioFrame);
   }
@@ -474,6 +494,12 @@ OutputMixer::DoOperationsOnCombinedSignal(bool feed_data_to_apm)
         _mixingFrequencyHz = _audioFrame.sample_rate_hz_;
     }
 
+    // --- Insert inband Dtmf tone
+    if (_dtmfGenerator.IsAddingTone())
+    {
+        InsertInbandDtmfTone();
+    }
+
     // Scale left and/or right channel(s) if balance is active
     if (_panLeft != 1.0 || _panRight != 1.0)
     {
@@ -491,17 +517,12 @@ OutputMixer::DoOperationsOnCombinedSignal(bool feed_data_to_apm)
     }
 
     // --- Far-end Voice Quality Enhancement (AudioProcessing Module)
-    if (feed_data_to_apm) {
-      if (_audioProcessingModulePtr->ProcessReverseStream(&_audioFrame) != 0) {
-        WEBRTC_TRACE(kTraceWarning, kTraceVoice, VoEId(_instanceId, -1),
-                     "AudioProcessingModule::ProcessReverseStream() => error");
-        RTC_DCHECK(false);
-      }
-    }
+    if (feed_data_to_apm)
+      APMProcessReverseStream();
 
     // --- External media processing
     {
-        rtc::CritScope cs(&_callbackCritSect);
+        CriticalSectionScoped cs(&_callbackCritSect);
         if (_externalMedia)
         {
             const bool is_stereo = (_audioFrame.num_channels_ == 2);
@@ -523,5 +544,61 @@ OutputMixer::DoOperationsOnCombinedSignal(bool feed_data_to_apm)
 
     return 0;
 }
+
+// ----------------------------------------------------------------------------
+//                             Private methods
+// ----------------------------------------------------------------------------
+
+void OutputMixer::APMProcessReverseStream() {
+  if (_audioProcessingModulePtr->ProcessReverseStream(&_audioFrame) == -1) {
+    WEBRTC_TRACE(kTraceError, kTraceVoice, VoEId(_instanceId, -1),
+                 "AudioProcessingModule::ProcessReverseStream() => error");
+  }
+}
+
+int
+OutputMixer::InsertInbandDtmfTone()
+{
+    uint16_t sampleRate(0);
+    _dtmfGenerator.GetSampleRate(sampleRate);
+    if (sampleRate != _audioFrame.sample_rate_hz_)
+    {
+        // Update sample rate of Dtmf tone since the mixing frequency changed.
+        _dtmfGenerator.SetSampleRate(
+            (uint16_t)(_audioFrame.sample_rate_hz_));
+        // Reset the tone to be added taking the new sample rate into account.
+        _dtmfGenerator.ResetTone();
+    }
+
+    int16_t toneBuffer[320];
+    uint16_t toneSamples(0);
+    if (_dtmfGenerator.Get10msTone(toneBuffer, toneSamples) == -1)
+    {
+        WEBRTC_TRACE(kTraceWarning, kTraceVoice, VoEId(_instanceId, -1),
+                     "OutputMixer::InsertInbandDtmfTone() inserting Dtmf"
+                     "tone failed");
+        return -1;
+    }
+
+    // replace mixed audio with Dtmf tone
+    if (_audioFrame.num_channels_ == 1)
+    {
+        // mono
+        memcpy(_audioFrame.data_, toneBuffer, sizeof(int16_t)
+            * toneSamples);
+    } else
+    {
+        // stereo
+        for (size_t i = 0; i < _audioFrame.samples_per_channel_; i++)
+        {
+            _audioFrame.data_[2 * i] = toneBuffer[i];
+            _audioFrame.data_[2 * i + 1] = 0;
+        }
+    }
+    assert(_audioFrame.samples_per_channel_ == toneSamples);
+
+    return 0;
+}
+
 }  // namespace voe
 }  // namespace webrtc

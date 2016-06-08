@@ -45,13 +45,8 @@ class AudioFrameOperations {
   // not stereo.
   static void SwapStereoChannels(AudioFrame* frame);
 
-  // Conditionally zero out contents of |frame| for implementing audio mute:
-  //  |previous_frame_muted| &&  |current_frame_muted| - Zero out whole frame.
-  //  |previous_frame_muted| && !|current_frame_muted| - Fade-in at frame start.
-  // !|previous_frame_muted| &&  |current_frame_muted| - Fade-out at frame end.
-  // !|previous_frame_muted| && !|current_frame_muted| - Leave frame untouched.
-  static void Mute(AudioFrame* frame, bool previous_frame_muted,
-                   bool current_frame_muted);
+  // Zeros out the audio and sets |frame.energy| to zero.
+  static void Mute(AudioFrame& frame);
 
   static int Scale(float left, float right, AudioFrame& frame);
 

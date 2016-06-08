@@ -12,8 +12,6 @@
 
 #include <assert.h>
 
-#include <utility>
-
 #include "webrtc/modules/desktop_capture/desktop_capture_options.h"
 #include "webrtc/modules/desktop_capture/desktop_frame.h"
 #include "webrtc/modules/desktop_capture/desktop_frame_win.h"
@@ -38,8 +36,8 @@ static LPCTSTR kMagnifierWindowName = L"MagnifierWindow";
 Atomic32 ScreenCapturerWinMagnifier::tls_index_(TLS_OUT_OF_INDEXES);
 
 ScreenCapturerWinMagnifier::ScreenCapturerWinMagnifier(
-    std::unique_ptr<ScreenCapturer> fallback_capturer)
-    : fallback_capturer_(std::move(fallback_capturer)),
+    rtc::scoped_ptr<ScreenCapturer> fallback_capturer)
+    : fallback_capturer_(fallback_capturer.Pass()),
       fallback_capturer_started_(false),
       callback_(NULL),
       current_screen_id_(kFullDesktopScreenId),
@@ -55,7 +53,8 @@ ScreenCapturerWinMagnifier::ScreenCapturerWinMagnifier(
       host_window_(NULL),
       magnifier_window_(NULL),
       magnifier_initialized_(false),
-      magnifier_capture_succeeded_(true) {}
+      magnifier_capture_succeeded_(true) {
+}
 
 ScreenCapturerWinMagnifier::~ScreenCapturerWinMagnifier() {
   // DestroyWindow must be called before MagUninitialize. magnifier_window_ is
@@ -81,12 +80,6 @@ void ScreenCapturerWinMagnifier::Start(Callback* callback) {
   InitializeMagnifier();
 }
 
-void ScreenCapturerWinMagnifier::SetSharedMemoryFactory(
-    rtc::scoped_ptr<SharedMemoryFactory> shared_memory_factory) {
-  shared_memory_factory_ =
-      rtc::ScopedToUnique(std::move(shared_memory_factory));
-}
-
 void ScreenCapturerWinMagnifier::Capture(const DesktopRegion& region) {
   TickTime capture_start_time = TickTime::Now();
 
@@ -102,7 +95,7 @@ void ScreenCapturerWinMagnifier::Capture(const DesktopRegion& region) {
   }
   // Switch to the desktop receiving user input if different from the current
   // one.
-  std::unique_ptr<Desktop> input_desktop(Desktop::GetInputDesktop());
+  rtc::scoped_ptr<Desktop> input_desktop(Desktop::GetInputDesktop());
   if (input_desktop.get() != NULL && !desktop_.IsSame(*input_desktop)) {
     // Release GDI resources otherwise SetThreadDesktop will fail.
     if (desktop_dc_) {
@@ -243,7 +236,7 @@ BOOL ScreenCapturerWinMagnifier::OnMagImageScalingCallback(
     RECT unclipped,
     RECT clipped,
     HRGN dirty) {
-  assert(tls_index_.Value() != static_cast<int32_t>(TLS_OUT_OF_INDEXES));
+  assert(tls_index_.Value() != TLS_OUT_OF_INDEXES);
 
   ScreenCapturerWinMagnifier* owner =
       reinterpret_cast<ScreenCapturerWinMagnifier*>(
@@ -376,7 +369,7 @@ bool ScreenCapturerWinMagnifier::InitializeMagnifier() {
     }
   }
 
-  if (tls_index_.Value() == static_cast<int32_t>(TLS_OUT_OF_INDEXES)) {
+  if (tls_index_.Value() == TLS_OUT_OF_INDEXES) {
     // More than one threads may get here at the same time, but only one will
     // write to tls_index_ using CompareExchange.
     DWORD new_tls_index = TlsAlloc();
@@ -384,7 +377,7 @@ bool ScreenCapturerWinMagnifier::InitializeMagnifier() {
       TlsFree(new_tls_index);
   }
 
-  assert(tls_index_.Value() != static_cast<int32_t>(TLS_OUT_OF_INDEXES));
+  assert(tls_index_.Value() != TLS_OUT_OF_INDEXES);
   TlsSetValue(tls_index_.Value(), this);
 
   magnifier_initialized_ = true;
@@ -428,12 +421,18 @@ void ScreenCapturerWinMagnifier::CreateCurrentFrameIfNecessary(
   // Note that we can't reallocate other buffers at this point, since the caller
   // may still be reading from them.
   if (!queue_.current_frame() || !queue_.current_frame()->size().equals(size)) {
-    std::unique_ptr<DesktopFrame> frame =
-        shared_memory_factory_
-            ? SharedMemoryDesktopFrame::Create(size,
-                                               shared_memory_factory_.get())
-            : std::unique_ptr<DesktopFrame>(new BasicDesktopFrame(size));
-    queue_.ReplaceCurrentFrame(frame.release());
+    size_t buffer_size =
+        size.width() * size.height() * DesktopFrame::kBytesPerPixel;
+    SharedMemory* shared_memory = callback_->CreateSharedMemory(buffer_size);
+
+    rtc::scoped_ptr<DesktopFrame> buffer;
+    if (shared_memory) {
+      buffer.reset(new SharedMemoryDesktopFrame(
+          size, size.width() * DesktopFrame::kBytesPerPixel, shared_memory));
+    } else {
+      buffer.reset(new BasicDesktopFrame(size));
+    }
+    queue_.ReplaceCurrentFrame(buffer.release());
   }
 }
 

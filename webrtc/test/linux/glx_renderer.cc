@@ -11,7 +11,6 @@
 #include "webrtc/test/linux/glx_renderer.h"
 
 #include <assert.h>
-#include <stdlib.h>
 
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
@@ -144,7 +143,8 @@ void GlxRenderer::Resize(size_t width, size_t height) {
   XConfigureWindow(display_, window_, CWWidth | CWHeight, &wc);
 }
 
-void GlxRenderer::OnFrame(const webrtc::VideoFrame& frame) {
+void GlxRenderer::RenderFrame(const webrtc::VideoFrame& frame,
+                              int /*render_delay_ms*/) {
   if (static_cast<size_t>(frame.width()) != width_ ||
       static_cast<size_t>(frame.height()) != height_) {
     Resize(static_cast<size_t>(frame.width()),
@@ -167,7 +167,7 @@ void GlxRenderer::OnFrame(const webrtc::VideoFrame& frame) {
     }
   }
 
-  GlRenderer::OnFrame(frame);
+  GlRenderer::RenderFrame(frame, 0);
   glXSwapBuffers(display_, window_);
 
   if (!glXMakeCurrent(display_, None, NULL)) {

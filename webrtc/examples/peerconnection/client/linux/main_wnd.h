@@ -8,10 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_EXAMPLES_PEERCONNECTION_CLIENT_LINUX_MAIN_WND_H_
-#define WEBRTC_EXAMPLES_PEERCONNECTION_CLIENT_LINUX_MAIN_WND_H_
-
-#include <string>
+#ifndef PEERCONNECTION_SAMPLES_CLIENT_LINUX_MAIN_WND_H_
+#define PEERCONNECTION_SAMPLES_CLIENT_LINUX_MAIN_WND_H_
 
 #include "webrtc/examples/peerconnection/client/main_wnd.h"
 #include "webrtc/examples/peerconnection/client/peer_connection_client.h"
@@ -71,14 +69,15 @@ class GtkMainWnd : public MainWindow {
   void OnRedraw();
 
  protected:
-  class VideoRenderer : public rtc::VideoSinkInterface<cricket::VideoFrame> {
+  class VideoRenderer : public webrtc::VideoRendererInterface {
    public:
     VideoRenderer(GtkMainWnd* main_wnd,
                   webrtc::VideoTrackInterface* track_to_render);
     virtual ~VideoRenderer();
 
-    // VideoSinkInterface implementation
-    void OnFrame(const cricket::VideoFrame& frame) override;
+    // VideoRendererInterface implementation
+    virtual void SetSize(int width, int height);
+    virtual void RenderFrame(const cricket::VideoFrame* frame);
 
     const uint8_t* image() const { return image_.get(); }
 
@@ -91,7 +90,6 @@ class GtkMainWnd : public MainWindow {
     }
 
    protected:
-    void SetSize(int width, int height);
     rtc::scoped_ptr<uint8_t[]> image_;
     int width_;
     int height_;
@@ -117,4 +115,4 @@ class GtkMainWnd : public MainWindow {
   int draw_buffer_size_;
 };
 
-#endif  // WEBRTC_EXAMPLES_PEERCONNECTION_CLIENT_LINUX_MAIN_WND_H_
+#endif  // PEERCONNECTION_SAMPLES_CLIENT_LINUX_MAIN_WND_H_

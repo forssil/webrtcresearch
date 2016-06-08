@@ -58,7 +58,6 @@
           'bytebuffer_unittest.cc',
           'byteorder_unittest.cc',
           'callback_unittest.cc',
-          'copyonwritebuffer_unittest.cc',
           'crc32_unittest.cc',
           'criticalsection_unittest.cc',
           'event_tracer_unittest.cc',
@@ -75,24 +74,19 @@
           'md5digest_unittest.cc',
           'messagedigest_unittest.cc',
           'messagequeue_unittest.cc',
-          'mod_ops_unittest.cc',
           'multipart_unittest.cc',
           'nat_unittest.cc',
           'network_unittest.cc',
           'optional_unittest.cc',
           'optionsfile_unittest.cc',
           'pathutils_unittest.cc',
-          'platform_thread_unittest.cc',
           'profiler_unittest.cc',
           'proxy_unittest.cc',
           'proxydetect_unittest.cc',
-          'random_unittest.cc',
-          'rate_statistics_unittest.cc',
           'ratelimiter_unittest.cc',
           'ratetracker_unittest.cc',
           'referencecountedsingletonfactory_unittest.cc',
           'rollingaccumulator_unittest.cc',
-          'rtccertificate_unittests.cc',
           'scopedptrcollection_unittest.cc',
           'sha1digest_unittest.cc',
           'sharedexclusivelock_unittest.cc',
@@ -103,7 +97,6 @@
           'stream_unittest.cc',
           'stringencode_unittest.cc',
           'stringutils_unittest.cc',
-          'swap_queue_unittest.cc',
           # TODO(ronghuawu): Reenable this test.
           # 'systeminfo_unittest.cc',
           'task_unittest.cc',
@@ -137,19 +130,6 @@
               # TODO(pbos): Reenable this test.
               'win32windowpicker_unittest.cc',
             ],
-          }],
-          ['OS=="win" and clang==1', {
-            'msvs_settings': {
-              'VCCLCompilerTool': {
-                'AdditionalOptions': [
-                  # Disable warnings failing when compiling with Clang on Windows.
-                  # https://bugs.chromium.org/p/webrtc/issues/detail?id=5366
-                  '-Wno-missing-braces',
-                  '-Wno-sign-compare',
-                  '-Wno-unused-const-variable',
-                ],
-              },
-            },
           }],
           ['OS=="mac"', {
             'sources': [

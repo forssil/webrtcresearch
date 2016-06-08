@@ -17,17 +17,15 @@ static NSString const *kRTCSessionDescriptionSdpKey = @"sdp";
 
 + (RTCSessionDescription *)descriptionFromJSONDictionary:
     (NSDictionary *)dictionary {
-  NSString *typeString = dictionary[kRTCSessionDescriptionTypeKey];
-  RTCSdpType type = [[self class] typeForString:typeString];
+  NSString *type = dictionary[kRTCSessionDescriptionTypeKey];
   NSString *sdp = dictionary[kRTCSessionDescriptionSdpKey];
   return [[RTCSessionDescription alloc] initWithType:type sdp:sdp];
 }
 
 - (NSData *)JSONData {
-  NSString *type = [[self class] stringForType:self.type];
   NSDictionary *json = @{
-    kRTCSessionDescriptionTypeKey : type,
-    kRTCSessionDescriptionSdpKey : self.sdp
+    kRTCSessionDescriptionTypeKey : self.type,
+    kRTCSessionDescriptionSdpKey : self.description
   };
   return [NSJSONSerialization dataWithJSONObject:json options:0 error:nil];
 }

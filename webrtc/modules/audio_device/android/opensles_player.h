@@ -11,12 +11,11 @@
 #ifndef WEBRTC_MODULES_AUDIO_DEVICE_ANDROID_OPENSLES_PLAYER_H_
 #define WEBRTC_MODULES_AUDIO_DEVICE_ANDROID_OPENSLES_PLAYER_H_
 
-#include <memory>
-
 #include <SLES/OpenSLES.h>
 #include <SLES/OpenSLES_Android.h>
 #include <SLES/OpenSLES_AndroidConfiguration.h>
 
+#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/base/thread_checker.h"
 #include "webrtc/modules/audio_device/android/audio_common.h"
 #include "webrtc/modules/audio_device/android/audio_manager.h"
@@ -95,7 +94,7 @@ class OpenSLESPlayer {
   void EnqueuePlayoutData();
 
   // Configures the SL_DATAFORMAT_PCM structure.
-  SLDataFormat_PCM CreatePCMConfiguration(size_t channels,
+  SLDataFormat_PCM CreatePCMConfiguration(int channels,
                                           int sample_rate,
                                           size_t bits_per_sample);
 
@@ -151,7 +150,7 @@ class OpenSLESPlayer {
   // Queue of audio buffers to be used by the player object for rendering
   // audio. They will be used in a Round-robin way and the size of each buffer
   // is given by FineAudioBuffer::RequiredBufferSizeBytes().
-  std::unique_ptr<SLint8[]> audio_buffers_[kNumOfOpenSLESBuffers];
+  rtc::scoped_ptr<SLint8[]> audio_buffers_[kNumOfOpenSLESBuffers];
 
   // FineAudioBuffer takes an AudioDeviceBuffer which delivers audio data
   // in chunks of 10ms. It then allows for this data to be pulled in
@@ -163,7 +162,7 @@ class OpenSLESPlayer {
   // in each callback (one every 5ms). This class can then ask for 240 and the
   // FineAudioBuffer will ask WebRTC for new data only every second callback
   // and also cach non-utilized audio.
-  std::unique_ptr<FineAudioBuffer> fine_buffer_;
+  rtc::scoped_ptr<FineAudioBuffer> fine_buffer_;
 
   // Keeps track of active audio buffer 'n' in the audio_buffers_[n] queue.
   // Example (kNumOfOpenSLESBuffers = 2): counts 0, 1, 0, 1, ...

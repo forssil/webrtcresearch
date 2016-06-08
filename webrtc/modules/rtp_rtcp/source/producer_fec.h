@@ -18,6 +18,8 @@
 
 namespace webrtc {
 
+struct RtpPacket;
+
 class RedPacket {
  public:
   explicit RedPacket(size_t length);

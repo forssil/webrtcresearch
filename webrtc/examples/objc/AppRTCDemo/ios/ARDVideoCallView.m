@@ -23,9 +23,9 @@ static CGFloat const kStatusBarHeight = 20;
 @end
 
 @implementation ARDVideoCallView {
-  UIButton *_routeChangeButton;
   UIButton *_cameraSwitchButton;
   UIButton *_hangupButton;
+  CGSize _localVideoSize;
   CGSize _remoteVideoSize;
   BOOL _useRearCamera;
 }
@@ -42,30 +42,22 @@ static CGFloat const kStatusBarHeight = 20;
     _remoteVideoView.delegate = self;
     [self addSubview:_remoteVideoView];
 
-    _localVideoView = [[RTCCameraPreviewView alloc] initWithFrame:CGRectZero];
+    // TODO(tkchin): replace this with a view that renders layer from
+    // AVCaptureSession.
+    _localVideoView = [[RTCEAGLVideoView alloc] initWithFrame:CGRectZero];
+    _localVideoView.delegate = self;
     [self addSubview:_localVideoView];
 
     _statsView = [[ARDStatsView alloc] initWithFrame:CGRectZero];
     _statsView.hidden = YES;
     [self addSubview:_statsView];
 
-    _routeChangeButton = [UIButton buttonWithType:UIButtonTypeCustom];
-    _routeChangeButton.backgroundColor = [UIColor whiteColor];
-    _routeChangeButton.layer.cornerRadius = kButtonSize / 2;
-    _routeChangeButton.layer.masksToBounds = YES;
-    UIImage *image = [UIImage imageNamed:@"ic_surround_sound_black_24dp.png"];
-    [_routeChangeButton setImage:image forState:UIControlStateNormal];
-    [_routeChangeButton addTarget:self
-                           action:@selector(onRouteChange:)
-                 forControlEvents:UIControlEventTouchUpInside];
-    [self addSubview:_routeChangeButton];
-
     // TODO(tkchin): don't display this if we can't actually do camera switch.
     _cameraSwitchButton = [UIButton buttonWithType:UIButtonTypeCustom];
     _cameraSwitchButton.backgroundColor = [UIColor whiteColor];
     _cameraSwitchButton.layer.cornerRadius = kButtonSize / 2;
     _cameraSwitchButton.layer.masksToBounds = YES;
-    image = [UIImage imageNamed:@"ic_switch_video_black_24dp.png"];
+    UIImage *image = [UIImage imageNamed:@"ic_switch_video_black_24dp.png"];
     [_cameraSwitchButton setImage:image forState:UIControlStateNormal];
     [_cameraSwitchButton addTarget:self
                       action:@selector(onCameraSwitch:)
@@ -122,15 +114,22 @@ static CGFloat const kStatusBarHeight = 20;
     _remoteVideoView.frame = bounds;
   }
 
-  // Aspect fit local video view into a square box.
-  CGRect localVideoFrame =
-      CGRectMake(0, 0, kLocalVideoViewSize, kLocalVideoViewSize);
-  // Place the view in the bottom right.
-  localVideoFrame.origin.x = CGRectGetMaxX(bounds)
-      - localVideoFrame.size.width - kLocalVideoViewPadding;
-  localVideoFrame.origin.y = CGRectGetMaxY(bounds)
-      - localVideoFrame.size.height - kLocalVideoViewPadding;
-  _localVideoView.frame = localVideoFrame;
+  if (_localVideoSize.width && _localVideoSize.height > 0) {
+    // Aspect fit local video view into a square box.
+    CGRect localVideoFrame =
+        CGRectMake(0, 0, kLocalVideoViewSize, kLocalVideoViewSize);
+    localVideoFrame =
+        AVMakeRectWithAspectRatioInsideRect(_localVideoSize, localVideoFrame);
+
+    // Place the view in the bottom right.
+    localVideoFrame.origin.x = CGRectGetMaxX(bounds)
+        - localVideoFrame.size.width - kLocalVideoViewPadding;
+    localVideoFrame.origin.y = CGRectGetMaxY(bounds)
+        - localVideoFrame.size.height - kLocalVideoViewPadding;
+    _localVideoView.frame = localVideoFrame;
+  } else {
+    _localVideoView.frame = bounds;
+  }
 
   // Place stats at the top.
   CGSize statsSize = [_statsView sizeThatFits:bounds.size];
@@ -152,12 +151,6 @@ static CGFloat const kStatusBarHeight = 20;
       CGRectGetMaxX(cameraSwitchFrame) + kButtonPadding;
   _cameraSwitchButton.frame = cameraSwitchFrame;
 
-  // Place route button to the right of camera button.
-  CGRect routeChangeFrame = _cameraSwitchButton.frame;
-  routeChangeFrame.origin.x =
-      CGRectGetMaxX(routeChangeFrame) + kButtonPadding;
-  _routeChangeButton.frame = routeChangeFrame;
-
   [_statusLabel sizeToFit];
   _statusLabel.center =
       CGPointMake(CGRectGetMidX(bounds), CGRectGetMidY(bounds));
@@ -166,7 +159,10 @@ static CGFloat const kStatusBarHeight = 20;
 #pragma mark - RTCEAGLVideoViewDelegate
 
 - (void)videoView:(RTCEAGLVideoView*)videoView didChangeVideoSize:(CGSize)size {
- if (videoView == _remoteVideoView) {
+  if (videoView == _localVideoView) {
+    _localVideoSize = size;
+    _localVideoView.hidden = CGSizeEqualToSize(CGSizeZero, _localVideoSize);
+  } else if (videoView == _remoteVideoView) {
     _remoteVideoSize = size;
   }
   [self setNeedsLayout];
@@ -176,10 +172,6 @@ static CGFloat const kStatusBarHeight = 20;
 
 - (void)onCameraSwitch:(id)sender {
   [_delegate videoCallViewDidSwitchCamera:self];
-}
-
-- (void)onRouteChange:(id)sender {
-  [_delegate videoCallViewDidChangeRoute:self];
 }
 
 - (void)onHangup:(id)sender {

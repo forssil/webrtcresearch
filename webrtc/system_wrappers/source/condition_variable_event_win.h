@@ -13,15 +13,17 @@
 
 #include <windows.h>
 
+#include "webrtc/system_wrappers/include/condition_variable_wrapper.h"
+
 namespace webrtc {
 
-class ConditionVariableEventWin {
+class ConditionVariableEventWin : public ConditionVariableWrapper {
  public:
   ConditionVariableEventWin();
-  ~ConditionVariableEventWin();
+  virtual ~ConditionVariableEventWin();
 
-  void SleepCS(CRITICAL_SECTION* crit_sect);
-  bool SleepCS(CRITICAL_SECTION* crit_sect, unsigned long max_time_inMS);
+  void SleepCS(CriticalSectionWrapper& crit_sect);
+  bool SleepCS(CriticalSectionWrapper& crit_sect, unsigned long max_time_inMS);
   void Wake();
   void WakeAll();
 

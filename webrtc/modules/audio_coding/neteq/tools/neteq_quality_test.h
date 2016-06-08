@@ -12,14 +12,13 @@
 #define WEBRTC_MODULES_AUDIO_CODING_NETEQ_TOOLS_NETEQ_QUALITY_TEST_H_
 
 #include <fstream>
-#include <memory>
 #include <gflags/gflags.h>
 #include "testing/gtest/include/gtest/gtest.h"
+#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/modules/audio_coding/neteq/include/neteq.h"
 #include "webrtc/modules/audio_coding/neteq/tools/audio_sink.h"
 #include "webrtc/modules/audio_coding/neteq/tools/input_audio_file.h"
 #include "webrtc/modules/audio_coding/neteq/tools/rtp_generator.h"
-#include "webrtc/modules/include/module_common_types.h"
 #include "webrtc/typedefs.h"
 
 using google::RegisterFlagValidator;
@@ -59,7 +58,7 @@ class GilbertElliotLoss : public LossModel {
   // Prob. of losing current packet, when previous packet is not lost.
   double prob_trans_01_;
   bool lost_last_;
-  std::unique_ptr<UniformLoss> uniform_loss_model_;
+  rtc::scoped_ptr<UniformLoss> uniform_loss_model_;
 };
 
 class NetEqQualityTest : public ::testing::Test {
@@ -78,7 +77,7 @@ class NetEqQualityTest : public ::testing::Test {
   // 2. save the bit stream to |payload| of |max_bytes| bytes in size,
   // 3. returns the length of the payload (in bytes),
   virtual int EncodeBlock(int16_t* in_data, size_t block_size_samples,
-                          rtc::Buffer* payload, size_t max_bytes) = 0;
+                          uint8_t* payload, size_t max_bytes) = 0;
 
   // PacketLost(...) determines weather a packet sent at an indicated time gets
   // lost or not.
@@ -100,7 +99,7 @@ class NetEqQualityTest : public ::testing::Test {
   std::ofstream& Log();
 
   NetEqDecoder decoder_type_;
-  const size_t channels_;
+  const int channels_;
 
  private:
   int decoded_time_ms_;
@@ -114,20 +113,23 @@ class NetEqQualityTest : public ::testing::Test {
   // Number of samples per channel in a frame.
   const size_t in_size_samples_;
 
+  // Expected output number of samples per channel in a frame.
+  const size_t out_size_samples_;
+
   size_t payload_size_bytes_;
   size_t max_payload_bytes_;
 
-  std::unique_ptr<InputAudioFile> in_file_;
-  std::unique_ptr<AudioSink> output_;
+  rtc::scoped_ptr<InputAudioFile> in_file_;
+  rtc::scoped_ptr<AudioSink> output_;
   std::ofstream log_file_;
 
-  std::unique_ptr<RtpGenerator> rtp_generator_;
-  std::unique_ptr<NetEq> neteq_;
-  std::unique_ptr<LossModel> loss_model_;
+  rtc::scoped_ptr<RtpGenerator> rtp_generator_;
+  rtc::scoped_ptr<NetEq> neteq_;
+  rtc::scoped_ptr<LossModel> loss_model_;
 
-  std::unique_ptr<int16_t[]> in_data_;
-  rtc::Buffer payload_;
-  AudioFrame out_frame_;
+  rtc::scoped_ptr<int16_t[]> in_data_;
+  rtc::scoped_ptr<uint8_t[]> payload_;
+  rtc::scoped_ptr<int16_t[]> out_data_;
   WebRtcRTPHeader rtp_header_;
 
   size_t total_payload_size_bytes_;

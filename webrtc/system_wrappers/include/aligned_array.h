@@ -20,20 +20,21 @@ namespace webrtc {
 // aligned to the given byte alignment.
 template<typename T> class AlignedArray {
  public:
-  AlignedArray(size_t rows, size_t cols, size_t alignment)
+  AlignedArray(int rows, size_t cols, int alignment)
       : rows_(rows),
-        cols_(cols) {
-    RTC_CHECK_GT(alignment, 0u);
+        cols_(cols),
+        alignment_(alignment) {
+    RTC_CHECK_GT(alignment_, 0);
     head_row_ = static_cast<T**>(AlignedMalloc(rows_ * sizeof(*head_row_),
-                                               alignment));
-    for (size_t i = 0; i < rows_; ++i) {
+                                               alignment_));
+    for (int i = 0; i < rows_; ++i) {
       head_row_[i] = static_cast<T*>(AlignedMalloc(cols_ * sizeof(**head_row_),
-                                                   alignment));
+                                                   alignment_));
     }
   }
 
   ~AlignedArray() {
-    for (size_t i = 0; i < rows_; ++i) {
+    for (int i = 0; i < rows_; ++i) {
       AlignedFree(head_row_[i]);
     }
     AlignedFree(head_row_);
@@ -47,27 +48,27 @@ template<typename T> class AlignedArray {
     return head_row_;
   }
 
-  T* Row(size_t row) {
+  T* Row(int row) {
     RTC_CHECK_LE(row, rows_);
     return head_row_[row];
   }
 
-  const T* Row(size_t row) const {
+  const T* Row(int row) const {
     RTC_CHECK_LE(row, rows_);
     return head_row_[row];
   }
 
-  T& At(size_t row, size_t col) {
+  T& At(int row, size_t col) {
     RTC_CHECK_LE(col, cols_);
     return Row(row)[col];
   }
 
-  const T& At(size_t row, size_t col) const {
+  const T& At(int row, size_t col) const {
     RTC_CHECK_LE(col, cols_);
     return Row(row)[col];
   }
 
-  size_t rows() const {
+  int rows() const {
     return rows_;
   }
 
@@ -76,8 +77,9 @@ template<typename T> class AlignedArray {
   }
 
  private:
-  size_t rows_;
+  int rows_;
   size_t cols_;
+  int alignment_;
   T** head_row_;
 };
 

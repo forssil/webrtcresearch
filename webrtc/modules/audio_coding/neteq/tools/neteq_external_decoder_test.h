@@ -11,9 +11,7 @@
 #ifndef WEBRTC_MODULES_AUDIO_CODING_NETEQ_TOOLS_NETEQ_EXTERNAL_DECODER_TEST_H_
 #define WEBRTC_MODULES_AUDIO_CODING_NETEQ_TOOLS_NETEQ_EXTERNAL_DECODER_TEST_H_
 
-#include <memory>
-#include <string>
-
+#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/modules/audio_coding/codecs/audio_decoder.h"
 #include "webrtc/modules/audio_coding/neteq/include/neteq.h"
 #include "webrtc/modules/include/module_common_types.h"
@@ -42,18 +40,19 @@ class NetEqExternalDecoderTest {
                             rtc::ArrayView<const uint8_t> payload,
                             uint32_t receive_timestamp);
 
-  // Get 10 ms of audio data.
-  void GetOutputAudio(AudioFrame* output);
+  // Get 10 ms of audio data. The data is written to |output|, which can hold
+  // (at least) |max_length| elements. Returns number of samples.
+  size_t GetOutputAudio(size_t max_length, int16_t* output,
+                        NetEqOutputType* output_type);
 
   NetEq* neteq() { return neteq_.get(); }
 
  private:
   NetEqDecoder codec_;
-  std::string name_ = "dummy name";
   AudioDecoder* decoder_;
   int sample_rate_hz_;
-  size_t channels_;
-  std::unique_ptr<NetEq> neteq_;
+  int channels_;
+  rtc::scoped_ptr<NetEq> neteq_;
 };
 
 }  // namespace test

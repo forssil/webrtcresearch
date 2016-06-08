@@ -12,7 +12,6 @@
 #include "webrtc/modules/audio_coding/neteq/tools/neteq_external_decoder_test.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
-#include "webrtc/base/format_macros.h"
 
 namespace webrtc {
 namespace test {
@@ -22,17 +21,16 @@ NetEqExternalDecoderTest::NetEqExternalDecoderTest(NetEqDecoder codec,
     : codec_(codec),
       decoder_(decoder),
       sample_rate_hz_(CodecSampleRateHz(codec_)),
-      channels_(decoder_->Channels()) {
+      channels_(static_cast<int>(decoder_->Channels())) {
   NetEq::Config config;
   config.sample_rate_hz = sample_rate_hz_;
   neteq_.reset(NetEq::Create(config));
-  printf("%" PRIuS "\n", channels_);
+  printf("%d\n", channels_);
 }
 
 void NetEqExternalDecoderTest::Init() {
-  ASSERT_EQ(NetEq::kOK,
-            neteq_->RegisterExternalDecoder(decoder_, codec_, name_,
-                                            kPayloadType, sample_rate_hz_));
+  ASSERT_EQ(NetEq::kOK, neteq_->RegisterExternalDecoder(
+                            decoder_, codec_, kPayloadType, sample_rate_hz_));
 }
 
 void NetEqExternalDecoderTest::InsertPacket(
@@ -43,13 +41,22 @@ void NetEqExternalDecoderTest::InsertPacket(
             neteq_->InsertPacket(rtp_header, payload, receive_timestamp));
 }
 
-void NetEqExternalDecoderTest::GetOutputAudio(AudioFrame* output) {
+size_t NetEqExternalDecoderTest::GetOutputAudio(size_t max_length,
+                                                int16_t* output,
+                                                NetEqOutputType* output_type) {
   // Get audio from regular instance.
-  EXPECT_EQ(NetEq::kOK, neteq_->GetAudio(output));
-  EXPECT_EQ(channels_, output->num_channels_);
+  size_t samples_per_channel;
+  int num_channels;
+  EXPECT_EQ(NetEq::kOK,
+            neteq_->GetAudio(max_length,
+                             output,
+                             &samples_per_channel,
+                             &num_channels,
+                             output_type));
+  EXPECT_EQ(channels_, num_channels);
   EXPECT_EQ(static_cast<size_t>(kOutputLengthMs * sample_rate_hz_ / 1000),
-            output->samples_per_channel_);
-  EXPECT_EQ(sample_rate_hz_, neteq_->last_output_sample_rate_hz());
+            samples_per_channel);
+  return samples_per_channel;
 }
 
 }  // namespace test

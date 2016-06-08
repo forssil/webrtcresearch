@@ -13,14 +13,14 @@
 #include "webrtc/base/checks.h"
 #include "webrtc/base/logging.h"
 #include "webrtc/system_wrappers/include/clock.h"
-#include "webrtc/modules/pacing/packet_router.h"
+#include "webrtc/modules/pacing/include/packet_router.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_packet/transport_feedback.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_rtcp.h"
 
 namespace webrtc {
 
 // TODO(sprang): Tune these!
-const int RemoteEstimatorProxy::kDefaultProcessIntervalMs = 50;
+const int RemoteEstimatorProxy::kDefaultProcessIntervalMs = 200;
 const int RemoteEstimatorProxy::kBackWindowMs = 500;
 
 RemoteEstimatorProxy::RemoteEstimatorProxy(Clock* clock,
@@ -52,14 +52,21 @@ void RemoteEstimatorProxy::IncomingPacket(int64_t arrival_time_ms,
   }
   rtc::CritScope cs(&lock_);
   media_ssrc_ = header.ssrc;
-
   OnPacketArrival(header.extension.transportSequenceNumber, arrival_time_ms);
 }
+
+void RemoteEstimatorProxy::RemoveStream(unsigned int ssrc) {}
 
 bool RemoteEstimatorProxy::LatestEstimate(std::vector<unsigned int>* ssrcs,
                                           unsigned int* bitrate_bps) const {
   return false;
 }
+
+bool RemoteEstimatorProxy::GetStats(
+    ReceiveBandwidthEstimatorStats* output) const {
+  return false;
+}
+
 
 int64_t RemoteEstimatorProxy::TimeUntilNextProcess() {
   int64_t now = clock_->TimeInMilliseconds();
@@ -71,9 +78,11 @@ int64_t RemoteEstimatorProxy::TimeUntilNextProcess() {
   return time_until_next;
 }
 
-void RemoteEstimatorProxy::Process() {
+int32_t RemoteEstimatorProxy::Process() {
+  // TODO(sprang): Perhaps we need a dedicated thread here instead?
+
   if (TimeUntilNextProcess() > 0)
-    return;
+    return 0;
   last_process_time_ms_ = clock_->TimeInMilliseconds();
 
   bool more_to_build = true;
@@ -86,6 +95,8 @@ void RemoteEstimatorProxy::Process() {
       more_to_build = false;
     }
   }
+
+  return 0;
 }
 
 void RemoteEstimatorProxy::OnPacketArrival(uint16_t sequence_number,
@@ -106,10 +117,7 @@ void RemoteEstimatorProxy::OnPacketArrival(uint16_t sequence_number,
     window_start_seq_ = seq;
   }
 
-  // We are only interested in the first time a packet is received.
-  if (packet_arrival_times_.find(seq) != packet_arrival_times_.end())
-    return;
-
+  RTC_DCHECK(packet_arrival_times_.end() == packet_arrival_times_.find(seq));
   packet_arrival_times_[seq] = arrival_time;
 }
 

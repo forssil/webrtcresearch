@@ -8,13 +8,13 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include "webrtc/modules/audio_coding/codecs/ilbc/audio_encoder_ilbc.h"
+#include "webrtc/modules/audio_coding/codecs/ilbc/include/audio_encoder_ilbc.h"
 
 #include <algorithm>
 #include <limits>
 #include "webrtc/base/checks.h"
 #include "webrtc/common_types.h"
-#include "webrtc/modules/audio_coding/codecs/ilbc/ilbc.h"
+#include "webrtc/modules/audio_coding/codecs/ilbc/include/ilbc.h"
 
 namespace webrtc {
 
@@ -64,7 +64,7 @@ int AudioEncoderIlbc::SampleRateHz() const {
   return kSampleRateHz;
 }
 
-size_t AudioEncoderIlbc::NumChannels() const {
+int AudioEncoderIlbc::NumChannels() const {
   return 1;
 }
 
@@ -89,16 +89,19 @@ int AudioEncoderIlbc::GetTargetBitrate() const {
   }
 }
 
-AudioEncoder::EncodedInfo AudioEncoderIlbc::EncodeImpl(
+AudioEncoder::EncodedInfo AudioEncoderIlbc::EncodeInternal(
     uint32_t rtp_timestamp,
     rtc::ArrayView<const int16_t> audio,
-    rtc::Buffer* encoded) {
+    size_t max_encoded_bytes,
+    uint8_t* encoded) {
+  RTC_DCHECK_GE(max_encoded_bytes, RequiredOutputSizeBytes());
 
   // Save timestamp if starting a new packet.
   if (num_10ms_frames_buffered_ == 0)
     first_timestamp_in_buffer_ = rtp_timestamp;
 
   // Buffer input.
+  RTC_DCHECK_EQ(static_cast<size_t>(kSampleRateHz / 100), audio.size());
   std::copy(audio.cbegin(), audio.cend(),
             input_buffer_ + kSampleRateHz / 100 * num_10ms_frames_buffered_);
 
@@ -111,24 +114,15 @@ AudioEncoder::EncodedInfo AudioEncoderIlbc::EncodeImpl(
   // Encode buffered input.
   RTC_DCHECK_EQ(num_10ms_frames_buffered_, num_10ms_frames_per_packet_);
   num_10ms_frames_buffered_ = 0;
-  size_t encoded_bytes =
-      encoded->AppendData(
-          RequiredOutputSizeBytes(),
-          [&] (rtc::ArrayView<uint8_t> encoded) {
-            const int r = WebRtcIlbcfix_Encode(
-                encoder_,
-                input_buffer_,
-                kSampleRateHz / 100 * num_10ms_frames_per_packet_,
-                encoded.data());
-            RTC_CHECK_GE(r, 0);
-
-            return static_cast<size_t>(r);
-          });
-
-  RTC_DCHECK_EQ(encoded_bytes, RequiredOutputSizeBytes());
-
+  const int output_len = WebRtcIlbcfix_Encode(
+      encoder_,
+      input_buffer_,
+      kSampleRateHz / 100 * num_10ms_frames_per_packet_,
+      encoded);
+  RTC_CHECK_GE(output_len, 0);
   EncodedInfo info;
-  info.encoded_bytes = encoded_bytes;
+  info.encoded_bytes = static_cast<size_t>(output_len);
+  RTC_DCHECK_EQ(info.encoded_bytes, RequiredOutputSizeBytes());
   info.encoded_timestamp = first_timestamp_in_buffer_;
   info.payload_type = config_.payload_type;
   return info;

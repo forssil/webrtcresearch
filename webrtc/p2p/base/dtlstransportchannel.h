@@ -34,7 +34,7 @@ class StreamInterfaceChannel : public rtc::StreamInterface {
 
   // Implementations of StreamInterface
   rtc::StreamState GetState() const override { return state_; }
-  void Close() override;
+  void Close() override { state_ = rtc::SS_CLOSED; }
   rtc::StreamResult Read(void* buffer,
                          size_t buffer_len,
                          size_t* read,
@@ -82,8 +82,10 @@ class StreamInterfaceChannel : public rtc::StreamInterface {
 class DtlsTransportChannelWrapper : public TransportChannelImpl {
  public:
   // The parameters here are:
+  // transport -- the DtlsTransport that created us
   // channel -- the TransportChannel we are wrapping
-  explicit DtlsTransportChannelWrapper(TransportChannelImpl* channel);
+  DtlsTransportChannelWrapper(Transport* transport,
+                              TransportChannelImpl* channel);
   ~DtlsTransportChannelWrapper() override;
 
   void SetIceRole(IceRole role) override { channel_->SetIceRole(role); }
@@ -124,10 +126,10 @@ class DtlsTransportChannelWrapper : public TransportChannelImpl {
   // Set up the ciphers to use for DTLS-SRTP. If this method is not called
   // before DTLS starts, or |ciphers| is empty, SRTP keys won't be negotiated.
   // This method should be called before SetupDtls.
-  bool SetSrtpCryptoSuites(const std::vector<int>& ciphers) override;
+  bool SetSrtpCiphers(const std::vector<std::string>& ciphers) override;
 
   // Find out which DTLS-SRTP cipher was negotiated
-  bool GetSrtpCryptoSuite(int* cipher) override;
+  bool GetSrtpCryptoSuite(std::string* cipher) override;
 
   bool GetSslRole(rtc::SSLRole* role) const override;
   bool SetSslRole(rtc::SSLRole role) override;
@@ -157,6 +159,8 @@ class DtlsTransportChannelWrapper : public TransportChannelImpl {
   }
 
   // TransportChannelImpl calls.
+  Transport* GetTransport() override { return transport_; }
+
   TransportChannelState GetState() const override {
     return channel_->GetState();
   }
@@ -186,9 +190,6 @@ class DtlsTransportChannelWrapper : public TransportChannelImpl {
   void AddRemoteCandidate(const Candidate& candidate) override {
     channel_->AddRemoteCandidate(candidate);
   }
-  void RemoveRemoteCandidate(const Candidate& candidate) override {
-    channel_->RemoveRemoteCandidate(candidate);
-  }
 
   void SetIceConfig(const IceConfig& config) override {
     channel_->SetIceConfig(config);
@@ -212,22 +213,17 @@ class DtlsTransportChannelWrapper : public TransportChannelImpl {
   bool HandleDtlsPacket(const char* data, size_t size);
   void OnGatheringState(TransportChannelImpl* channel);
   void OnCandidateGathered(TransportChannelImpl* channel, const Candidate& c);
-  void OnCandidatesRemoved(TransportChannelImpl* channel,
-                           const Candidates& candidates);
   void OnRoleConflict(TransportChannelImpl* channel);
   void OnRouteChange(TransportChannel* channel, const Candidate& candidate);
-  void OnSelectedCandidatePairChanged(
-      TransportChannel* channel,
-      CandidatePairInterface* selected_candidate_pair);
   void OnConnectionRemoved(TransportChannelImpl* channel);
-  void Reconnect();
 
+  Transport* transport_;  // The transport_ that created us.
   rtc::Thread* worker_thread_;  // Everything should occur on this thread.
-  // Underlying channel, not owned by this class.
+  // Underlying channel, owned by transport_.
   TransportChannelImpl* const channel_;
   rtc::scoped_ptr<rtc::SSLStreamAdapter> dtls_;  // The DTLS stream
   StreamInterfaceChannel* downward_;  // Wrapper for channel_, owned by dtls_.
-  std::vector<int> srtp_ciphers_;     // SRTP ciphers to use with DTLS.
+  std::vector<std::string> srtp_ciphers_;  // SRTP ciphers to use with DTLS.
   bool dtls_active_ = false;
   rtc::scoped_refptr<rtc::RTCCertificate> local_certificate_;
   rtc::SSLRole ssl_role_;

@@ -13,7 +13,7 @@
 #include "webrtc/p2p/base/transport.h"
 
 #include "webrtc/p2p/base/candidate.h"
-#include "webrtc/p2p/base/p2pconstants.h"
+#include "webrtc/p2p/base/constants.h"
 #include "webrtc/p2p/base/port.h"
 #include "webrtc/p2p/base/transportchannelimpl.h"
 #include "webrtc/base/bind.h"
@@ -50,10 +50,10 @@ bool IceCredentialsChanged(const std::string& old_ufrag,
                            const std::string& old_pwd,
                            const std::string& new_ufrag,
                            const std::string& new_pwd) {
-  // The standard (RFC 5245 Section 9.1.1.1) says that ICE restarts MUST change
-  // both the ufrag and password. However, section 9.2.1.1 says changing the
-  // ufrag OR password indicates an ICE restart. So, to keep compatibility with
-  // endpoints that only change one, we'll treat this as an ICE restart.
+  // TODO(jiayl): The standard (RFC 5245 Section 9.1.1.1) says that ICE should
+  // restart when both the ufrag and password are changed, but we do restart
+  // when either ufrag or passwrod is changed to keep compatible with GICE. We
+  // should clean this up when GICE is no longer used.
   return (old_ufrag != new_ufrag) || (old_pwd != new_pwd);
 }
 
@@ -236,10 +236,10 @@ void Transport::ConnectChannels() {
     // initiate request initiated by the remote.
     LOG(LS_INFO) << "Transport::ConnectChannels: No local description has "
                  << "been set. Will generate one.";
-    TransportDescription desc(std::vector<std::string>(),
-                              rtc::CreateRandomString(ICE_UFRAG_LENGTH),
-                              rtc::CreateRandomString(ICE_PWD_LENGTH),
-                              ICEMODE_FULL, CONNECTIONROLE_NONE, nullptr);
+    TransportDescription desc(
+        std::vector<std::string>(), rtc::CreateRandomString(ICE_UFRAG_LENGTH),
+        rtc::CreateRandomString(ICE_PWD_LENGTH), ICEMODE_FULL,
+        CONNECTIONROLE_NONE, nullptr, Candidates());
     SetLocalTransportDescription(desc, CA_OFFER, nullptr);
   }
 
@@ -294,22 +294,6 @@ bool Transport::VerifyCandidate(const Candidate& cand, std::string* error) {
     }
   }
 
-  if (!HasChannel(cand.component())) {
-    *error = "Candidate has an unknown component: " + cand.ToString() +
-             " for content: " + name();
-    return false;
-  }
-
-  return true;
-}
-
-bool Transport::VerifyCandidates(const Candidates& candidates,
-                                 std::string* error) {
-  for (const Candidate& candidate : candidates) {
-    if (!VerifyCandidate(candidate, error)) {
-      return false;
-    }
-  }
   return true;
 }
 
@@ -321,8 +305,8 @@ bool Transport::GetStats(TransportStats* stats) {
     TransportChannelImpl* channel = kv.second;
     TransportChannelStats substats;
     substats.component = channel->component();
-    channel->GetSrtpCryptoSuite(&substats.srtp_crypto_suite);
-    channel->GetSslCipherSuite(&substats.ssl_cipher_suite);
+    channel->GetSrtpCryptoSuite(&substats.srtp_cipher);
+    channel->GetSslCipherSuite(&substats.ssl_cipher);
     if (!channel->GetStats(&substats.connection_infos)) {
       return false;
     }
@@ -334,32 +318,22 @@ bool Transport::GetStats(TransportStats* stats) {
 bool Transport::AddRemoteCandidates(const std::vector<Candidate>& candidates,
                                     std::string* error) {
   ASSERT(!channels_destroyed_);
-  // Verify each candidate before passing down to the transport layer.
-  if (!VerifyCandidates(candidates, error)) {
-    return false;
+  // Verify each candidate before passing down to transport layer.
+  for (const Candidate& cand : candidates) {
+    if (!VerifyCandidate(cand, error)) {
+      return false;
+    }
+    if (!HasChannel(cand.component())) {
+      *error = "Candidate has unknown component: " + cand.ToString() +
+               " for content: " + name();
+      return false;
+    }
   }
 
   for (const Candidate& candidate : candidates) {
     TransportChannelImpl* channel = GetChannel(candidate.component());
     if (channel != nullptr) {
       channel->AddRemoteCandidate(candidate);
-    }
-  }
-  return true;
-}
-
-bool Transport::RemoveRemoteCandidates(const std::vector<Candidate>& candidates,
-                                       std::string* error) {
-  ASSERT(!channels_destroyed_);
-  // Verify each candidate before passing down to the transport layer.
-  if (!VerifyCandidates(candidates, error)) {
-    return false;
-  }
-
-  for (const Candidate& candidate : candidates) {
-    TransportChannelImpl* channel = GetChannel(candidate.component());
-    if (channel != nullptr) {
-      channel->RemoveRemoteCandidate(candidate);
     }
   }
   return true;

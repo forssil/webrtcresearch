@@ -53,8 +53,6 @@ class PortInterface {
 
   virtual bool SharedSocket() const = 0;
 
-  virtual bool SupportsProtocol(const std::string& protocol) const = 0;
-
   // PrepareAddress will attempt to get an address for this port that other
   // clients can send to.  It may take some time before the address is ready.
   // Once it is ready, we will send SignalAddressReady.  If errors are
@@ -104,9 +102,6 @@ class PortInterface {
   // any usefulness.
   sigslot::signal1<PortInterface*> SignalDestroyed;
 
-  // Signaled when the network used by this port becomes inactive.
-  sigslot::signal1<PortInterface*> SignalNetworkInactive;
-
   // Signaled when Port discovers ice role conflict with the peer.
   sigslot::signal1<PortInterface*> SignalRoleConflict;
 
@@ -119,7 +114,7 @@ class PortInterface {
                    const rtc::SocketAddress&> SignalReadPacket;
 
   // Emitted each time a packet is sent on this port.
-  sigslot::signal1<const rtc::SentPacket&> SignalSentPacket;
+  sigslot::signal2<PortInterface*, const rtc::SentPacket&> SignalSentPacket;
 
   virtual std::string ToString() const = 0;
 

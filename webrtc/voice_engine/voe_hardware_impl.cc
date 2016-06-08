@@ -12,6 +12,7 @@
 
 #include <assert.h>
 
+#include "webrtc/system_wrappers/include/critical_section_wrapper.h"
 #include "webrtc/system_wrappers/include/trace.h"
 #include "webrtc/voice_engine/include/voe_errors.h"
 #include "webrtc/voice_engine/voice_engine_impl.h"
@@ -233,7 +234,7 @@ int VoEHardwareImpl::SetRecordingDevice(int index,
   WEBRTC_TRACE(kTraceApiCall, kTraceVoice, VoEId(_shared->instance_id(), -1),
                "SetRecordingDevice(index=%d, recordingChannel=%d)", index,
                (int)recordingChannel);
-  rtc::CritScope cs(_shared->crit_sec());
+  CriticalSectionScoped cs(_shared->crit_sec());
 
   if (!_shared->statistics().Initialized()) {
     _shared->SetLastError(VE_NOT_INITED, kTraceError);
@@ -344,7 +345,7 @@ int VoEHardwareImpl::SetRecordingDevice(int index,
 int VoEHardwareImpl::SetPlayoutDevice(int index) {
   WEBRTC_TRACE(kTraceApiCall, kTraceVoice, VoEId(_shared->instance_id(), -1),
                "SetPlayoutDevice(index=%d)", index);
-  rtc::CritScope cs(_shared->crit_sec());
+  CriticalSectionScoped cs(_shared->crit_sec());
 
   if (!_shared->statistics().Initialized()) {
     _shared->SetLastError(VE_NOT_INITED, kTraceError);

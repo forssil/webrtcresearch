@@ -87,8 +87,6 @@ class WEBRTC_DLLEXPORT VoiceEngine {
   static int SetAndroidObjects(void* javaVM, void* context);
 #endif
 
-  static std::string GetVersionString();
-
  protected:
   VoiceEngine() {}
   ~VoiceEngine() {}

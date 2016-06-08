@@ -15,10 +15,6 @@
     ],
     'neteq_defines': [],
     'conditions': [
-      ['include_ilbc==1', {
-        'codecs': ['ilbc',],
-        'neteq_defines': ['WEBRTC_CODEC_ILBC',],
-      }],
       ['include_opus==1', {
         'codecs': ['webrtc_opus',],
         'neteq_defines': ['WEBRTC_CODEC_OPUS',],
@@ -35,6 +31,10 @@
         ],
         'codecs': ['g722',],
         'neteq_defines': ['WEBRTC_CODEC_G722',],
+      }],
+      ['build_with_mozilla==0 and build_with_chromium==0', {
+        'codecs': ['ilbc',],
+        'neteq_defines': ['WEBRTC_CODEC_ILBC',],
       }],
     ],
     'neteq_dependencies': [
@@ -157,11 +157,6 @@
             ['OS=="android"', {
               'dependencies': [
                 '<(DEPTH)/testing/android/native_test.gyp:native_test_native_code',
-              ],
-            }],
-            ['OS=="ios"', {
-              'mac_bundle_resources': [
-                '<(DEPTH)/resources/audio_coding/testfile32kHz.pcm',
               ],
             }],
           ],

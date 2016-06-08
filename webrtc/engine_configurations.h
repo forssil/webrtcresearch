@@ -14,6 +14,19 @@
 #include "webrtc/typedefs.h"
 
 // ============================================================================
+//                              Voice and Video
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+//  [Video] Codec settings
+// ----------------------------------------------------------------------------
+
+#define VIDEOCODEC_I420
+#define VIDEOCODEC_VP8
+#define VIDEOCODEC_VP9
+#define VIDEOCODEC_H264
+
+// ============================================================================
 //                                 VoiceEngine
 // ============================================================================
 
@@ -35,6 +48,7 @@
 
 #define WEBRTC_VOICE_ENGINE_AUDIO_PROCESSING_API
 #define WEBRTC_VOICE_ENGINE_CODEC_API
+#define WEBRTC_VOICE_ENGINE_DTMF_API
 #define WEBRTC_VOICE_ENGINE_EXTERNAL_MEDIA_API
 #define WEBRTC_VOICE_ENGINE_FILE_API
 #define WEBRTC_VOICE_ENGINE_HARDWARE_API

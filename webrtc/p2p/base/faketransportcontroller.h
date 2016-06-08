@@ -15,7 +15,6 @@
 #include <string>
 #include <vector>
 
-#include "webrtc/p2p/base/candidatepairinterface.h"
 #include "webrtc/p2p/base/transport.h"
 #include "webrtc/p2p/base/transportchannel.h"
 #include "webrtc/p2p/base/transportcontroller.h"
@@ -46,8 +45,11 @@ struct PacketMessageData : public rtc::MessageData {
 class FakeTransportChannel : public TransportChannelImpl,
                              public rtc::MessageHandler {
  public:
-  explicit FakeTransportChannel(const std::string& name, int component)
+  explicit FakeTransportChannel(Transport* transport,
+                                const std::string& name,
+                                int component)
       : TransportChannelImpl(name, component),
+        transport_(transport),
         dtls_fingerprint_("", nullptr, 0) {}
   ~FakeTransportChannel() { Reset(); }
 
@@ -64,6 +66,8 @@ class FakeTransportChannel : public TransportChannelImpl,
   // If async, will send packets by "Post"-ing to message queue instead of
   // synchronously "Send"-ing.
   void SetAsync(bool async) { async_ = async; }
+
+  Transport* GetTransport() override { return transport_; }
 
   TransportChannelState GetState() const override {
     if (connection_count_ == 0) {
@@ -181,7 +185,7 @@ class FakeTransportChannel : public TransportChannelImpl,
   void SetReceiving(bool receiving) { set_receiving(receiving); }
 
   void SetIceConfig(const IceConfig& config) override {
-    receiving_timeout_ = config.receiving_timeout;
+    receiving_timeout_ = config.receiving_timeout_ms;
     gather_continually_ = config.gather_continually;
   }
 
@@ -206,7 +210,7 @@ class FakeTransportChannel : public TransportChannelImpl,
     } else {
       rtc::Thread::Current()->Send(this, 0, packet);
     }
-    rtc::SentPacket sent_packet(options.packet_id, rtc::Time64());
+    rtc::SentPacket sent_packet(options.packet_id, rtc::Time());
     SignalSentPacket(this, sent_packet);
     return static_cast<int>(len);
   }
@@ -217,9 +221,6 @@ class FakeTransportChannel : public TransportChannelImpl,
   void AddRemoteCandidate(const Candidate& candidate) override {
     remote_candidates_.push_back(candidate);
   }
-
-  void RemoveRemoteCandidate(const Candidate& candidate) override {}
-
   const Candidates& remote_candidates() const { return remote_candidates_; }
 
   void OnMessage(rtc::Message* msg) override {
@@ -241,20 +242,20 @@ class FakeTransportChannel : public TransportChannelImpl,
 
   bool IsDtlsActive() const override { return do_dtls_; }
 
-  bool SetSrtpCryptoSuites(const std::vector<int>& ciphers) override {
+  bool SetSrtpCiphers(const std::vector<std::string>& ciphers) override {
     srtp_ciphers_ = ciphers;
     return true;
   }
 
-  bool GetSrtpCryptoSuite(int* crypto_suite) override {
-    if (chosen_crypto_suite_ != rtc::SRTP_INVALID_CRYPTO_SUITE) {
-      *crypto_suite = chosen_crypto_suite_;
+  bool GetSrtpCryptoSuite(std::string* cipher) override {
+    if (!chosen_srtp_cipher_.empty()) {
+      *cipher = chosen_srtp_cipher_;
       return true;
     }
     return false;
   }
 
-  bool GetSslCipherSuite(int* cipher_suite) override { return false; }
+  bool GetSslCipherSuite(int* cipher) override { return false; }
 
   rtc::scoped_refptr<rtc::RTCCertificate> GetLocalCertificate() const {
     return local_cert_;
@@ -274,7 +275,7 @@ class FakeTransportChannel : public TransportChannelImpl,
                             bool use_context,
                             uint8_t* result,
                             size_t result_len) override {
-    if (chosen_crypto_suite_ != rtc::SRTP_INVALID_CRYPTO_SUITE) {
+    if (!chosen_srtp_cipher_.empty()) {
       memset(result, 0xff, result_len);
       return true;
     }
@@ -283,13 +284,14 @@ class FakeTransportChannel : public TransportChannelImpl,
   }
 
   void NegotiateSrtpCiphers() {
-    for (std::vector<int>::const_iterator it1 = srtp_ciphers_.begin();
+    for (std::vector<std::string>::const_iterator it1 = srtp_ciphers_.begin();
          it1 != srtp_ciphers_.end(); ++it1) {
-      for (std::vector<int>::const_iterator it2 = dest_->srtp_ciphers_.begin();
+      for (std::vector<std::string>::const_iterator it2 =
+               dest_->srtp_ciphers_.begin();
            it2 != dest_->srtp_ciphers_.end(); ++it2) {
         if (*it1 == *it2) {
-          chosen_crypto_suite_ = *it1;
-          dest_->chosen_crypto_suite_ = *it2;
+          chosen_srtp_cipher_ = *it1;
+          dest_->chosen_srtp_cipher_ = *it2;
           return;
         }
       }
@@ -312,6 +314,7 @@ class FakeTransportChannel : public TransportChannelImpl,
 
  private:
   enum State { STATE_INIT, STATE_CONNECTING, STATE_CONNECTED };
+  Transport* transport_;
   FakeTransportChannel* dest_ = nullptr;
   State state_ = STATE_INIT;
   bool async_ = false;
@@ -319,8 +322,8 @@ class FakeTransportChannel : public TransportChannelImpl,
   rtc::scoped_refptr<rtc::RTCCertificate> local_cert_;
   rtc::FakeSSLCertificate* remote_cert_ = nullptr;
   bool do_dtls_ = false;
-  std::vector<int> srtp_ciphers_;
-  int chosen_crypto_suite_ = rtc::SRTP_INVALID_CRYPTO_SUITE;
+  std::vector<std::string> srtp_ciphers_;
+  std::string chosen_srtp_cipher_;
   int receiving_timeout_ = -1;
   bool gather_continually_ = false;
   IceRole role_ = ICEROLE_UNKNOWN;
@@ -330,7 +333,7 @@ class FakeTransportChannel : public TransportChannelImpl,
   std::string remote_ice_ufrag_;
   std::string remote_ice_pwd_;
   IceMode remote_ice_mode_ = ICEMODE_FULL;
-  rtc::SSLProtocolVersion ssl_max_version_ = rtc::SSL_PROTOCOL_DTLS_12;
+  rtc::SSLProtocolVersion ssl_max_version_ = rtc::SSL_PROTOCOL_DTLS_10;
   rtc::SSLFingerprint dtls_fingerprint_;
   rtc::SSLRole ssl_role_ = rtc::SSL_CLIENT;
   size_t connection_count_ = 0;
@@ -412,7 +415,8 @@ class FakeTransport : public Transport {
     if (channels_.find(component) != channels_.end()) {
       return nullptr;
     }
-    FakeTransportChannel* channel = new FakeTransportChannel(name(), component);
+    FakeTransportChannel* channel =
+        new FakeTransportChannel(this, name(), component);
     channel->set_ssl_max_protocol_version(ssl_max_version_);
     channel->SetAsync(async_);
     SetChannelDestination(component, channel);
@@ -450,25 +454,7 @@ class FakeTransport : public Transport {
   FakeTransport* dest_ = nullptr;
   bool async_ = false;
   rtc::scoped_refptr<rtc::RTCCertificate> certificate_;
-  rtc::SSLProtocolVersion ssl_max_version_ = rtc::SSL_PROTOCOL_DTLS_12;
-};
-
-// Fake candidate pair class, which can be passed to BaseChannel for testing
-// purposes.
-class FakeCandidatePair : public CandidatePairInterface {
- public:
-  FakeCandidatePair(const Candidate& local_candidate,
-                    const Candidate& remote_candidate)
-      : local_candidate_(local_candidate),
-        remote_candidate_(remote_candidate) {}
-  const Candidate& local_candidate() const override { return local_candidate_; }
-  const Candidate& remote_candidate() const override {
-    return remote_candidate_;
-  }
-
- private:
-  Candidate local_candidate_;
-  Candidate remote_candidate_;
+  rtc::SSLProtocolVersion ssl_max_version_ = rtc::SSL_PROTOCOL_DTLS_10;
 };
 
 // Fake TransportController class, which can be passed into a BaseChannel object
@@ -520,18 +506,6 @@ class FakeTransportController : public TransportController {
     }
     return TransportController::CreateTransportChannel_w(transport_name,
                                                          component);
-  }
-
-  FakeCandidatePair* CreateFakeCandidatePair(
-      const rtc::SocketAddress& local_address,
-      int16_t local_network_id,
-      const rtc::SocketAddress& remote_address,
-      int16_t remote_network_id) {
-    Candidate local_candidate(0, "udp", local_address, 0u, "", "", "local", 0,
-                              "foundation", local_network_id, 0);
-    Candidate remote_candidate(0, "udp", remote_address, 0u, "", "", "local", 0,
-                               "foundation", remote_network_id, 0);
-    return new FakeCandidatePair(local_candidate, remote_candidate);
   }
 
   void set_fail_channel_creation(bool fail_channel_creation) {

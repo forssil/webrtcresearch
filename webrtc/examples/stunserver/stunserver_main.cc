@@ -17,7 +17,7 @@
 #include "webrtc/p2p/base/stunserver.h"
 #include "webrtc/base/thread.h"
 
-using cricket::StunServer;
+using namespace cricket;
 
 int main(int argc, char* argv[]) {
   if (argc != 2) {

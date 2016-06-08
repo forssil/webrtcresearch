@@ -11,6 +11,7 @@
 #include "webrtc/base/crc32.h"
 
 #include "webrtc/base/arraysize.h"
+#include "webrtc/base/basicdefs.h"
 
 namespace rtc {
 

@@ -8,8 +8,6 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <memory>
-
 #include "webrtc/modules/desktop_capture/cropped_desktop_frame.h"
 
 namespace webrtc {
@@ -20,7 +18,7 @@ class CroppedDesktopFrame : public DesktopFrame {
   CroppedDesktopFrame(DesktopFrame* frame, const DesktopRect& rect);
 
  private:
-  std::unique_ptr<DesktopFrame> frame_;
+  rtc::scoped_ptr<DesktopFrame> frame_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(CroppedDesktopFrame);
 };

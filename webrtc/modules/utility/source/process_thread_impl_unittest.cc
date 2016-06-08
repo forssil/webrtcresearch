@@ -8,9 +8,6 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <memory>
-#include <utility>
-
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "webrtc/modules/include/module.h"
@@ -29,7 +26,7 @@ using ::testing::SetArgPointee;
 class MockModule : public Module {
  public:
   MOCK_METHOD0(TimeUntilNextProcess, int64_t());
-  MOCK_METHOD0(Process, void());
+  MOCK_METHOD0(Process, int32_t());
   MOCK_METHOD1(ProcessThreadAttached, void(ProcessThread*));
 };
 
@@ -73,13 +70,13 @@ TEST(ProcessThreadImpl, ProcessCall) {
   ProcessThreadImpl thread("ProcessThread");
   thread.Start();
 
-  std::unique_ptr<EventWrapper> event(EventWrapper::Create());
+  rtc::scoped_ptr<EventWrapper> event(EventWrapper::Create());
 
   MockModule module;
   EXPECT_CALL(module, TimeUntilNextProcess()).WillRepeatedly(Return(0));
   EXPECT_CALL(module, Process())
-      .WillOnce(DoAll(SetEvent(event.get()), Return()))
-      .WillRepeatedly(Return());
+      .WillOnce(DoAll(SetEvent(event.get()), Return(0)))
+      .WillRepeatedly(Return(0));
   EXPECT_CALL(module, ProcessThreadAttached(&thread)).Times(1);
 
   thread.RegisterModule(&module);
@@ -93,13 +90,13 @@ TEST(ProcessThreadImpl, ProcessCall) {
 // call to Start().
 TEST(ProcessThreadImpl, ProcessCall2) {
   ProcessThreadImpl thread("ProcessThread");
-  std::unique_ptr<EventWrapper> event(EventWrapper::Create());
+  rtc::scoped_ptr<EventWrapper> event(EventWrapper::Create());
 
   MockModule module;
   EXPECT_CALL(module, TimeUntilNextProcess()).WillRepeatedly(Return(0));
   EXPECT_CALL(module, Process())
-      .WillOnce(DoAll(SetEvent(event.get()), Return()))
-      .WillRepeatedly(Return());
+      .WillOnce(DoAll(SetEvent(event.get()), Return(0)))
+      .WillRepeatedly(Return(0));
 
   thread.RegisterModule(&module);
 
@@ -115,7 +112,7 @@ TEST(ProcessThreadImpl, ProcessCall2) {
 // After unregistration, we should not receive any further callbacks.
 TEST(ProcessThreadImpl, Deregister) {
   ProcessThreadImpl thread("ProcessThread");
-  std::unique_ptr<EventWrapper> event(EventWrapper::Create());
+  rtc::scoped_ptr<EventWrapper> event(EventWrapper::Create());
 
   int process_count = 0;
   MockModule module;
@@ -123,8 +120,8 @@ TEST(ProcessThreadImpl, Deregister) {
   EXPECT_CALL(module, Process())
       .WillOnce(DoAll(SetEvent(event.get()),
                       Increment(&process_count),
-                      Return()))
-      .WillRepeatedly(DoAll(Increment(&process_count), Return()));
+                      Return(0)))
+      .WillRepeatedly(DoAll(Increment(&process_count), Return(0)));
 
   thread.RegisterModule(&module);
 
@@ -152,7 +149,7 @@ void ProcessCallAfterAFewMs(int64_t milliseconds) {
   ProcessThreadImpl thread("ProcessThread");
   thread.Start();
 
-  std::unique_ptr<EventWrapper> event(EventWrapper::Create());
+  rtc::scoped_ptr<EventWrapper> event(EventWrapper::Create());
 
   MockModule module;
   int64_t start_time = 0;
@@ -164,8 +161,8 @@ void ProcessCallAfterAFewMs(int64_t milliseconds) {
   EXPECT_CALL(module, Process())
       .WillOnce(DoAll(SetTimestamp(&called_time),
                       SetEvent(event.get()),
-                      Return()))
-      .WillRepeatedly(Return());
+                      Return(0)))
+      .WillRepeatedly(Return(0));
 
   EXPECT_CALL(module, ProcessThreadAttached(&thread)).Times(1);
   thread.RegisterModule(&module);
@@ -217,7 +214,7 @@ TEST(ProcessThreadImpl, DISABLED_Process50Times) {
   ProcessThreadImpl thread("ProcessThread");
   thread.Start();
 
-  std::unique_ptr<EventWrapper> event(EventWrapper::Create());
+  rtc::scoped_ptr<EventWrapper> event(EventWrapper::Create());
 
   MockModule module;
   int callback_count = 0;
@@ -226,7 +223,7 @@ TEST(ProcessThreadImpl, DISABLED_Process50Times) {
       .WillRepeatedly(Return(20));
   EXPECT_CALL(module, Process())
       .WillRepeatedly(DoAll(Increment(&callback_count),
-                            Return()));
+                            Return(0)));
 
   EXPECT_CALL(module, ProcessThreadAttached(&thread)).Times(1);
   thread.RegisterModule(&module);
@@ -250,13 +247,12 @@ TEST(ProcessThreadImpl, WakeUp) {
   ProcessThreadImpl thread("ProcessThread");
   thread.Start();
 
-  std::unique_ptr<EventWrapper> started(EventWrapper::Create());
-  std::unique_ptr<EventWrapper> called(EventWrapper::Create());
+  rtc::scoped_ptr<EventWrapper> started(EventWrapper::Create());
+  rtc::scoped_ptr<EventWrapper> called(EventWrapper::Create());
 
   MockModule module;
-  int64_t start_time;
-  int64_t called_time;
-
+  int64_t start_time = 0;
+  int64_t called_time = 0;
   // Ask for a callback after 1000ms.
   // TimeUntilNextProcess will be called twice.
   // The first time we use it to get the thread into a waiting state.
@@ -270,9 +266,10 @@ TEST(ProcessThreadImpl, WakeUp) {
                       Return(1000)))
       .WillOnce(Return(1000));
   EXPECT_CALL(module, Process())
-      .WillOnce(
-          DoAll(SetTimestamp(&called_time), SetEvent(called.get()), Return()))
-      .WillRepeatedly(Return());
+      .WillOnce(DoAll(SetTimestamp(&called_time),
+                      SetEvent(called.get()),
+                      Return(0)))
+      .WillRepeatedly(Return(0));
 
   EXPECT_CALL(module, ProcessThreadAttached(&thread)).Times(1);
   thread.RegisterModule(&module);
@@ -284,6 +281,8 @@ TEST(ProcessThreadImpl, WakeUp) {
   EXPECT_CALL(module, ProcessThreadAttached(nullptr)).Times(1);
   thread.Stop();
 
+  ASSERT_GT(start_time, 0);
+  ASSERT_GT(called_time, 0);
   EXPECT_GE(called_time, start_time);
   uint32_t diff = called_time - start_time;
   // We should have been called back much quicker than 1sec.
@@ -294,10 +293,10 @@ TEST(ProcessThreadImpl, WakeUp) {
 // thread.
 TEST(ProcessThreadImpl, PostTask) {
   ProcessThreadImpl thread("ProcessThread");
-  std::unique_ptr<EventWrapper> task_ran(EventWrapper::Create());
-  std::unique_ptr<RaiseEventTask> task(new RaiseEventTask(task_ran.get()));
+  rtc::scoped_ptr<EventWrapper> task_ran(EventWrapper::Create());
+  rtc::scoped_ptr<RaiseEventTask> task(new RaiseEventTask(task_ran.get()));
   thread.Start();
-  thread.PostTask(rtc::UniqueToScoped(std::move(task)));
+  thread.PostTask(task.Pass());
   EXPECT_EQ(kEventSignaled, task_ran->Wait(100));
   thread.Stop();
 }

@@ -8,8 +8,6 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <utility>
-
 #include "webrtc/p2p/base/dtlstransportchannel.h"
 
 #include "webrtc/p2p/base/common.h"
@@ -88,19 +86,16 @@ bool StreamInterfaceChannel::OnPacketReceived(const char* data, size_t size) {
   return ret;
 }
 
-void StreamInterfaceChannel::Close() {
-  packets_.Clear();
-  state_ = rtc::SS_CLOSED;
-}
-
 DtlsTransportChannelWrapper::DtlsTransportChannelWrapper(
+    Transport* transport,
     TransportChannelImpl* channel)
     : TransportChannelImpl(channel->transport_name(), channel->component()),
+      transport_(transport),
       worker_thread_(rtc::Thread::Current()),
       channel_(channel),
       downward_(NULL),
       ssl_role_(rtc::SSL_CLIENT),
-      ssl_max_version_(rtc::SSL_PROTOCOL_DTLS_12) {
+      ssl_max_version_(rtc::SSL_PROTOCOL_DTLS_10) {
   channel_->SignalWritableState.connect(this,
       &DtlsTransportChannelWrapper::OnWritableState);
   channel_->SignalReadPacket.connect(this,
@@ -113,14 +108,10 @@ DtlsTransportChannelWrapper::DtlsTransportChannelWrapper(
       this, &DtlsTransportChannelWrapper::OnGatheringState);
   channel_->SignalCandidateGathered.connect(
       this, &DtlsTransportChannelWrapper::OnCandidateGathered);
-  channel_->SignalCandidatesRemoved.connect(
-      this, &DtlsTransportChannelWrapper::OnCandidatesRemoved);
   channel_->SignalRoleConflict.connect(this,
       &DtlsTransportChannelWrapper::OnRoleConflict);
   channel_->SignalRouteChange.connect(this,
       &DtlsTransportChannelWrapper::OnRouteChange);
-  channel_->SignalSelectedCandidatePairChanged.connect(
-      this, &DtlsTransportChannelWrapper::OnSelectedCandidatePairChanged);
   channel_->SignalConnectionRemoved.connect(this,
       &DtlsTransportChannelWrapper::OnConnectionRemoved);
   channel_->SignalReceivingState.connect(this,
@@ -208,8 +199,6 @@ bool DtlsTransportChannelWrapper::SetRemoteFingerprint(
     size_t digest_len) {
   rtc::Buffer remote_fingerprint_value(digest, digest_len);
 
-  // Once we have the local certificate, the same remote fingerprint can be set
-  // multiple times.
   if (dtls_active_ && remote_fingerprint_value_ == remote_fingerprint_value &&
       !digest_alg.empty()) {
     // This may happen during renegotiation.
@@ -217,34 +206,26 @@ bool DtlsTransportChannelWrapper::SetRemoteFingerprint(
     return true;
   }
 
-  // If the other side doesn't support DTLS, turn off |dtls_active_|.
+  // Allow SetRemoteFingerprint with a NULL digest even if SetLocalCertificate
+  // hasn't been called.
+  if (dtls_ || (!dtls_active_ && !digest_alg.empty())) {
+    LOG_J(LS_ERROR, this) << "Can't set DTLS remote settings in this state.";
+    return false;
+  }
+
   if (digest_alg.empty()) {
-    RTC_DCHECK(!digest_len);
     LOG_J(LS_INFO, this) << "Other side didn't support DTLS.";
     dtls_active_ = false;
     return true;
   }
 
-  // Otherwise, we must have a local certificate before setting remote
-  // fingerprint.
-  if (!dtls_active_) {
-    LOG_J(LS_ERROR, this) << "Can't set DTLS remote settings in this state.";
-    return false;
-  }
-
   // At this point we know we are doing DTLS
-  remote_fingerprint_value_ = std::move(remote_fingerprint_value);
+  remote_fingerprint_value_ = remote_fingerprint_value.Pass();
   remote_fingerprint_algorithm_ = digest_alg;
-
-  bool reconnect = (dtls_ != nullptr);
 
   if (!SetupDtls()) {
     set_dtls_state(DTLS_TRANSPORT_FAILED);
     return false;
-  }
-
-  if (reconnect) {
-    Reconnect();
   }
 
   return true;
@@ -286,7 +267,7 @@ bool DtlsTransportChannelWrapper::SetupDtls() {
 
   // Set up DTLS-SRTP, if it's been enabled.
   if (!srtp_ciphers_.empty()) {
-    if (!dtls_->SetDtlsSrtpCryptoSuites(srtp_ciphers_)) {
+    if (!dtls_->SetDtlsSrtpCiphers(srtp_ciphers_)) {
       LOG_J(LS_ERROR, this) << "Couldn't set DTLS-SRTP ciphers.";
       return false;
     }
@@ -298,10 +279,11 @@ bool DtlsTransportChannelWrapper::SetupDtls() {
   return true;
 }
 
-bool DtlsTransportChannelWrapper::SetSrtpCryptoSuites(
-    const std::vector<int>& ciphers) {
-  if (srtp_ciphers_ == ciphers)
+bool DtlsTransportChannelWrapper::SetSrtpCiphers(
+    const std::vector<std::string>& ciphers) {
+  if (srtp_ciphers_ == ciphers) {
     return true;
+  }
 
   if (dtls_state() == DTLS_TRANSPORT_CONNECTING) {
     LOG(LS_WARNING) << "Ignoring new SRTP ciphers while DTLS is negotiating";
@@ -312,18 +294,18 @@ bool DtlsTransportChannelWrapper::SetSrtpCryptoSuites(
     // We don't support DTLS renegotiation currently. If new set of srtp ciphers
     // are different than what's being used currently, we will not use it.
     // So for now, let's be happy (or sad) with a warning message.
-    int current_srtp_cipher;
-    if (!dtls_->GetDtlsSrtpCryptoSuite(&current_srtp_cipher)) {
+    std::string current_srtp_cipher;
+    if (!dtls_->GetDtlsSrtpCipher(&current_srtp_cipher)) {
       LOG(LS_ERROR) << "Failed to get the current SRTP cipher for DTLS channel";
       return false;
     }
-    const std::vector<int>::const_iterator iter =
+    const std::vector<std::string>::const_iterator iter =
         std::find(ciphers.begin(), ciphers.end(), current_srtp_cipher);
     if (iter == ciphers.end()) {
       std::string requested_str;
       for (size_t i = 0; i < ciphers.size(); ++i) {
         requested_str.append(" ");
-        requested_str.append(rtc::SrtpCryptoSuiteToName(ciphers[i]));
+        requested_str.append(ciphers[i]);
         requested_str.append(" ");
       }
       LOG(LS_WARNING) << "Ignoring new set of SRTP ciphers, as DTLS "
@@ -342,12 +324,12 @@ bool DtlsTransportChannelWrapper::SetSrtpCryptoSuites(
   return true;
 }
 
-bool DtlsTransportChannelWrapper::GetSrtpCryptoSuite(int* cipher) {
+bool DtlsTransportChannelWrapper::GetSrtpCryptoSuite(std::string* cipher) {
   if (dtls_state() != DTLS_TRANSPORT_CONNECTED) {
     return false;
   }
 
-  return dtls_->GetDtlsSrtpCryptoSuite(cipher);
+  return dtls_->GetDtlsSrtpCipher(cipher);
 }
 
 
@@ -617,13 +599,6 @@ void DtlsTransportChannelWrapper::OnCandidateGathered(
   SignalCandidateGathered(this, c);
 }
 
-void DtlsTransportChannelWrapper::OnCandidatesRemoved(
-    TransportChannelImpl* channel,
-    const Candidates& candidates) {
-  ASSERT(channel == channel_);
-  SignalCandidatesRemoved(this, candidates);
-}
-
 void DtlsTransportChannelWrapper::OnRoleConflict(
     TransportChannelImpl* channel) {
   ASSERT(channel == channel_);
@@ -636,25 +611,10 @@ void DtlsTransportChannelWrapper::OnRouteChange(
   SignalRouteChange(this, candidate);
 }
 
-void DtlsTransportChannelWrapper::OnSelectedCandidatePairChanged(
-    TransportChannel* channel,
-    CandidatePairInterface* selected_candidate_pair) {
-  ASSERT(channel == channel_);
-  SignalSelectedCandidatePairChanged(this, selected_candidate_pair);
-}
-
 void DtlsTransportChannelWrapper::OnConnectionRemoved(
     TransportChannelImpl* channel) {
   ASSERT(channel == channel_);
   SignalConnectionRemoved(this);
-}
-
-void DtlsTransportChannelWrapper::Reconnect() {
-  set_dtls_state(DTLS_TRANSPORT_NEW);
-  set_writable(false);
-  if (channel_->writable()) {
-    OnWritableState(channel_);
-  }
 }
 
 }  // namespace cricket

@@ -10,7 +10,7 @@
 
 #import "ARDWebSocketChannel.h"
 
-#import "webrtc/base/objc/RTCLogging.h"
+#import "RTCLogging.h"
 #import "SRWebSocket.h"
 
 #import "ARDSignalingMessage.h"
@@ -218,11 +218,11 @@ static NSString const *kARDWSSMessagePayloadKey = @"msg";
       ARDSessionDescriptionMessage *sdpMessage =
           (ARDSessionDescriptionMessage *)message;
       RTCSessionDescription *description = sdpMessage.sessionDescription;
-      NSString *dsc = description.sdp;
+      NSString *dsc = description.description;
       dsc = [dsc stringByReplacingOccurrencesOfString:@"offer"
                                            withString:@"answer"];
       RTCSessionDescription *answerDescription =
-          [[RTCSessionDescription alloc] initWithType:RTCSdpTypeAnswer sdp:dsc];
+          [[RTCSessionDescription alloc] initWithType:@"answer" sdp:dsc];
       ARDSignalingMessage *answer =
           [[ARDSessionDescriptionMessage alloc]
                initWithDescription:answerDescription];

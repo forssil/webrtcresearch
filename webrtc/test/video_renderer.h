@@ -7,18 +7,16 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
-#ifndef WEBRTC_TEST_VIDEO_RENDERER_H_
-#define WEBRTC_TEST_VIDEO_RENDERER_H_
+#ifndef WEBRTC_VIDEO_ENGINE_TEST_COMMON_VIDEO_RENDERER_H_
+#define WEBRTC_VIDEO_ENGINE_TEST_COMMON_VIDEO_RENDERER_H_
 
 #include <stddef.h>
 
-#include "webrtc/media/base/videosinkinterface.h"
+#include "webrtc/video_renderer.h"
 
 namespace webrtc {
-class VideoFrame;
-
 namespace test {
-class VideoRenderer : public rtc::VideoSinkInterface<VideoFrame> {
+class VideoRenderer : public webrtc::VideoRenderer {
  public:
   // Creates a platform-specific renderer if possible, or a null implementation
   // if failing.
@@ -38,4 +36,4 @@ class VideoRenderer : public rtc::VideoSinkInterface<VideoFrame> {
 }  // namespace test
 }  // namespace webrtc
 
-#endif  // WEBRTC_TEST_VIDEO_RENDERER_H_
+#endif  // WEBRTC_VIDEO_ENGINE_TEST_COMMON_VIDEO_RENDERER_H_

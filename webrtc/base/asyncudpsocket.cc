@@ -37,6 +37,7 @@ AsyncUDPSocket* AsyncUDPSocket::Create(SocketFactory* factory,
 
 AsyncUDPSocket::AsyncUDPSocket(AsyncSocket* socket)
     : socket_(socket) {
+  ASSERT(socket_);
   size_ = BUF_SIZE;
   buf_ = new char[size_];
 

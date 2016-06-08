@@ -12,12 +12,11 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-
-#include <memory>
 #include <string>
 
 #include "gflags/gflags.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/common_audio/include/audio_util.h"
 #include "webrtc/modules/audio_processing/agc/agc.h"
 #include "webrtc/modules/include/module_common_types.h"
@@ -84,7 +83,7 @@ bool ReadBuffers(FILE* in_file,
                  float* detection_buffer,
                  FILE* reference_file,
                  float* reference_buffer) {
-  std::unique_ptr<int16_t[]> tmpbuf;
+  rtc::scoped_ptr<int16_t[]> tmpbuf;
   int16_t* read_ptr = audio_buffer;
   if (num_channels > 1) {
     tmpbuf.reset(new int16_t[num_channels * audio_buffer_size]);
@@ -106,7 +105,7 @@ bool ReadBuffers(FILE* in_file,
     }
   }
   if (detection_file) {
-    std::unique_ptr<int16_t[]> ibuf(new int16_t[detection_buffer_size]);
+    rtc::scoped_ptr<int16_t[]> ibuf(new int16_t[detection_buffer_size]);
     if (fread(ibuf.get(), sizeof(ibuf[0]), detection_buffer_size,
               detection_file) != detection_buffer_size)
       return false;
@@ -114,7 +113,7 @@ bool ReadBuffers(FILE* in_file,
       detection_buffer[i] = ibuf[i];
   }
   if (reference_file) {
-    std::unique_ptr<int16_t[]> ibuf(new int16_t[audio_buffer_size]);
+    rtc::scoped_ptr<int16_t[]> ibuf(new int16_t[audio_buffer_size]);
     if (fread(ibuf.get(), sizeof(ibuf[0]), audio_buffer_size, reference_file)
         != audio_buffer_size)
       return false;
@@ -128,7 +127,7 @@ static void WritePCM(FILE* f,
                      size_t num_samples,
                      int num_channels,
                      const float* buffer) {
-  std::unique_ptr<int16_t[]> ibuf(new int16_t[num_channels * num_samples]);
+  rtc::scoped_ptr<int16_t[]> ibuf(new int16_t[num_channels * num_samples]);
   // Interleave.
   for (int i = 0; i < num_channels; ++i) {
     for (size_t j = 0; j < num_samples; ++j) {
@@ -183,12 +182,12 @@ void void_main() {
       FLAGS_chunk_size_ms * detection_rate_hz / 1000;
 
   // int16 and float variants of the same data.
-  std::unique_ptr<int16_t[]> audio_buffer_i(
+  rtc::scoped_ptr<int16_t[]> audio_buffer_i(
       new int16_t[FLAGS_num_channels * audio_buffer_size]);
-  std::unique_ptr<float[]> audio_buffer_f(
+  rtc::scoped_ptr<float[]> audio_buffer_f(
       new float[FLAGS_num_channels * audio_buffer_size]);
 
-  std::unique_ptr<float[]> detection_buffer, reference_buffer;
+  rtc::scoped_ptr<float[]> detection_buffer, reference_buffer;
 
   if (detection_file)
     detection_buffer.reset(new float[detection_buffer_size]);

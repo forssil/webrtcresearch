@@ -8,8 +8,6 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <memory>
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 #include "webrtc/test/call_test.h"
@@ -31,7 +29,7 @@ class PacketInjectionTest : public test::CallTest {
                              const uint8_t* packet,
                              size_t length);
 
-  std::unique_ptr<RtpHeaderParser> rtp_header_parser_;
+  rtc::scoped_ptr<RtpHeaderParser> rtp_header_parser_;
 };
 
 void PacketInjectionTest::InjectIncorrectPacket(CodecType codec_type,
@@ -42,22 +40,22 @@ void PacketInjectionTest::InjectIncorrectPacket(CodecType codec_type,
   CreateReceiverCall(Call::Config());
 
   test::NullTransport null_transport;
-  CreateSendConfig(1, 0, &null_transport);
+  CreateSendConfig(1, &null_transport);
   CreateMatchingReceiveConfigs(&null_transport);
-  video_receive_configs_[0].decoders[0].payload_type = payload_type;
+  receive_configs_[0].decoders[0].payload_type = payload_type;
   switch (codec_type) {
     case CodecType::kVp8:
-      video_receive_configs_[0].decoders[0].payload_name = "VP8";
+      receive_configs_[0].decoders[0].payload_name = "VP8";
       break;
     case CodecType::kH264:
-      video_receive_configs_[0].decoders[0].payload_name = "H264";
+      receive_configs_[0].decoders[0].payload_name = "H264";
       break;
   }
-  CreateVideoStreams();
+  CreateStreams();
 
   RTPHeader header;
   EXPECT_TRUE(rtp_header_parser_->Parse(packet, length, &header));
-  EXPECT_EQ(kVideoSendSsrcs[0], header.ssrc)
+  EXPECT_EQ(kSendSsrcs[0], header.ssrc)
       << "Packet should have configured SSRC to not be dropped early.";
   EXPECT_EQ(payload_type, header.payloadType);
   Start();

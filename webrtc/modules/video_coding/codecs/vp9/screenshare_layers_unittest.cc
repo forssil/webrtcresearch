@@ -9,7 +9,6 @@
  */
 
 #include <limits>
-#include <memory>
 
 #include "testing/gtest/include/gtest/gtest.h"
 #include "vpx/vp8cx.h"
@@ -82,7 +81,7 @@ class ScreenshareLayerTestVP9 : public ::testing::Test {
 
   Settings expected_;
   SimulatedClock clock_;
-  std::unique_ptr<ScreenshareLayersVP9> layers_;
+  rtc::scoped_ptr<ScreenshareLayersVP9> layers_;
 };
 
 TEST_F(ScreenshareLayerTestVP9, NoRefsOnKeyFrame) {

@@ -14,7 +14,6 @@
 
 #include <algorithm>
 
-#include "webrtc/base/checks.h"
 #include "webrtc/typedefs.h"
 
 namespace webrtc {
@@ -131,7 +130,9 @@ size_t AudioMultiVector::ReadInterleaved(size_t length,
 size_t AudioMultiVector::ReadInterleavedFromIndex(size_t start_index,
                                                   size_t length,
                                                   int16_t* destination) const {
-  RTC_DCHECK(destination);
+  if (!destination) {
+    return 0;
+  }
   size_t index = 0;  // Number of elements written to |destination| so far.
   assert(start_index <= Size());
   start_index = std::min(start_index, Size());

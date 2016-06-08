@@ -13,7 +13,6 @@
 
 #include <list>
 #include <map>
-#include <memory>
 
 #include "webrtc/modules/video_render/i_video_render.h"
 
@@ -99,7 +98,7 @@ class VideoRenderIosImpl : IVideoRender {
   bool full_screen_;
 
   CriticalSectionWrapper* crit_sec_;
-  std::unique_ptr<VideoRenderIosGles20> ptr_ios_render_;
+  rtc::scoped_ptr<VideoRenderIosGles20> ptr_ios_render_;
 };
 }  // namespace webrtc
 #endif  // WEBRTC_MODULES_VIDEO_RENDER_IOS_VIDEO_RENDER_IOS_IMPL_H_

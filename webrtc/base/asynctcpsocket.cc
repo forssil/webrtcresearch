@@ -12,10 +12,7 @@
 
 #include <string.h>
 
-#include <algorithm>
-
 #include "webrtc/base/byteorder.h"
-#include "webrtc/base/checks.h"
 #include "webrtc/base/common.h"
 #include "webrtc/base/logging.h"
 
@@ -31,11 +28,6 @@ typedef uint16_t PacketLength;
 static const size_t kPacketLenSize = sizeof(PacketLength);
 
 static const size_t kBufSize = kMaxPacketSize + kPacketLenSize;
-
-// The input buffer will be resized so that at least kMinimumRecvSize bytes can
-// be received (but it will not grow above the maximum size passed to the
-// constructor).
-static const size_t kMinimumRecvSize = 128;
 
 static const int kListenBacklog = 5;
 
@@ -60,14 +52,14 @@ AsyncTCPSocketBase::AsyncTCPSocketBase(AsyncSocket* socket, bool listen,
                                        size_t max_packet_size)
     : socket_(socket),
       listen_(listen),
-      max_insize_(max_packet_size),
-      max_outsize_(max_packet_size) {
-  if (!listen_) {
-    // Listening sockets don't send/receive data, so they don't need buffers.
-    inbuf_.EnsureCapacity(kMinimumRecvSize);
-  }
+      insize_(max_packet_size),
+      inpos_(0),
+      outsize_(max_packet_size),
+      outpos_(0) {
+  inbuf_ = new char[insize_];
+  outbuf_ = new char[outsize_];
 
-  RTC_DCHECK(socket_.get() != NULL);
+  ASSERT(socket_.get() != NULL);
   socket_->SignalConnectEvent.connect(
       this, &AsyncTCPSocketBase::OnConnectEvent);
   socket_->SignalReadEvent.connect(this, &AsyncTCPSocketBase::OnReadEvent);
@@ -81,7 +73,10 @@ AsyncTCPSocketBase::AsyncTCPSocketBase(AsyncSocket* socket, bool listen,
   }
 }
 
-AsyncTCPSocketBase::~AsyncTCPSocketBase() {}
+AsyncTCPSocketBase::~AsyncTCPSocketBase() {
+  delete [] inbuf_;
+  delete [] outbuf_;
+}
 
 SocketAddress AsyncTCPSocketBase::GetLocalAddress() const {
   return socket_->GetLocalAddress();
@@ -108,7 +103,7 @@ AsyncTCPSocket::State AsyncTCPSocketBase::GetState() const {
     case Socket::CS_CONNECTED:
       return STATE_CONNECTED;
     default:
-      RTC_NOTREACHED();
+      ASSERT(false);
       return STATE_CLOSED;
   }
 }
@@ -136,45 +131,44 @@ int AsyncTCPSocketBase::SendTo(const void *pv, size_t cb,
   if (addr == remote_address)
     return Send(pv, cb, options);
   // Remote address may be empty if there is a sudden network change.
-  RTC_DCHECK(remote_address.IsNil());
+  ASSERT(remote_address.IsNil());
   socket_->SetError(ENOTCONN);
   return -1;
 }
 
 int AsyncTCPSocketBase::SendRaw(const void * pv, size_t cb) {
-  if (outbuf_.size() + cb > max_outsize_) {
+  if (outpos_ + cb > outsize_) {
     socket_->SetError(EMSGSIZE);
     return -1;
   }
 
-  RTC_DCHECK(!listen_);
-  outbuf_.AppendData(static_cast<const uint8_t*>(pv), cb);
+  memcpy(outbuf_ + outpos_, pv, cb);
+  outpos_ += cb;
 
   return FlushOutBuffer();
 }
 
 int AsyncTCPSocketBase::FlushOutBuffer() {
-  RTC_DCHECK(!listen_);
-  int res = socket_->Send(outbuf_.data(), outbuf_.size());
+  int res = socket_->Send(outbuf_, outpos_);
   if (res <= 0) {
     return res;
   }
-  if (static_cast<size_t>(res) > outbuf_.size()) {
-    RTC_NOTREACHED();
+  if (static_cast<size_t>(res) <= outpos_) {
+    outpos_ -= res;
+  } else {
+    ASSERT(false);
     return -1;
   }
-  size_t new_size = outbuf_.size() - res;
-  if (new_size > 0) {
-    memmove(outbuf_.data(), outbuf_.data() + res, new_size);
+  if (outpos_ > 0) {
+    memmove(outbuf_, outbuf_ + res, outpos_);
   }
-  outbuf_.SetSize(new_size);
   return res;
 }
 
 void AsyncTCPSocketBase::AppendToOutBuffer(const void* pv, size_t cb) {
-  RTC_DCHECK(outbuf_.size() + cb <= max_outsize_);
-  RTC_DCHECK(!listen_);
-  outbuf_.AppendData(static_cast<const uint8_t*>(pv), cb);
+  ASSERT(outpos_ + cb < outsize_);
+  memcpy(outbuf_ + outpos_, pv, cb);
+  outpos_ += cb;
 }
 
 void AsyncTCPSocketBase::OnConnectEvent(AsyncSocket* socket) {
@@ -182,13 +176,13 @@ void AsyncTCPSocketBase::OnConnectEvent(AsyncSocket* socket) {
 }
 
 void AsyncTCPSocketBase::OnReadEvent(AsyncSocket* socket) {
-  RTC_DCHECK(socket_.get() == socket);
+  ASSERT(socket_.get() == socket);
 
   if (listen_) {
     rtc::SocketAddress address;
     rtc::AsyncSocket* new_socket = socket->Accept(&address);
     if (!new_socket) {
-      // TODO(stefan): Do something better like forwarding the error
+      // TODO: Do something better like forwarding the error
       // to the user.
       LOG(LS_ERROR) << "TCP accept failed with error " << socket_->GetError();
       return;
@@ -199,56 +193,35 @@ void AsyncTCPSocketBase::OnReadEvent(AsyncSocket* socket) {
     // Prime a read event in case data is waiting.
     new_socket->SignalReadEvent(new_socket);
   } else {
-    size_t total_recv = 0;
-    while (true) {
-      size_t free_size = inbuf_.capacity() - inbuf_.size();
-      if (free_size < kMinimumRecvSize && inbuf_.capacity() < max_insize_) {
-        inbuf_.EnsureCapacity(std::min(max_insize_, inbuf_.capacity() * 2));
-        free_size = inbuf_.capacity() - inbuf_.size();
+    int len = socket_->Recv(inbuf_ + inpos_, insize_ - inpos_);
+    if (len < 0) {
+      // TODO: Do something better like forwarding the error to the user.
+      if (!socket_->IsBlocking()) {
+        LOG(LS_ERROR) << "Recv() returned error: " << socket_->GetError();
       }
-
-      int len = socket_->Recv(inbuf_.data() + inbuf_.size(), free_size);
-      if (len < 0) {
-        // TODO(stefan): Do something better like forwarding the error to the
-        // user.
-        if (!socket_->IsBlocking()) {
-          LOG(LS_ERROR) << "Recv() returned error: " << socket_->GetError();
-        }
-        break;
-      }
-
-      total_recv += len;
-      inbuf_.SetSize(inbuf_.size() + len);
-      if (!len || static_cast<size_t>(len) < free_size) {
-        break;
-      }
-    }
-
-    if (!total_recv) {
       return;
     }
 
-    size_t size = inbuf_.size();
-    ProcessInput(inbuf_.data<char>(), &size);
+    inpos_ += len;
 
-    if (size > inbuf_.size()) {
+    ProcessInput(inbuf_, &inpos_);
+
+    if (inpos_ >= insize_) {
       LOG(LS_ERROR) << "input buffer overflow";
-      RTC_NOTREACHED();
-      inbuf_.Clear();
-    } else {
-      inbuf_.SetSize(size);
+      ASSERT(false);
+      inpos_ = 0;
     }
   }
 }
 
 void AsyncTCPSocketBase::OnWriteEvent(AsyncSocket* socket) {
-  RTC_DCHECK(socket_.get() == socket);
+  ASSERT(socket_.get() == socket);
 
-  if (outbuf_.size() > 0) {
+  if (outpos_ > 0) {
     FlushOutBuffer();
   }
 
-  if (outbuf_.size() == 0) {
+  if (outpos_ == 0) {
     SignalReadyToSend(this);
   }
 }

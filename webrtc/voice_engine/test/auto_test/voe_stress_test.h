@@ -11,11 +11,11 @@
 #ifndef WEBRTC_VOICE_ENGINE_VOE_STRESS_TEST_H
 #define WEBRTC_VOICE_ENGINE_VOE_STRESS_TEST_H
 
-#include <memory>
-
-#include "webrtc/base/platform_thread.h"
+#include "webrtc/system_wrappers/include/thread_wrapper.h"
 
 namespace voetest {
+// TODO(andrew): using directives are not permitted.
+using namespace webrtc;
 
 class VoETestManager;
 
@@ -38,8 +38,7 @@ class VoEStressTest {
 
   VoETestManager& _mgr;
 
-  // TODO(pbos): Remove unique_ptr and use PlatformThread directly.
-  std::unique_ptr<rtc::PlatformThread> _ptrExtraApiThread;
+  rtc::scoped_ptr<ThreadWrapper> _ptrExtraApiThread;
 };
 
 }  // namespace voetest

@@ -16,7 +16,7 @@
 #include <pthread.h>
 #include <time.h>
 
-#include "webrtc/base/platform_thread.h"
+#include "webrtc/system_wrappers/include/thread_wrapper.h"
 
 namespace webrtc {
 
@@ -37,27 +37,22 @@ class EventTimerPosix : public EventTimerWrapper {
   bool StopTimer() override;
 
  private:
-  friend class EventTimerPosixTest;
-
   static bool Run(void* obj);
   bool Process();
-  EventTypeWrapper Wait(timespec* end_at, bool reset_state);
+  EventTypeWrapper Wait(timespec* end_at);
 
-  virtual rtc::PlatformThread* CreateThread();
-
+ private:
   pthread_cond_t  cond_;
   pthread_mutex_t mutex_;
   bool event_set_;
 
-  // TODO(pbos): Remove scoped_ptr and use PlatformThread directly.
-  rtc::scoped_ptr<rtc::PlatformThread> timer_thread_;
+  rtc::scoped_ptr<ThreadWrapper> timer_thread_;
   rtc::scoped_ptr<EventTimerPosix> timer_event_;
   timespec       created_at_;
 
   bool          periodic_;
-  unsigned long time_ms_;
+  unsigned long time_;  // In ms
   unsigned long count_;
-  bool is_stopping_;
 };
 
 }  // namespace webrtc

@@ -7,8 +7,8 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
-#ifndef WEBRTC_TEST_RTP_RTCP_OBSERVER_H_
-#define WEBRTC_TEST_RTP_RTCP_OBSERVER_H_
+#ifndef WEBRTC_VIDEO_ENGINE_TEST_COMMON_RTP_RTCP_OBSERVER_H_
+#define WEBRTC_VIDEO_ENGINE_TEST_COMMON_RTP_RTCP_OBSERVER_H_
 
 #include <map>
 #include <vector>
@@ -16,7 +16,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #include "webrtc/base/criticalsection.h"
-#include "webrtc/base/event.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_header_parser.h"
 #include "webrtc/test/constants.h"
 #include "webrtc/test/direct_transport.h"
@@ -37,7 +36,10 @@ class RtpRtcpObserver {
 
   virtual ~RtpRtcpObserver() {}
 
-  virtual bool Wait() { return observation_complete_.Wait(timeout_ms_); }
+  virtual EventTypeWrapper Wait() {
+    EventTypeWrapper result = observation_complete_->Wait(timeout_ms_);
+    return result;
+  }
 
   virtual Action OnSendRtp(const uint8_t* packet, size_t length) {
     return SEND_PACKET;
@@ -56,8 +58,8 @@ class RtpRtcpObserver {
   }
 
  protected:
-  explicit RtpRtcpObserver(int event_timeout_ms)
-      : observation_complete_(false, false),
+  explicit RtpRtcpObserver(unsigned int event_timeout_ms)
+      : observation_complete_(EventWrapper::Create()),
         parser_(RtpHeaderParser::Create()),
         timeout_ms_(event_timeout_ms) {
     parser_->RegisterRtpHeaderExtension(kRtpExtensionTransmissionTimeOffset,
@@ -68,11 +70,11 @@ class RtpRtcpObserver {
                                         kTransportSequenceNumberExtensionId);
   }
 
-  rtc::Event observation_complete_;
+  const rtc::scoped_ptr<EventWrapper> observation_complete_;
   const rtc::scoped_ptr<RtpHeaderParser> parser_;
 
  private:
-  const int timeout_ms_;
+  unsigned int timeout_ms_;
 };
 
 class PacketTransport : public test::DirectTransport {
@@ -136,4 +138,4 @@ class PacketTransport : public test::DirectTransport {
 }  // namespace test
 }  // namespace webrtc
 
-#endif  // WEBRTC_TEST_RTP_RTCP_OBSERVER_H_
+#endif  // WEBRTC_VIDEO_ENGINE_TEST_COMMON_RTP_RTCP_OBSERVER_H_

@@ -13,13 +13,13 @@
 #include <utility>
 #include <vector>
 
-#include "webrtc/api/test/fakeconstraints.h"
+#include "talk/app/webrtc/videosourceinterface.h"
+#include "webrtc/examples/peerconnection/client/defaults.h"
+#include "talk/media/devices/devicemanager.h"
+#include "talk/app/webrtc/test/fakeconstraints.h"
 #include "webrtc/base/common.h"
 #include "webrtc/base/json.h"
 #include "webrtc/base/logging.h"
-#include "webrtc/examples/peerconnection/client/defaults.h"
-#include "webrtc/media/engine/webrtcvideocapturerfactory.h"
-#include "webrtc/modules/video_capture/video_capture_factory.h"
 
 // Names used for a IceCandidate JSON object.
 const char kCandidateSdpMidName[] = "sdpMid";
@@ -113,22 +113,28 @@ bool Conductor::CreatePeerConnection(bool dtls) {
   ASSERT(peer_connection_factory_.get() != NULL);
   ASSERT(peer_connection_.get() == NULL);
 
-  webrtc::PeerConnectionInterface::RTCConfiguration config;
+  webrtc::PeerConnectionInterface::IceServers servers;
   webrtc::PeerConnectionInterface::IceServer server;
   server.uri = GetPeerConnectionString();
-  config.servers.push_back(server);
+  servers.push_back(server);
 
   webrtc::FakeConstraints constraints;
   if (dtls) {
     constraints.AddOptional(webrtc::MediaConstraintsInterface::kEnableDtlsSrtp,
                             "true");
-  } else {
+  }
+  else
+  {
     constraints.AddOptional(webrtc::MediaConstraintsInterface::kEnableDtlsSrtp,
                             "false");
   }
 
-  peer_connection_ = peer_connection_factory_->CreatePeerConnection(
-      config, &constraints, NULL, NULL, this);
+  peer_connection_ =
+      peer_connection_factory_->CreatePeerConnection(servers,
+                                                     &constraints,
+                                                     NULL,
+                                                     NULL,
+                                                     this);
   return peer_connection_.get() != NULL;
 }
 
@@ -369,31 +375,23 @@ void Conductor::ConnectToPeer(int peer_id) {
 }
 
 cricket::VideoCapturer* Conductor::OpenVideoCaptureDevice() {
-  std::vector<std::string> device_names;
-  {
-    std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(
-        webrtc::VideoCaptureFactory::CreateDeviceInfo(0));
-    if (!info) {
-      return nullptr;
-    }
-    int num_devices = info->NumberOfDevices();
-    for (int i = 0; i < num_devices; ++i) {
-      const uint32_t kSize = 256;
-      char name[kSize] = {0};
-      char id[kSize] = {0};
-      if (info->GetDeviceName(i, name, kSize, id, kSize) != -1) {
-        device_names.push_back(name);
-      }
-    }
+  rtc::scoped_ptr<cricket::DeviceManagerInterface> dev_manager(
+      cricket::DeviceManagerFactory::Create());
+  if (!dev_manager->Init()) {
+    LOG(LS_ERROR) << "Can't create device manager";
+    return NULL;
   }
-
-  cricket::WebRtcVideoDeviceCapturerFactory factory;
-  cricket::VideoCapturer* capturer = nullptr;
-  for (const auto& name : device_names) {
-    capturer = factory.Create(cricket::Device(name, 0));
-    if (capturer) {
+  std::vector<cricket::Device> devs;
+  if (!dev_manager->GetVideoCaptureDevices(&devs)) {
+    LOG(LS_ERROR) << "Can't enumerate video devices";
+    return NULL;
+  }
+  std::vector<cricket::Device>::iterator dev_it = devs.begin();
+  cricket::VideoCapturer* capturer = NULL;
+  for (; dev_it != devs.end(); ++dev_it) {
+    capturer = dev_manager->CreateVideoCapturer(*dev_it);
+    if (capturer != NULL)
       break;
-    }
   }
   return capturer;
 }

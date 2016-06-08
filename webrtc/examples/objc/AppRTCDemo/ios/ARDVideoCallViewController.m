@@ -10,11 +10,8 @@
 
 #import "ARDVideoCallViewController.h"
 
-#import "webrtc/base/objc/RTCDispatcher.h"
-#import "webrtc/modules/audio_device/ios/objc/RTCAudioSession.h"
-
-#import "webrtc/api/objc/RTCAVFoundationVideoSource.h"
-#import "webrtc/base/objc/RTCLogging.h"
+#import "RTCAVFoundationVideoSource.h"
+#import "RTCLogging.h"
 
 #import "ARDAppClient.h"
 #import "ARDVideoCallView.h"
@@ -30,7 +27,6 @@
   ARDAppClient *_client;
   RTCVideoTrack *_remoteVideoTrack;
   RTCVideoTrack *_localVideoTrack;
-  AVAudioSessionPortOverride _portOverride;
 }
 
 @synthesize videoCallView = _videoCallView;
@@ -51,7 +47,7 @@
   _videoCallView = [[ARDVideoCallView alloc] initWithFrame:CGRectZero];
   _videoCallView.delegate = self;
   _videoCallView.statusLabel.text =
-      [self statusTextForState:RTCIceConnectionStateNew];
+      [self statusTextForState:RTCICEConnectionNew];
   self.view = _videoCallView;
 }
 
@@ -74,8 +70,8 @@
 }
 
 - (void)appClient:(ARDAppClient *)client
-    didChangeConnectionState:(RTCIceConnectionState)state {
-  RTCLog(@"ICE state changed: %ld", (long)state);
+    didChangeConnectionState:(RTCICEConnectionState)state {
+  RTCLog(@"ICE state changed: %d", state);
   __weak ARDVideoCallViewController *weakSelf = self;
   dispatch_async(dispatch_get_main_queue(), ^{
     ARDVideoCallViewController *strongSelf = weakSelf;
@@ -121,26 +117,6 @@
   [self switchCamera];
 }
 
-- (void)videoCallViewDidChangeRoute:(ARDVideoCallView *)view {
-  AVAudioSessionPortOverride override = AVAudioSessionPortOverrideNone;
-  if (_portOverride == AVAudioSessionPortOverrideNone) {
-    override = AVAudioSessionPortOverrideSpeaker;
-  }
-  [RTCDispatcher dispatchAsyncOnType:RTCDispatcherTypeAudioSession
-                               block:^{
-    RTCAudioSession *session = [RTCAudioSession sharedInstance];
-    [session lockForConfiguration];
-    NSError *error = nil;
-    if ([session overrideOutputAudioPort:override error:&error]) {
-      _portOverride = override;
-    } else {
-      RTCLogError(@"Error overriding output port: %@",
-                  error.localizedDescription);
-    }
-    [session unlockForConfiguration];
-  }];
-}
-
 - (void)videoCallViewDidEnableStats:(ARDVideoCallView *)view {
   _client.shouldGetStats = YES;
   _videoCallView.statsView.hidden = NO;
@@ -152,21 +128,18 @@
   if (_localVideoTrack == localVideoTrack) {
     return;
   }
+  [_localVideoTrack removeRenderer:_videoCallView.localVideoView];
   _localVideoTrack = nil;
+  [_videoCallView.localVideoView renderFrame:nil];
   _localVideoTrack = localVideoTrack;
-  RTCAVFoundationVideoSource *source = nil;
-  if ([localVideoTrack.source
-          isKindOfClass:[RTCAVFoundationVideoSource class]]) {
-    source = (RTCAVFoundationVideoSource*)localVideoTrack.source;
-  }
-  _videoCallView.localVideoView.captureSession = source.captureSession;
+  [_localVideoTrack addRenderer:_videoCallView.localVideoView];
 }
 
 - (void)setRemoteVideoTrack:(RTCVideoTrack *)remoteVideoTrack {
   if (_remoteVideoTrack == remoteVideoTrack) {
     return;
   }
-  [_remoteVideoTrack removeRenderer:_videoCallView.remoteVideoView];
+  [_remoteVideoTrack removeRenderer:_videoCallView.localVideoView];
   _remoteVideoTrack = nil;
   [_videoCallView.remoteVideoView renderFrame:nil];
   _remoteVideoTrack = remoteVideoTrack;
@@ -188,20 +161,22 @@
   if ([source isKindOfClass:[RTCAVFoundationVideoSource class]]) {
     RTCAVFoundationVideoSource* avSource = (RTCAVFoundationVideoSource*)source;
     avSource.useBackCamera = !avSource.useBackCamera;
+    _videoCallView.localVideoView.transform = avSource.useBackCamera ?
+        CGAffineTransformIdentity : CGAffineTransformMakeScale(-1, 1);
   }
 }
 
-- (NSString *)statusTextForState:(RTCIceConnectionState)state {
+- (NSString *)statusTextForState:(RTCICEConnectionState)state {
   switch (state) {
-    case RTCIceConnectionStateNew:
-    case RTCIceConnectionStateChecking:
+    case RTCICEConnectionNew:
+    case RTCICEConnectionChecking:
       return @"Connecting...";
-    case RTCIceConnectionStateConnected:
-    case RTCIceConnectionStateCompleted:
-    case RTCIceConnectionStateFailed:
-    case RTCIceConnectionStateDisconnected:
-    case RTCIceConnectionStateClosed:
-    case RTCIceConnectionStateCount:
+    case RTCICEConnectionConnected:
+    case RTCICEConnectionCompleted:
+    case RTCICEConnectionFailed:
+    case RTCICEConnectionDisconnected:
+    case RTCICEConnectionClosed:
+    case RTCICEConnectionMax:
       return nil;
   }
 }

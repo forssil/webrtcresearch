@@ -11,8 +11,7 @@
 #ifndef WEBRTC_MODULES_DESKTOP_CAPTURE_SCREEN_CAPTURER_HELPER_H_
 #define WEBRTC_MODULES_DESKTOP_CAPTURE_SCREEN_CAPTURER_HELPER_H_
 
-#include <memory>
-
+#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/modules/desktop_capture/desktop_geometry.h"
 #include "webrtc/modules/desktop_capture/desktop_region.h"
 #include "webrtc/system_wrappers/include/rw_lock_wrapper.h"
@@ -71,7 +70,7 @@ class ScreenCapturerHelper {
   DesktopRegion invalid_region_;
 
   // A lock protecting |invalid_region_| across threads.
-  std::unique_ptr<RWLockWrapper> invalid_region_lock_;
+  rtc::scoped_ptr<RWLockWrapper> invalid_region_lock_;
 
   // The size of the most recently captured screen.
   DesktopSize size_most_recent_;

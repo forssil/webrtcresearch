@@ -8,7 +8,7 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#import "RTCIceServer+JSON.h"
+#import "RTCICEServer+JSON.h"
 
 static NSString const *kRTCICEServerUsernameKey = @"username";
 static NSString const *kRTCICEServerPasswordKey = @"password";
@@ -16,28 +16,32 @@ static NSString const *kRTCICEServerUrisKey = @"uris";
 static NSString const *kRTCICEServerUrlKey = @"urls";
 static NSString const *kRTCICEServerCredentialKey = @"credential";
 
-@implementation RTCIceServer (JSON)
+@implementation RTCICEServer (JSON)
 
-+ (RTCIceServer *)serverFromJSONDictionary:(NSDictionary *)dictionary {
++ (RTCICEServer *)serverFromJSONDictionary:(NSDictionary *)dictionary {
   NSString *url = dictionary[kRTCICEServerUrlKey];
   NSString *username = dictionary[kRTCICEServerUsernameKey];
   NSString *credential = dictionary[kRTCICEServerCredentialKey];
   username = username ? username : @"";
   credential = credential ? credential : @"";
-  return [[RTCIceServer alloc] initWithURLStrings:@[url]
-                                         username:username
-                                       credential:credential];
+  return [[RTCICEServer alloc] initWithURI:[NSURL URLWithString:url]
+                                  username:username
+                                  password:credential];
 }
 
-+ (RTCIceServer *)serverFromCEODJSONDictionary:(NSDictionary *)dictionary {
++ (NSArray *)serversFromCEODJSONDictionary:(NSDictionary *)dictionary {
   NSString *username = dictionary[kRTCICEServerUsernameKey];
   NSString *password = dictionary[kRTCICEServerPasswordKey];
   NSArray *uris = dictionary[kRTCICEServerUrisKey];
-  RTCIceServer *server =
-      [[RTCIceServer alloc] initWithURLStrings:uris
-                                      username:username
-                                    credential:password];
-  return server;
+  NSMutableArray *servers = [NSMutableArray arrayWithCapacity:uris.count];
+  for (NSString *uri in uris) {
+    RTCICEServer *server =
+        [[RTCICEServer alloc] initWithURI:[NSURL URLWithString:uri]
+                                 username:username
+                                 password:password];
+    [servers addObject:server];
+  }
+  return servers;
 }
 
 @end

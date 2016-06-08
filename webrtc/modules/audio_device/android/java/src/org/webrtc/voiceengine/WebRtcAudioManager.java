@@ -10,7 +10,6 @@
 
 package org.webrtc.voiceengine;
 
-import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.media.AudioFormat;
@@ -22,6 +21,8 @@ import android.os.Build;
 import org.webrtc.Logging;
 
 import java.lang.Math;
+
+import org.webrtc.voiceengine.WebRtcAudioUtils;
 
 // WebRtcAudioManager handles tasks that uses android.media.AudioManager.
 // At construction, storeAudioParameters() is called and it retrieves
@@ -35,6 +36,8 @@ import java.lang.Math;
 // This class also adds support for output volume control of the
 // STREAM_VOICE_CALL-type stream.
 public class WebRtcAudioManager {
+
+
   private static final boolean DEBUG = false;
 
   private static final String TAG = "WebRtcAudioManager";
@@ -95,12 +98,25 @@ public class WebRtcAudioManager {
     if (DEBUG) {
       WebRtcAudioUtils.logDeviceInfo(TAG);
     }
+     Logging.d(TAG, "Keith bDisableWebRTCAEC:" + WebRtcAudioUtils.bDisableWebRTCAEC);
+   
     storeAudioParameters();
-    nativeCacheAudioParameters(
+    if (true == WebRtcAudioUtils.bDisableWebRTCAEC) {
+         nativeCacheAudioParameters(
+        sampleRate, channels, true, true, true,
+        lowLatencyOutput, outputBufferSize, inputBufferSize,
+        nativeAudioManager);
+      
+    }
+    else
+    {
+        nativeCacheAudioParameters(
         sampleRate, channels, hardwareAEC, hardwareAGC, hardwareNS,
         lowLatencyOutput, outputBufferSize, inputBufferSize,
         nativeAudioManager);
-  }
+      
+    }
+ }
 
   private boolean init() {
     Logging.d(TAG, "init" + WebRtcAudioUtils.getThreadInfo());
@@ -123,7 +139,7 @@ public class WebRtcAudioManager {
     return (audioManager.getMode() == AudioManager.MODE_IN_COMMUNICATION);
   }
 
-  private boolean isDeviceBlacklistedForOpenSLESUsage() {
+   private boolean isDeviceBlacklistedForOpenSLESUsage() {
     boolean blacklisted = blacklistDeviceForOpenSLESUsageIsOverridden ?
         blacklistDeviceForOpenSLESUsage :
         WebRtcAudioUtils.deviceIsBlacklistedForOpenSLESUsage();
@@ -190,26 +206,20 @@ public class WebRtcAudioManager {
     // No overrides available. Deliver best possible estimate based on default
     // Android AudioManager APIs.
     final int sampleRateHz;
-    if (WebRtcAudioUtils.runningOnJellyBeanMR1OrHigher()) {
-      sampleRateHz = getSampleRateOnJellyBeanMR10OrHigher();
-    } else {
+    if (!WebRtcAudioUtils.runningOnJellyBeanMR1OrHigher()) {
       sampleRateHz = WebRtcAudioUtils.getDefaultSampleRateHz();
+    } else {
+      String sampleRateString = audioManager.getProperty(
+          AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE);
+      sampleRateHz = (sampleRateString == null)
+          ? WebRtcAudioUtils.getDefaultSampleRateHz()
+          : Integer.parseInt(sampleRateString);
     }
     Logging.d(TAG, "Sample rate is set to " + sampleRateHz + " Hz");
     return sampleRateHz;
   }
 
-  @TargetApi(17)
-  private int getSampleRateOnJellyBeanMR10OrHigher() {
-    String sampleRateString = audioManager.getProperty(
-        AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE);
-    return (sampleRateString == null)
-        ? WebRtcAudioUtils.getDefaultSampleRateHz()
-        : Integer.parseInt(sampleRateString);
-  }
-
   // Returns the native output buffer size for low-latency output streams.
-  @TargetApi(17)
   private int getLowLatencyOutputFramesPerBuffer() {
     assertTrue(isLowLatencyOutputSupported());
     if (!WebRtcAudioUtils.runningOnJellyBeanMR1OrHigher()) {

@@ -11,9 +11,9 @@
 #ifndef WEBRTC_MODULES_AUDIO_PROCESSING_TRANSIENT_MOVING_MOMENTS_H_
 #define WEBRTC_MODULES_AUDIO_PROCESSING_TRANSIENT_MOVING_MOMENTS_H_
 
-#include <stddef.h>
-
 #include <queue>
+
+#include "webrtc/base/scoped_ptr.h"
 
 namespace webrtc {
 

@@ -355,12 +355,11 @@ void RelayServer::HandleStunAllocate(
     //       else-branch will then disappear.
 
     // Compute the appropriate lifetime for this binding.
-    int lifetime = MAX_LIFETIME;
+    uint32_t lifetime = MAX_LIFETIME;
     const StunUInt32Attribute* lifetime_attr =
         request.GetUInt32(STUN_ATTR_LIFETIME);
     if (lifetime_attr)
-      lifetime =
-          std::min(lifetime, static_cast<int>(lifetime_attr->value() * 1000));
+      lifetime = std::min(lifetime, lifetime_attr->value() * 1000);
 
     binding = new RelayServerBinding(this, username, "0", lifetime);
     binding->SignalTimeout.connect(this, &RelayServer::OnTimeout);
@@ -654,7 +653,7 @@ const uint32_t MSG_LIFETIME_TIMER = 1;
 RelayServerBinding::RelayServerBinding(RelayServer* server,
                                        const std::string& username,
                                        const std::string& password,
-                                       int lifetime)
+                                       uint32_t lifetime)
     : server_(server),
       username_(username),
       password_(password),
@@ -694,7 +693,7 @@ void RelayServerBinding::AddExternalConnection(RelayServerConnection* conn) {
 }
 
 void RelayServerBinding::NoteUsed() {
-  last_used_ = rtc::Time64();
+  last_used_ = rtc::Time();
 }
 
 bool RelayServerBinding::HasMagicCookie(const char* bytes, size_t size) const {
@@ -735,7 +734,7 @@ void RelayServerBinding::OnMessage(rtc::Message *pmsg) {
 
     // If the lifetime timeout has been exceeded, then send a signal.
     // Otherwise, just keep waiting.
-    if (rtc::Time64() >= last_used_ + lifetime_) {
+    if (rtc::Time() >= last_used_ + lifetime_) {
       LOG(LS_INFO) << "Expiring binding " << username_;
       SignalTimeout(this);
     } else {

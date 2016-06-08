@@ -21,6 +21,7 @@
 #include <utility>
 
 #include "webrtc/base/criticalsection.h"
+#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/modules/bitrate_controller/send_side_bandwidth_estimation.h"
 
 namespace webrtc {
@@ -35,16 +36,15 @@ class BitrateControllerImpl : public BitrateController {
   RtcpBandwidthObserver* CreateRtcpBandwidthObserver() override;
 
   void SetStartBitrate(int start_bitrate_bps) override;
-  void SetMinMaxBitrate(int min_bitrate_bps, int max_bitrate_bps) override;
-
-  void UpdateDelayBasedEstimate(uint32_t bitrate_bps) override;
+  void SetMinMaxBitrate(int min_bitrate_bps,
+                                int max_bitrate_bps) override;
 
   void SetReservedBitrate(uint32_t reserved_bitrate_bps) override;
 
   void SetEventLog(RtcEventLog* event_log) override;
 
   int64_t TimeUntilNextProcess() override;
-  void Process() override;
+  int32_t Process() override;
 
  private:
   class RtcpBandwidthObserverImpl;
@@ -73,7 +73,7 @@ class BitrateControllerImpl : public BitrateController {
   BitrateObserver* observer_;
   int64_t last_bitrate_update_ms_;
 
-  rtc::CriticalSection critsect_;
+  mutable rtc::CriticalSection critsect_;
   SendSideBandwidthEstimation bandwidth_estimation_ GUARDED_BY(critsect_);
   uint32_t reserved_bitrate_bps_ GUARDED_BY(critsect_);
 

@@ -125,7 +125,9 @@ TCPPort::~TCPPort() {
 
 Connection* TCPPort::CreateConnection(const Candidate& address,
                                       CandidateOrigin origin) {
-  if (!SupportsProtocol(address.protocol())) {
+  // We only support TCP protocols
+  if ((address.protocol() != TCP_PROTOCOL_NAME) &&
+      (address.protocol() != SSLTCP_PROTOCOL_NAME)) {
     return NULL;
   }
 
@@ -182,13 +184,10 @@ void TCPPort::PrepareAddress() {
   } else {
     LOG_J(LS_INFO, this) << "Not listening due to firewall restrictions.";
     // Note: We still add the address, since otherwise the remote side won't
-    // recognize our incoming TCP connections. According to
-    // https://tools.ietf.org/html/rfc6544#section-4.5, for active candidate,
-    // the port must be set to the discard port, i.e. 9.
-    AddAddress(rtc::SocketAddress(ip(), DISCARD_PORT),
-               rtc::SocketAddress(ip(), 0), rtc::SocketAddress(),
-               TCP_PROTOCOL_NAME, "", TCPTYPE_ACTIVE_STR, LOCAL_PORT_TYPE,
-               ICE_TYPE_PREFERENCE_HOST_TCP, 0, true);
+    // recognize our incoming TCP connections.
+    AddAddress(rtc::SocketAddress(ip(), 0), rtc::SocketAddress(ip(), 0),
+               rtc::SocketAddress(), TCP_PROTOCOL_NAME, "", TCPTYPE_ACTIVE_STR,
+               LOCAL_PORT_TYPE, ICE_TYPE_PREFERENCE_HOST_TCP, 0, true);
   }
 }
 
@@ -258,7 +257,6 @@ void TCPPort::OnNewConnection(rtc::AsyncPacketSocket* socket,
   incoming.socket = new_socket;
   incoming.socket->SignalReadPacket.connect(this, &TCPPort::OnReadPacket);
   incoming.socket->SignalReadyToSend.connect(this, &TCPPort::OnReadyToSend);
-  incoming.socket->SignalSentPacket.connect(this, &TCPPort::OnSentPacket);
 
   LOG_J(LS_VERBOSE, this) << "Accepted connection from "
                           << incoming.addr.ToSensitiveString();
@@ -285,11 +283,6 @@ void TCPPort::OnReadPacket(rtc::AsyncPacketSocket* socket,
                            const rtc::SocketAddress& remote_addr,
                            const rtc::PacketTime& packet_time) {
   Port::OnReadPacket(data, size, remote_addr, PROTO_TCP);
-}
-
-void TCPPort::OnSentPacket(rtc::AsyncPacketSocket* socket,
-                           const rtc::SentPacket& sent_packet) {
-  PortInterface::SignalSentPacket(sent_packet);
 }
 
 void TCPPort::OnReadyToSend(rtc::AsyncPacketSocket* socket) {
@@ -382,7 +375,7 @@ void TCPConnection::OnConnectionRequestResponse(ConnectionRequest* req,
 }
 
 void TCPConnection::OnConnect(rtc::AsyncPacketSocket* socket) {
-  ASSERT(socket == socket_.get());
+  ASSERT(socket == socket_);
   // Do not use this connection if the socket bound to a different address than
   // the one we asked for. This is seen in Chrome, where TCP sockets cannot be
   // given a binding address, and the platform is expected to pick the
@@ -412,7 +405,7 @@ void TCPConnection::OnConnect(rtc::AsyncPacketSocket* socket) {
 }
 
 void TCPConnection::OnClose(rtc::AsyncPacketSocket* socket, int error) {
-  ASSERT(socket == socket_.get());
+  ASSERT(socket == socket_);
   LOG_J(LS_INFO, this) << "Connection closed with error " << error;
 
   // Guard against the condition where IPC socket will call OnClose for every
@@ -471,12 +464,12 @@ void TCPConnection::OnReadPacket(
   rtc::AsyncPacketSocket* socket, const char* data, size_t size,
   const rtc::SocketAddress& remote_addr,
   const rtc::PacketTime& packet_time) {
-  ASSERT(socket == socket_.get());
+  ASSERT(socket == socket_);
   Connection::OnReadPacket(data, size, packet_time);
 }
 
 void TCPConnection::OnReadyToSend(rtc::AsyncPacketSocket* socket) {
-  ASSERT(socket == socket_.get());
+  ASSERT(socket == socket_);
   Connection::OnReadyToSend();
 }
 

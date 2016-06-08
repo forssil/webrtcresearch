@@ -12,8 +12,6 @@
 
 #include "webrtc/base/thread_checker_impl.h"
 
-#include "webrtc/base/platform_thread.h"
-
 namespace rtc {
 
 ThreadCheckerImpl::ThreadCheckerImpl() : valid_thread_(CurrentThreadRef()) {

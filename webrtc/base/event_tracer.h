@@ -26,8 +26,6 @@
 #ifndef WEBRTC_BASE_EVENT_TRACER_H_
 #define WEBRTC_BASE_EVENT_TRACER_H_
 
-#include <stdio.h>
-
 namespace webrtc {
 
 typedef const unsigned char* (*GetCategoryEnabledPtr)(const char* name);
@@ -69,17 +67,5 @@ class EventTracer {
 };
 
 }  // namespace webrtc
-
-namespace rtc {
-namespace tracing {
-// Set up internal event tracer.
-void SetupInternalTracer();
-bool StartInternalCapture(const char* filename);
-void StartInternalCaptureToFile(FILE* file);
-void StopInternalCapture();
-// Make sure we run this, this will tear down the internal tracing.
-void ShutdownInternalTracer();
-}  // namespace tracing
-}  // namespace rtc
 
 #endif  // WEBRTC_BASE_EVENT_TRACER_H_

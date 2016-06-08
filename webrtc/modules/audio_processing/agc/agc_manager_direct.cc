@@ -168,19 +168,19 @@ int AgcManagerDirect::Initialize() {
   // example, what happens when we change devices.
 
   if (gctrl_->set_mode(GainControl::kFixedDigital) != 0) {
-    LOG(LS_ERROR) << "set_mode(GainControl::kFixedDigital) failed.";
+    LOG_FERR1(LS_ERROR, set_mode, GainControl::kFixedDigital);
     return -1;
   }
   if (gctrl_->set_target_level_dbfs(2) != 0) {
-    LOG(LS_ERROR) << "set_target_level_dbfs(2) failed.";
+    LOG_FERR1(LS_ERROR, set_target_level_dbfs, 2);
     return -1;
   }
   if (gctrl_->set_compression_gain_db(kDefaultCompressionGain) != 0) {
-    LOG(LS_ERROR) << "set_compression_gain_db(kDefaultCompressionGain) failed.";
+    LOG_FERR1(LS_ERROR, set_compression_gain_db, kDefaultCompressionGain);
     return -1;
   }
   if (gctrl_->enable_limiter(true) != 0) {
-    LOG(LS_ERROR) << "enable_limiter(true) failed.";
+    LOG_FERR1(LS_ERROR, enable_limiter, true);
     return -1;
   }
   return 0;
@@ -244,7 +244,7 @@ void AgcManagerDirect::Process(const int16_t* audio,
   }
 
   if (agc_->Process(audio, length, sample_rate_hz) != 0) {
-    LOG(LS_ERROR) << "Agc::Process failed";
+    LOG_FERR0(LS_ERROR, Agc::Process);
     assert(false);
   }
 
@@ -434,8 +434,7 @@ void AgcManagerDirect::UpdateCompressor() {
     compression_ = new_compression;
     compression_accumulator_ = new_compression;
     if (gctrl_->set_compression_gain_db(compression_) != 0) {
-      LOG(LS_ERROR) << "set_compression_gain_db(" << compression_
-                    << ") failed.";
+      LOG_FERR1(LS_ERROR, set_compression_gain_db, compression_);
     }
   }
 }

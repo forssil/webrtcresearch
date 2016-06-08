@@ -11,7 +11,6 @@
 #include <list>
 
 #include "testing/gtest/include/gtest/gtest.h"
-#include "webrtc/base/random.h"
 #include "webrtc/modules/rtp_rtcp/source/byte_io.h"
 #include "webrtc/modules/rtp_rtcp/source/forward_error_correction.h"
 
@@ -42,12 +41,8 @@ template <typename T> void ClearList(std::list<T*>* my_list) {
 class RtpFecTest : public ::testing::Test {
  protected:
   RtpFecTest()
-      : random_(0xfec133700742),
-        fec_(new ForwardErrorCorrection()),
-        ssrc_(random_.Rand<uint32_t>()),
-        fec_seq_num_(0) {}
+      : fec_(new ForwardErrorCorrection()), ssrc_(rand()), fec_seq_num_(0) {}
 
-  webrtc::Random random_;
   ForwardErrorCorrection* fec_;
   int ssrc_;
   uint16_t fec_seq_num_;
@@ -896,20 +891,22 @@ int RtpFecTest::ConstructMediaPacketsSeqNum(int num_media_packets,
   assert(num_media_packets > 0);
   ForwardErrorCorrection::Packet* media_packet = NULL;
   int sequence_number = start_seq_num;
-  int time_stamp = random_.Rand<int>();
+  int time_stamp = rand();
 
   for (int i = 0; i < num_media_packets; ++i) {
     media_packet = new ForwardErrorCorrection::Packet;
     media_packet_list_.push_back(media_packet);
-    const uint32_t kMinPacketSize = kRtpHeaderSize;
-    const uint32_t kMaxPacketSize = IP_PACKET_SIZE - kRtpHeaderSize -
-                                    kTransportOverhead -
-                                    ForwardErrorCorrection::PacketOverhead();
-    media_packet->length = random_.Rand(kMinPacketSize, kMaxPacketSize);
+    media_packet->length = static_cast<size_t>(
+        (static_cast<float>(rand()) / RAND_MAX) *
+        (IP_PACKET_SIZE - kRtpHeaderSize - kTransportOverhead -
+         ForwardErrorCorrection::PacketOverhead()));
 
+    if (media_packet->length < kRtpHeaderSize) {
+      media_packet->length = kRtpHeaderSize;
+    }
     // Generate random values for the first 2 bytes
-    media_packet->data[0] = random_.Rand<uint8_t>();
-    media_packet->data[1] = random_.Rand<uint8_t>();
+    media_packet->data[0] = static_cast<uint8_t>(rand() % 256);
+    media_packet->data[1] = static_cast<uint8_t>(rand() % 256);
 
     // The first two bits are assumed to be 10 by the FEC encoder.
     // In fact the FEC decoder will set the two first bits to 10 regardless of
@@ -932,7 +929,7 @@ int RtpFecTest::ConstructMediaPacketsSeqNum(int num_media_packets,
 
     // Generate random values for payload.
     for (size_t j = 12; j < media_packet->length; ++j) {
-      media_packet->data[j] = random_.Rand<uint8_t>();
+      media_packet->data[j] = static_cast<uint8_t>(rand() % 256);
     }
     sequence_number++;
   }
@@ -943,5 +940,5 @@ int RtpFecTest::ConstructMediaPacketsSeqNum(int num_media_packets,
 }
 
 int RtpFecTest::ConstructMediaPackets(int num_media_packets) {
-  return ConstructMediaPacketsSeqNum(num_media_packets, random_.Rand<int>());
+  return ConstructMediaPacketsSeqNum(num_media_packets, rand());
 }

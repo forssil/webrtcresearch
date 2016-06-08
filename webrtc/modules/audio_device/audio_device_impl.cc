@@ -8,10 +8,10 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include "webrtc/base/refcount.h"
 #include "webrtc/common_audio/signal_processing/include/signal_processing_library.h"
 #include "webrtc/modules/audio_device/audio_device_config.h"
 #include "webrtc/modules/audio_device/audio_device_impl.h"
+#include "webrtc/system_wrappers/include/ref_count.h"
 #include "webrtc/system_wrappers/include/tick_util.h"
 
 #include <assert.h>
@@ -65,7 +65,13 @@
     };                              \
 }
 
-namespace webrtc {
+namespace webrtc
+{
+
+AudioDeviceModule* CreateAudioDeviceModule(
+    int32_t id, AudioDeviceModule::AudioLayer audioLayer) {
+  return AudioDeviceModuleImpl::Create(id, audioLayer);
+}
 
 // ============================================================================
 //                                   Static methods
@@ -75,30 +81,33 @@ namespace webrtc {
 //  AudioDeviceModule::Create()
 // ----------------------------------------------------------------------------
 
-rtc::scoped_refptr<AudioDeviceModule> AudioDeviceModuleImpl::Create(
-    const int32_t id,
-    const AudioLayer audioLayer) {
+AudioDeviceModule* AudioDeviceModuleImpl::Create(const int32_t id,
+                                                 const AudioLayer audioLayer)
+{
     // Create the generic ref counted (platform independent) implementation.
-    rtc::scoped_refptr<AudioDeviceModuleImpl> audioDevice(
-        new rtc::RefCountedObject<AudioDeviceModuleImpl>(id, audioLayer));
+    RefCountImpl<AudioDeviceModuleImpl>* audioDevice =
+        new RefCountImpl<AudioDeviceModuleImpl>(id, audioLayer);
 
     // Ensure that the current platform is supported.
     if (audioDevice->CheckPlatform() == -1)
     {
-        return nullptr;
+        delete audioDevice;
+        return NULL;
     }
 
     // Create the platform-dependent implementation.
     if (audioDevice->CreatePlatformSpecificObjects() == -1)
     {
-        return nullptr;
+        delete audioDevice;
+        return NULL;
     }
 
     // Ensure that the generic audio buffer can communicate with the
     // platform-specific parts.
     if (audioDevice->AttachAudioBuffer() == -1)
     {
-        return nullptr;
+        delete audioDevice;
+        return NULL;
     }
 
     WebRtcSpl_Init();
@@ -418,7 +427,7 @@ int64_t AudioDeviceModuleImpl::TimeUntilNextProcess()
 //  new reports exists.
 // ----------------------------------------------------------------------------
 
-void AudioDeviceModuleImpl::Process()
+int32_t AudioDeviceModuleImpl::Process()
 {
 
     _lastProcessTime = TickTime::MillisecondTimestamp();
@@ -470,6 +479,8 @@ void AudioDeviceModuleImpl::Process()
         }
         _ptrAudioDevice->ClearRecordingError();
     }
+
+    return 0;
 }
 
 // ============================================================================

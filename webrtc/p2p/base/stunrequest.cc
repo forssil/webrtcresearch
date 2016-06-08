@@ -53,26 +53,6 @@ void StunRequestManager::SendDelayed(StunRequest* request, int delay) {
   }
 }
 
-void StunRequestManager::Flush(int msg_type) {
-  for (const auto kv : requests_) {
-    StunRequest* request = kv.second;
-    if (msg_type == kAllRequests || msg_type == request->type()) {
-      thread_->Clear(request, MSG_STUN_SEND);
-      thread_->Send(request, MSG_STUN_SEND, NULL);
-    }
-  }
-}
-
-bool StunRequestManager::HasRequest(int msg_type) {
-  for (const auto kv : requests_) {
-    StunRequest* request = kv.second;
-    if (msg_type == kAllRequests || msg_type == request->type()) {
-      return true;
-    }
-  }
-  return false;
-}
-
 void StunRequestManager::Remove(StunRequest* request) {
   ASSERT(request->manager() == this);
   RequestMap::iterator iter = requests_.find(request->id());
@@ -191,8 +171,8 @@ const StunMessage* StunRequest::msg() const {
   return msg_;
 }
 
-int StunRequest::Elapsed() const {
-  return static_cast<int>(rtc::Time64() - tstamp_);
+uint32_t StunRequest::Elapsed() const {
+  return rtc::TimeSince(tstamp_);
 }
 
 
@@ -211,7 +191,7 @@ void StunRequest::OnMessage(rtc::Message* pmsg) {
     return;
   }
 
-  tstamp_ = rtc::Time64();
+  tstamp_ = rtc::Time();
 
   rtc::ByteBuffer buf;
   msg_->Write(&buf);

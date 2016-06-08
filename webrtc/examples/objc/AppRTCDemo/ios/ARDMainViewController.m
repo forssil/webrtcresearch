@@ -10,44 +10,32 @@
 
 #import "ARDMainViewController.h"
 
-#import <AVFoundation/AVFoundation.h>
-
-#import "webrtc/base/objc/RTCDispatcher.h"
-#import "webrtc/base/objc/RTCLogging.h"
-#import "webrtc/modules/audio_device/ios/objc/RTCAudioSession.h"
-#import "webrtc/modules/audio_device/ios/objc/RTCAudioSessionConfiguration.h"
-
 #import "ARDAppClient.h"
 #import "ARDMainView.h"
 #import "ARDVideoCallViewController.h"
 
-@interface ARDMainViewController () <
-    ARDMainViewDelegate,
-    RTCAudioSessionDelegate>
+@interface ARDMainViewController () <ARDMainViewDelegate>
 @end
 
-@implementation ARDMainViewController {
-  ARDMainView *_mainView;
-  AVAudioPlayer *_audioPlayer;
-  BOOL _shouldDelayAudioConfig;
-}
+@implementation ARDMainViewController
 
 - (void)loadView {
-  _mainView = [[ARDMainView alloc] initWithFrame:CGRectZero];
-  _mainView.delegate = self;
-  self.view = _mainView;
+  ARDMainView *mainView = [[ARDMainView alloc] initWithFrame:CGRectZero];
+  mainView.delegate = self;
+  self.view = mainView;
+}
 
-  [self setupAudioSession];
-  [self setupAudioPlayer];
+- (void)applicationWillResignActive:(UIApplication *)application {
+  // Terminate any calls when we aren't active.
+  [self dismissViewControllerAnimated:NO completion:nil];
 }
 
 #pragma mark - ARDMainViewDelegate
 
 - (void)mainView:(ARDMainView *)mainView
-              didInputRoom:(NSString *)room
-                isLoopback:(BOOL)isLoopback
-               isAudioOnly:(BOOL)isAudioOnly
-    shouldDelayAudioConfig:(BOOL)shouldDelayAudioConfig {
+    didInputRoom:(NSString *)room
+      isLoopback:(BOOL)isLoopback
+     isAudioOnly:(BOOL)isAudioOnly {
   if (!room.length) {
     [self showAlertWithMessage:@"Missing room name."];
     return;
@@ -77,10 +65,6 @@
     return;
   }
 
-  _shouldDelayAudioConfig = shouldDelayAudioConfig;
-  RTCAudioSession *session = [RTCAudioSession sharedInstance];
-  session.shouldDelayAudioConfiguration = _shouldDelayAudioConfig;
-
   // Kick off the video call.
   ARDVideoCallViewController *videoCallViewController =
       [[ARDVideoCallViewController alloc] initForRoom:trimmedRoom
@@ -93,81 +77,7 @@
                    completion:nil];
 }
 
-- (void)mainViewDidToggleAudioLoop:(ARDMainView *)mainView {
-  if (mainView.isAudioLoopPlaying) {
-    [_audioPlayer stop];
-  } else {
-    [_audioPlayer play];
-  }
-  mainView.isAudioLoopPlaying = _audioPlayer.playing;
-}
-
-#pragma mark - RTCAudioSessionDelegate
-
-- (void)audioSessionShouldConfigure:(RTCAudioSession *)session {
-  // Won't get called unless audio config is delayed.
-  // Stop playback on main queue and then configure WebRTC.
-  [RTCDispatcher dispatchAsyncOnType:RTCDispatcherTypeMain
-                               block:^{
-    if (_mainView.isAudioLoopPlaying) {
-      RTCLog(@"Stopping audio loop due to WebRTC start.");
-      [_audioPlayer stop];
-    }
-    // TODO(tkchin): Shouldn't lock on main queue. Figure out better way to
-    // check audio loop state.
-    [session lockForConfiguration];
-    [session configureWebRTCSession:nil];
-    [session unlockForConfiguration];
-  }];
-}
-
-- (void)audioSessionShouldUnconfigure:(RTCAudioSession *)session {
-  // Won't get called unless audio config is delayed.
-  [session lockForConfiguration];
-  [session unconfigureWebRTCSession:nil];
-  [session unlockForConfiguration];
-}
-
-- (void)audioSessionDidUnconfigure:(RTCAudioSession *)session {
-  // WebRTC is done with the audio session. Restart playback.
-  [RTCDispatcher dispatchAsyncOnType:RTCDispatcherTypeMain
-                               block:^{
-    if (_mainView.isAudioLoopPlaying) {
-      RTCLog(@"Starting audio loop due to WebRTC end.");
-      [_audioPlayer play];
-    }
-  }];
-}
-
 #pragma mark - Private
-
-- (void)setupAudioSession {
-  RTCAudioSessionConfiguration *configuration =
-      [[RTCAudioSessionConfiguration alloc] init];
-  configuration.category = AVAudioSessionCategoryAmbient;
-  configuration.categoryOptions = AVAudioSessionCategoryOptionDuckOthers;
-  configuration.mode = AVAudioSessionModeDefault;
-
-  RTCAudioSession *session = [RTCAudioSession sharedInstance];
-  [session addDelegate:self];
-  [session lockForConfiguration];
-  NSError *error = nil;
-  if (![session setConfiguration:configuration active:YES error:&error]) {
-    RTCLogError(@"Error setting configuration: %@", error.localizedDescription);
-  }
-  [session unlockForConfiguration];
-}
-
-- (void)setupAudioPlayer {
-  NSString *audioFilePath =
-      [[NSBundle mainBundle] pathForResource:@"mozart" ofType:@"mp3"];
-  NSURL *audioFileURL = [NSURL URLWithString:audioFilePath];
-  _audioPlayer = [[AVAudioPlayer alloc] initWithContentsOfURL:audioFileURL
-                                                        error:nil];
-  _audioPlayer.numberOfLoops = -1;
-  _audioPlayer.volume = 1.0;
-  [_audioPlayer prepareToPlay];
-}
 
 - (void)showAlertWithMessage:(NSString*)message {
   UIAlertView* alertView = [[UIAlertView alloc] initWithTitle:nil

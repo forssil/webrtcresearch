@@ -19,15 +19,13 @@
 #include <sstream>
 #include <string>
 
-#include "webrtc/p2p/base/p2pconstants.h"
+#include "webrtc/p2p/base/constants.h"
 #include "webrtc/base/basictypes.h"
 #include "webrtc/base/helpers.h"
 #include "webrtc/base/network.h"
 #include "webrtc/base/socketaddress.h"
 
 namespace cricket {
-
-const uint16_t kMaxNetworkCost = 999;
 
 // Candidate for ICE based connection discovery.
 
@@ -40,9 +38,7 @@ class Candidate {
         component_(0),
         priority_(0),
         network_type_(rtc::ADAPTER_TYPE_UNKNOWN),
-        generation_(0),
-        network_id_(0),
-        network_cost_(0) {}
+        generation_(0) {}
 
   Candidate(int component,
             const std::string& protocol,
@@ -52,9 +48,7 @@ class Candidate {
             const std::string& password,
             const std::string& type,
             uint32_t generation,
-            const std::string& foundation,
-            uint16_t network_id = 0,
-            uint16_t network_cost = 0)
+            const std::string& foundation)
       : id_(rtc::CreateRandomString(8)),
         component_(component),
         protocol_(protocol),
@@ -65,9 +59,7 @@ class Candidate {
         type_(type),
         network_type_(rtc::ADAPTER_TYPE_UNKNOWN),
         generation_(generation),
-        foundation_(foundation),
-        network_id_(network_id),
-        network_cost_(network_cost) {}
+        foundation_(foundation) {}
 
   const std::string & id() const { return id_; }
   void set_id(const std::string & id) { id_ = id; }
@@ -113,7 +105,6 @@ class Candidate {
         std::min(prio_val, static_cast<uint64_t>(UINT_MAX)));
   }
 
-  // TODO(honghaiz): Change to usernameFragment or ufrag.
   const std::string & username() const { return username_; }
   void set_username(const std::string & username) { username_ = username; }
 
@@ -146,19 +137,6 @@ class Candidate {
     ist >> generation_;
   }
 
-  // |network_cost| measures the cost/penalty of using this candidate. A network
-  // cost of 0 indicates this candidate can be used freely. A value of
-  // |kMaxNetworkCost| indicates it should be used only as the last resort.
-  void set_network_cost(uint16_t network_cost) {
-    ASSERT(network_cost <= kMaxNetworkCost);
-    network_cost_ = network_cost;
-  }
-  uint16_t network_cost() const { return network_cost_; }
-
-  // An ID assigned to the network hosting the candidate.
-  uint16_t network_id() const { return network_id_; }
-  void set_network_id(uint16_t network_id) { network_id_ = network_id; }
-
   const std::string& foundation() const {
     return foundation_;
   }
@@ -179,30 +157,16 @@ class Candidate {
     tcptype_ = tcptype;
   }
 
-  // The name of the transport channel of this candidate.
-  const std::string& transport_name() const { return transport_name_; }
-  void set_transport_name(const std::string& transport_name) {
-    transport_name_ = transport_name;
-  }
-
   // Determines whether this candidate is equivalent to the given one.
   bool IsEquivalent(const Candidate& c) const {
     // We ignore the network name, since that is just debug information, and
-    // the priority and the network cost, since they should be the same if the
-    // rest are.
+    // the priority, since that should be the same if the rest is (and it's
+    // a float so equality checking is always worrisome).
     return (component_ == c.component_) && (protocol_ == c.protocol_) &&
            (address_ == c.address_) && (username_ == c.username_) &&
            (password_ == c.password_) && (type_ == c.type_) &&
            (generation_ == c.generation_) && (foundation_ == c.foundation_) &&
-           (related_address_ == c.related_address_) &&
-           (network_id_ == c.network_id_);
-  }
-
-  // Determines whether this candidate can be considered equivalent to the
-  // given one when looking for a matching candidate to remove.
-  bool MatchesForRemoval(const Candidate& c) const {
-    return component_ == c.component_ && protocol_ == c.protocol_ &&
-           address_ == c.address_;
+           (related_address_ == c.related_address_);
   }
 
   std::string ToString() const {
@@ -246,10 +210,10 @@ class Candidate {
     std::ostringstream ost;
     std::string address = sensitive ? address_.ToSensitiveString() :
                                       address_.ToString();
-    ost << "Cand[" << transport_name_ << ":" << foundation_ << ":" << component_
-        << ":" << protocol_ << ":" << priority_ << ":" << address << ":"
-        << type_ << ":" << related_address_ << ":" << username_ << ":"
-        << password_ << ":" << network_id_ << ":" << network_cost_ << "]";
+    ost << "Cand[" << foundation_ << ":" << component_ << ":"
+        << protocol_ << ":" << priority_ << ":"
+        << address << ":" << type_ << ":" << related_address_ << ":"
+        << username_ << ":" << password_ << "]";
     return ost.str();
   }
 
@@ -268,9 +232,6 @@ class Candidate {
   std::string foundation_;
   rtc::SocketAddress related_address_;
   std::string tcptype_;
-  std::string transport_name_;
-  uint16_t network_id_;
-  uint16_t network_cost_;
 };
 
 // Used during parsing and writing to map component to channel name

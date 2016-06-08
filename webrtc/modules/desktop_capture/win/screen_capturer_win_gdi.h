@@ -11,8 +11,6 @@
 #ifndef WEBRTC_MODULES_DESKTOP_CAPTURE_WIN_SCREEN_CAPTURER_WIN_GDI_H_
 #define WEBRTC_MODULES_DESKTOP_CAPTURE_WIN_SCREEN_CAPTURER_WIN_GDI_H_
 
-#include <memory>
-
 #include "webrtc/modules/desktop_capture/screen_capturer.h"
 
 #include <windows.h>
@@ -36,8 +34,6 @@ class ScreenCapturerWinGdi : public ScreenCapturer {
 
   // Overridden from ScreenCapturer:
   void Start(Callback* callback) override;
-  void SetSharedMemoryFactory(
-      rtc::scoped_ptr<SharedMemoryFactory> shared_memory_factory) override;
   void Capture(const DesktopRegion& region) override;
   bool GetScreenList(ScreenList* screens) override;
   bool SelectScreen(ScreenId id) override;
@@ -56,7 +52,6 @@ class ScreenCapturerWinGdi : public ScreenCapturer {
   void CaptureCursor();
 
   Callback* callback_;
-  std::unique_ptr<SharedMemoryFactory> shared_memory_factory_;
   ScreenId current_screen_id_;
   std::wstring current_device_key_;
 
@@ -78,7 +73,7 @@ class ScreenCapturerWinGdi : public ScreenCapturer {
   DesktopRect desktop_dc_rect_;
 
   // Class to calculate the difference between two screen bitmaps.
-  std::unique_ptr<Differ> differ_;
+  rtc::scoped_ptr<Differ> differ_;
 
   HMODULE dwmapi_library_;
   DwmEnableCompositionFunc composition_func_;

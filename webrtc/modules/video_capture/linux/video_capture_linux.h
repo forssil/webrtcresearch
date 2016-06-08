@@ -11,11 +11,9 @@
 #ifndef WEBRTC_MODULES_VIDEO_CAPTURE_MAIN_SOURCE_LINUX_VIDEO_CAPTURE_LINUX_H_
 #define WEBRTC_MODULES_VIDEO_CAPTURE_MAIN_SOURCE_LINUX_VIDEO_CAPTURE_LINUX_H_
 
-#include <memory>
-
-#include "webrtc/base/platform_thread.h"
 #include "webrtc/common_types.h"
 #include "webrtc/modules/video_capture/video_capture_impl.h"
+#include "webrtc/system_wrappers/include/thread_wrapper.h"
 
 namespace webrtc
 {
@@ -41,8 +39,7 @@ private:
     bool AllocateVideoBuffers();
     bool DeAllocateVideoBuffers();
 
-    // TODO(pbos): Stop using unique_ptr and resetting the thread.
-    std::unique_ptr<rtc::PlatformThread> _captureThread;
+    rtc::scoped_ptr<ThreadWrapper> _captureThread;
     CriticalSectionWrapper* _captureCritSect;
 
     int32_t _deviceId;

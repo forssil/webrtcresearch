@@ -8,7 +8,6 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <algorithm>
 #include <string>
 
 #include "webrtc/base/gunit.h"
@@ -21,6 +20,7 @@
 #include "webrtc/base/testclient.h"
 #include "webrtc/base/asynctcpsocket.h"
 #include "webrtc/base/virtualsocketserver.h"
+#include "webrtc/test/testsupport/gtest_disable.h"
 
 using namespace rtc;
 
@@ -207,12 +207,6 @@ void TestPhysicalInternal(const SocketAddress& int_addr) {
 
   std::vector<Network*> networks;
   network_manager.GetNetworks(&networks);
-  networks.erase(std::remove_if(networks.begin(), networks.end(),
-                                [](rtc::Network* network) {
-                                  return rtc::kDefaultNetworkIgnoreMask &
-                                         network->type();
-                                }),
-                 networks.end());
   if (networks.empty()) {
     LOG(LS_WARNING) << "Not enough network adapters for test.";
     return;

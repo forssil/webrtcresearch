@@ -12,9 +12,8 @@
 
 #include <stdio.h>
 
-#include <memory>
-
 #include "testing/gtest/include/gtest/gtest.h"
+#include "webrtc/base/scoped_ptr.h"
 
 namespace webrtc {
 
@@ -45,7 +44,7 @@ static void InsertZeros(int num_zeros, VadCircularBuffer* circular_buffer) {
 }
 
 TEST(VadCircularBufferTest, GeneralTest) {
-  std::unique_ptr<VadCircularBuffer> circular_buffer(
+  rtc::scoped_ptr<VadCircularBuffer> circular_buffer(
       VadCircularBuffer::Create(kShortBuffSize));
   double mean_val;
 
@@ -73,7 +72,7 @@ TEST(VadCircularBufferTest, GeneralTest) {
 }
 
 TEST(VadCircularBufferTest, TransientsRemoval) {
-  std::unique_ptr<VadCircularBuffer> circular_buffer(
+  rtc::scoped_ptr<VadCircularBuffer> circular_buffer(
       VadCircularBuffer::Create(kLongBuffSize));
   // Let the first transient be in wrap-around.
   InsertZeros(kLongBuffSize - kWidthThreshold / 2, circular_buffer.get());
@@ -92,7 +91,7 @@ TEST(VadCircularBufferTest, TransientsRemoval) {
 }
 
 TEST(VadCircularBufferTest, TransientDetection) {
-  std::unique_ptr<VadCircularBuffer> circular_buffer(
+  rtc::scoped_ptr<VadCircularBuffer> circular_buffer(
       VadCircularBuffer::Create(kLongBuffSize));
   // Let the first transient be in wrap-around.
   int num_insertion = kLongBuffSize - kWidthThreshold / 2;

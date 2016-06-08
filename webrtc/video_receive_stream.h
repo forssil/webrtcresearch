@@ -11,7 +11,6 @@
 #ifndef WEBRTC_VIDEO_RECEIVE_STREAM_H_
 #define WEBRTC_VIDEO_RECEIVE_STREAM_H_
 
-#include <limits>
 #include <map>
 #include <string>
 #include <vector>
@@ -21,7 +20,7 @@
 #include "webrtc/frame_callback.h"
 #include "webrtc/stream.h"
 #include "webrtc/transport.h"
-#include "webrtc/media/base/videosinkinterface.h"
+#include "webrtc/video_renderer.h"
 
 namespace webrtc {
 
@@ -44,6 +43,15 @@ class VideoReceiveStream : public ReceiveStream {
     // Name of the decoded payload (such as VP8). Maps back to the depacketizer
     // used to unpack incoming packets.
     std::string payload_name;
+
+    // 'true' if the decoder handles rendering as well.
+    bool is_renderer = false;
+
+    // The expected delay for decoding and rendering, i.e. the frame will be
+    // delivered this many milliseconds, if possible, earlier than the ideal
+    // render time.
+    // Note: Ignored if 'renderer' is false.
+    int expected_delay_ms = 0;
   };
 
   struct Stats {
@@ -52,7 +60,6 @@ class VideoReceiveStream : public ReceiveStream {
     int render_frame_rate = 0;
 
     // Decoder stats.
-    std::string decoder_implementation_name = "unknown";
     FrameCounts frame_counts;
     int decode_ms = 0;
     int max_decode_ms = 0;
@@ -66,8 +73,6 @@ class VideoReceiveStream : public ReceiveStream {
 
     int total_bitrate_bps = 0;
     int discarded_packets = 0;
-
-    int sync_offset_ms = std::numeric_limits<int>::max();
 
     uint32_t ssrc = 0;
     std::string c_name;
@@ -108,9 +113,6 @@ class VideoReceiveStream : public ReceiveStream {
       // See draft-alvestrand-rmcat-remb for information.
       bool remb = false;
 
-      // See draft-holmer-rmcat-transport-wide-cc-extensions for details.
-      bool transport_cc = false;
-
       // See NackConfig for description.
       NackConfig nack;
 
@@ -145,16 +147,12 @@ class VideoReceiveStream : public ReceiveStream {
 
     // VideoRenderer will be called for each decoded frame. 'nullptr' disables
     // rendering of this stream.
-    rtc::VideoSinkInterface<VideoFrame>* renderer = nullptr;
+    VideoRenderer* renderer = nullptr;
 
     // Expected delay needed by the renderer, i.e. the frame will be delivered
     // this many milliseconds, if possible, earlier than the ideal render time.
     // Only valid if 'renderer' is set.
     int render_delay_ms = 10;
-
-    // If set, pass frames on to the renderer as soon as they are
-    // available.
-    bool disable_prerenderer_smoothing = false;
 
     // Identifier for an A/V synchronization group. Empty string to disable.
     // TODO(pbos): Synchronize streams in a sync group, not just video streams

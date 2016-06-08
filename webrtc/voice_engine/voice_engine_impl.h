@@ -11,8 +11,6 @@
 #ifndef WEBRTC_VOICE_ENGINE_VOICE_ENGINE_IMPL_H
 #define WEBRTC_VOICE_ENGINE_VOICE_ENGINE_IMPL_H
 
-#include <memory>
-
 #include "webrtc/engine_configurations.h"
 #include "webrtc/system_wrappers/include/atomic32.h"
 #include "webrtc/voice_engine/voe_base_impl.h"
@@ -22,6 +20,9 @@
 #endif
 #ifdef WEBRTC_VOICE_ENGINE_CODEC_API
 #include "webrtc/voice_engine/voe_codec_impl.h"
+#endif
+#ifdef WEBRTC_VOICE_ENGINE_DTMF_API
+#include "webrtc/voice_engine/voe_dtmf_impl.h"
 #endif
 #ifdef WEBRTC_VOICE_ENGINE_EXTERNAL_MEDIA_API
 #include "webrtc/voice_engine/voe_external_media_impl.h"
@@ -47,9 +48,6 @@
 #endif
 
 namespace webrtc {
-namespace voe {
-class ChannelProxy;
-}  // namespace voe
 
 class VoiceEngineImpl : public voe::SharedData,  // Must be the first base class
                         public VoiceEngine,
@@ -58,6 +56,9 @@ class VoiceEngineImpl : public voe::SharedData,  // Must be the first base class
 #endif
 #ifdef WEBRTC_VOICE_ENGINE_CODEC_API
                         public VoECodecImpl,
+#endif
+#ifdef WEBRTC_VOICE_ENGINE_DTMF_API
+                        public VoEDtmfImpl,
 #endif
 #ifdef WEBRTC_VOICE_ENGINE_EXTERNAL_MEDIA_API
                         public VoEExternalMediaImpl,
@@ -90,6 +91,9 @@ class VoiceEngineImpl : public voe::SharedData,  // Must be the first base class
 #endif
 #ifdef WEBRTC_VOICE_ENGINE_CODEC_API
         VoECodecImpl(this),
+#endif
+#ifdef WEBRTC_VOICE_ENGINE_DTMF_API
+        VoEDtmfImpl(this),
 #endif
 #ifdef WEBRTC_VOICE_ENGINE_EXTERNAL_MEDIA_API
         VoEExternalMediaImpl(this),
@@ -124,16 +128,12 @@ class VoiceEngineImpl : public voe::SharedData,  // Must be the first base class
   // This implements the Release() method for all the inherited interfaces.
   int Release() override;
 
-  // Backdoor to access a voe::Channel object without a channel ID. This is only
-  // to be used while refactoring the VoE API!
-  virtual std::unique_ptr<voe::ChannelProxy> GetChannelProxy(int channel_id);
-
  // This is *protected* so that FakeVoiceEngine can inherit from the class and
  // manipulate the reference count. See: fake_voice_engine.h.
  protected:
   Atomic32 _ref_count;
  private:
-  std::unique_ptr<const Config> own_config_;
+  rtc::scoped_ptr<const Config> own_config_;
 };
 
 }  // namespace webrtc

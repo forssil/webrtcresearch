@@ -13,7 +13,6 @@ package org.webrtc.voiceengine;
 import java.lang.Thread;
 import java.nio.ByteBuffer;
 
-import android.annotation.TargetApi;
 import android.content.Context;
 import android.media.AudioFormat;
 import android.media.AudioManager;
@@ -21,8 +20,11 @@ import android.media.AudioTrack;
 import android.os.Process;
 
 import org.webrtc.Logging;
+import org.webrtc.voiceengine.WebRtcAudioUtils;
 
 class WebRtcAudioTrack {
+
+ 
   private static final boolean DEBUG = false;
 
   private static final String TAG = "WebRtcAudioTrack";
@@ -91,9 +93,13 @@ class WebRtcAudioTrack {
         assertTrue(sizeInBytes <= byteBuffer.remaining());
         int bytesWritten = 0;
         if (WebRtcAudioUtils.runningOnLollipopOrHigher()) {
-          bytesWritten = writeOnLollipop(audioTrack, byteBuffer, sizeInBytes);
+          bytesWritten = audioTrack.write(byteBuffer,
+                                          sizeInBytes,
+                                          AudioTrack.WRITE_BLOCKING);
         } else {
-          bytesWritten = writePreLollipop(audioTrack, byteBuffer, sizeInBytes);
+          bytesWritten = audioTrack.write(byteBuffer.array(),
+                                          byteBuffer.arrayOffset(),
+                                          sizeInBytes);
         }
         if (bytesWritten != sizeInBytes) {
           Logging.e(TAG, "AudioTrack.write failed: " + bytesWritten);
@@ -118,15 +124,6 @@ class WebRtcAudioTrack {
       }
       assertTrue(audioTrack.getPlayState() == AudioTrack.PLAYSTATE_STOPPED);
       audioTrack.flush();
-    }
-
-    @TargetApi(21)
-    private int writeOnLollipop(AudioTrack audioTrack, ByteBuffer byteBuffer, int sizeInBytes) {
-      return audioTrack.write(byteBuffer, sizeInBytes, AudioTrack.WRITE_BLOCKING);
-    }
-
-    private int writePreLollipop(AudioTrack audioTrack, ByteBuffer byteBuffer, int sizeInBytes) {
-      return audioTrack.write(byteBuffer.array(), byteBuffer.arrayOffset(), sizeInBytes);
     }
 
     public void joinThread() {
@@ -172,7 +169,8 @@ class WebRtcAudioTrack {
         sampleRate,
         AudioFormat.CHANNEL_OUT_MONO,
         AudioFormat.ENCODING_PCM_16BIT);
-    Logging.d(TAG, "AudioTrack.getMinBufferSize: " + minBufferSizeInBytes);
+    Logging.d(TAG, "AudioTrack.getMinBufferSize: " + minBufferSizeInBytes
+       + ", playbackMode:" + WebRtcAudioUtils.playbackMode);
     assertTrue(audioTrack == null);
 
     // For the streaming mode, data must be written to the audio sink in
@@ -183,7 +181,7 @@ class WebRtcAudioTrack {
       // Create an AudioTrack object and initialize its associated audio buffer.
       // The size of this buffer determines how long an AudioTrack can play
       // before running out of data.
-      audioTrack = new AudioTrack(AudioManager.STREAM_VOICE_CALL,
+      audioTrack = new AudioTrack(WebRtcAudioUtils.playbackMode,
                                   sampleRate,
                                   AudioFormat.CHANNEL_OUT_MONO,
                                   AudioFormat.ENCODING_PCM_16BIT,
@@ -195,7 +193,7 @@ class WebRtcAudioTrack {
     }
     assertTrue(audioTrack.getState() == AudioTrack.STATE_INITIALIZED);
     assertTrue(audioTrack.getPlayState() == AudioTrack.PLAYSTATE_STOPPED);
-    assertTrue(audioTrack.getStreamType() == AudioManager.STREAM_VOICE_CALL);
+    assertTrue(audioTrack.getStreamType() == WebRtcAudioUtils.playbackMode);
   }
 
   private boolean startPlayout() {
@@ -223,33 +221,28 @@ class WebRtcAudioTrack {
   private int getStreamMaxVolume() {
     Logging.d(TAG, "getStreamMaxVolume");
     assertTrue(audioManager != null);
-    return audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL);
+    return audioManager.getStreamMaxVolume(WebRtcAudioUtils.playbackMode);
   }
 
   /** Set current volume level for a phone call audio stream. */
   private boolean setStreamVolume(int volume) {
     Logging.d(TAG, "setStreamVolume(" + volume + ")");
     assertTrue(audioManager != null);
-    if (isVolumeFixed()) {
-      Logging.e(TAG, "The device implements a fixed volume policy.");
-      return false;
+    if (WebRtcAudioUtils.runningOnLollipopOrHigher()) {
+      if (audioManager.isVolumeFixed()) {
+        Logging.e(TAG, "The device implements a fixed volume policy.");
+        return false;
+      }
     }
-    audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, volume, 0);
+    audioManager.setStreamVolume(WebRtcAudioUtils.playbackMode, volume, 0);
     return true;
-  }
-
-  @TargetApi(21)
-  private boolean isVolumeFixed() {
-    if (!WebRtcAudioUtils.runningOnLollipopOrHigher())
-      return false;
-    return audioManager.isVolumeFixed();
   }
 
   /** Get current volume level for a phone call audio stream. */
   private int getStreamVolume() {
     Logging.d(TAG, "getStreamVolume");
     assertTrue(audioManager != null);
-    return audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL);
+    return audioManager.getStreamVolume(WebRtcAudioUtils.playbackMode);
   }
 
   /** Helper method which throws an exception  when an assertion has failed. */

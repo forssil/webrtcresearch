@@ -14,6 +14,8 @@
 #include "webrtc/p2p/base/faketransportcontroller.h"
 #include "webrtc/p2p/base/p2ptransport.h"
 
+using cricket::Candidate;
+using cricket::Candidates;
 using cricket::Transport;
 using cricket::FakeTransport;
 using cricket::TransportChannel;
@@ -153,8 +155,9 @@ TEST_F(TransportTest, TestIceControllingOnIceRestartIfRemoteIsIceLite) {
                                                        NULL));
 
   cricket::TransportDescription remote_desc(
-      std::vector<std::string>(), kIceUfrag1, kIcePwd1, cricket::ICEMODE_LITE,
-      cricket::CONNECTIONROLE_NONE, NULL);
+      std::vector<std::string>(),
+      kIceUfrag1, kIcePwd1, cricket::ICEMODE_LITE,
+      cricket::CONNECTIONROLE_NONE, NULL, cricket::Candidates());
   ASSERT_TRUE(transport_->SetRemoteTransportDescription(remote_desc,
                                                         cricket::CA_ANSWER,
                                                         NULL));
@@ -173,8 +176,9 @@ TEST_F(TransportTest, TestIceControllingOnIceRestartIfRemoteIsIceLite) {
 TEST_F(TransportTest, TestSetRemoteIceLiteInOffer) {
   transport_->SetIceRole(cricket::ICEROLE_CONTROLLED);
   cricket::TransportDescription remote_desc(
-      std::vector<std::string>(), kIceUfrag1, kIcePwd1, cricket::ICEMODE_LITE,
-      cricket::CONNECTIONROLE_ACTPASS, NULL);
+      std::vector<std::string>(),
+      kIceUfrag1, kIcePwd1, cricket::ICEMODE_LITE,
+      cricket::CONNECTIONROLE_ACTPASS, NULL, cricket::Candidates());
   ASSERT_TRUE(transport_->SetRemoteTransportDescription(remote_desc,
                                                         cricket::CA_OFFER,
                                                         NULL));
@@ -201,8 +205,9 @@ TEST_F(TransportTest, TestSetRemoteIceLiteInAnswer) {
   // Channels will be created in ICEFULL_MODE.
   EXPECT_EQ(cricket::ICEMODE_FULL, channel_->remote_ice_mode());
   cricket::TransportDescription remote_desc(
-      std::vector<std::string>(), kIceUfrag1, kIcePwd1, cricket::ICEMODE_LITE,
-      cricket::CONNECTIONROLE_NONE, NULL);
+      std::vector<std::string>(),
+      kIceUfrag1, kIcePwd1, cricket::ICEMODE_LITE,
+      cricket::CONNECTIONROLE_NONE, NULL, cricket::Candidates());
   ASSERT_TRUE(transport_->SetRemoteTransportDescription(remote_desc,
                                                         cricket::CA_ANSWER,
                                                         NULL));

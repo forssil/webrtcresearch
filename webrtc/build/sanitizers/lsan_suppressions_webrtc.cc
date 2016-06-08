@@ -70,7 +70,7 @@ char kLSanDefaultSuppressions[] =
 "leak:PubSubClientTest::PubSubClientTest\n"
 "leak:PubSubTasksTest::PubSubTasksTest\n"
 
-// rtc_media_unittests
+// libjingle_media_unittest
 "leak:cricket::FakeNetworkInterface::SetOption\n"
 "leak:CodecTest_TestCodecOperators_Test::TestBody\n"
 "leak:VideoEngineTest*::ConstrainNewCodecBody\n"
@@ -80,7 +80,7 @@ char kLSanDefaultSuppressions[] =
 "leak:WebRtcVideoEngineTestFake_SetBandwidthInConference_Test::TestBody\n"
 "leak:WebRtcVideoEngineTestFake_SetSendCodecsRejectBadFormat_Test::TestBody\n"
 
-// peerconnection_unittests
+// libjingle_peerconnection_unittest
 // https://code.google.com/p/webrtc/issues/detail?id=2528
 "leak:cricket::FakeVideoMediaChannel::~FakeVideoMediaChannel\n"
 "leak:cricket::MediaSessionDescriptionFactory::CreateAnswer\n"

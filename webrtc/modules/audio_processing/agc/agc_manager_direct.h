@@ -11,9 +11,7 @@
 #ifndef WEBRTC_MODULES_AUDIO_PROCESSING_AGC_AGC_MANAGER_DIRECT_H_
 #define WEBRTC_MODULES_AUDIO_PROCESSING_AGC_AGC_MANAGER_DIRECT_H_
 
-#include <memory>
-
-#include "webrtc/base/constructormagic.h"
+#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/modules/audio_processing/agc/agc.h"
 
 namespace webrtc {
@@ -83,7 +81,7 @@ class AgcManagerDirect final {
   void UpdateGain();
   void UpdateCompressor();
 
-  std::unique_ptr<Agc> agc_;
+  rtc::scoped_ptr<Agc> agc_;
   GainControl* gctrl_;
   VolumeCallbacks* volume_callbacks_;
 
@@ -99,8 +97,8 @@ class AgcManagerDirect final {
   bool startup_;
   int startup_min_level_;
 
-  std::unique_ptr<DebugFile> file_preproc_;
-  std::unique_ptr<DebugFile> file_postproc_;
+  rtc::scoped_ptr<DebugFile> file_preproc_;
+  rtc::scoped_ptr<DebugFile> file_postproc_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(AgcManagerDirect);
 };

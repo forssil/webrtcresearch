@@ -51,14 +51,17 @@ namespace webrtc {
 // platform that doesn't use two's complement, implement conversion to/from
 // wire format.
 
-// Assume the if any one signed integer type is two's complement, then all
-// other will be too.
-static_assert(
-    (-1 & 0x03) == 0x03,
-    "Only two's complement representation of signed integers supported.");
-
+namespace {
+inline void AssertTwosComplement() {
+  // Assume the if any one signed integer type is two's complement, then all
+  // other will be too.
+  static_assert(
+      (-1 & 0x03) == 0x03,
+      "Only two's complement representation of signed integers supported.");
+}
 // Plain const char* won't work for static_assert, use #define instead.
 #define kSizeErrorMsg "Byte size must be less than or equal to data type size."
+}
 
 // Utility class for getting the unsigned equivalent of a signed type.
 template <typename T>
@@ -310,19 +313,12 @@ class ByteReader<T, 4, false> {
  public:
   static T ReadBigEndian(const uint8_t* data) {
     static_assert(sizeof(T) >= 4, kSizeErrorMsg);
-    return (Get(data, 0) << 24) | (Get(data, 1) << 16) | (Get(data, 2) << 8) |
-           Get(data, 3);
+    return (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3];
   }
 
   static T ReadLittleEndian(const uint8_t* data) {
     static_assert(sizeof(T) >= 4, kSizeErrorMsg);
-    return Get(data, 0) | (Get(data, 1) << 8) | (Get(data, 2) << 16) |
-           (Get(data, 3) << 24);
-  }
-
- private:
-  inline static T Get(const uint8_t* data, unsigned int index) {
-    return static_cast<T>(data[index]);
+    return data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
   }
 };
 

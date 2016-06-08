@@ -221,7 +221,7 @@ TEST(ScopedVectorTest, MoveConstruct) {
     EXPECT_FALSE(scoped_vector.empty());
     EXPECT_TRUE(watcher.IsWatching(scoped_vector.back()));
 
-    ScopedVector<LifeCycleObject> scoped_vector_copy(std::move(scoped_vector));
+    ScopedVector<LifeCycleObject> scoped_vector_copy(scoped_vector.Pass());
     EXPECT_TRUE(scoped_vector.empty());
     EXPECT_FALSE(scoped_vector_copy.empty());
     EXPECT_TRUE(watcher.IsWatching(scoped_vector_copy.back()));
@@ -241,7 +241,7 @@ TEST(ScopedVectorTest, MoveAssign) {
     EXPECT_FALSE(scoped_vector.empty());
     EXPECT_TRUE(watcher.IsWatching(scoped_vector.back()));
 
-    scoped_vector_assign = std::move(scoped_vector);
+    scoped_vector_assign = scoped_vector.Pass();
     EXPECT_TRUE(scoped_vector.empty());
     EXPECT_FALSE(scoped_vector_assign.empty());
     EXPECT_TRUE(watcher.IsWatching(scoped_vector_assign.back()));
@@ -273,8 +273,11 @@ class DeleteCounter {
 template <typename T>
 class PassThru  {
  public:
-  explicit PassThru(ScopedVector<T> scoper) : scoper_(std::move(scoper)) {}
-  ScopedVector<T> Run() { return std::move(scoper_); }
+  explicit PassThru(ScopedVector<T> scoper) : scoper_(scoper.Pass()) {}
+
+  ScopedVector<T> Run() {
+    return scoper_.Pass();
+  }
 
  private:
   ScopedVector<T> scoper_;
@@ -285,7 +288,7 @@ TEST(ScopedVectorTest, Passed) {
   ScopedVector<DeleteCounter> deleter_vector;
   deleter_vector.push_back(new DeleteCounter(&deletes));
   EXPECT_EQ(0, deletes);
-  PassThru<DeleteCounter> pass_thru(std::move(deleter_vector));
+  PassThru<DeleteCounter> pass_thru(deleter_vector.Pass());
   EXPECT_EQ(0, deletes);
   ScopedVector<DeleteCounter> result = pass_thru.Run();
   EXPECT_EQ(0, deletes);

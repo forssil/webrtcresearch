@@ -88,11 +88,9 @@ class OpenSSLStreamAdapter : public SSLStreamAdapter {
   StreamState GetState() const override;
 
   // TODO(guoweis): Move this away from a static class method.
-  static std::string SslCipherSuiteToName(int crypto_suite);
+  static std::string GetSslCipherSuiteName(int cipher);
 
   bool GetSslCipherSuite(int* cipher) override;
-
-  int GetSslVersion() const override;
 
   // Key Extractor interface
   bool ExportKeyingMaterial(const std::string& label,
@@ -103,16 +101,17 @@ class OpenSSLStreamAdapter : public SSLStreamAdapter {
                             size_t result_len) override;
 
   // DTLS-SRTP interface
-  bool SetDtlsSrtpCryptoSuites(const std::vector<int>& crypto_suites) override;
-  bool GetDtlsSrtpCryptoSuite(int* crypto_suite) override;
+  bool SetDtlsSrtpCiphers(const std::vector<std::string>& ciphers) override;
+  bool GetDtlsSrtpCipher(std::string* cipher) override;
 
   // Capabilities interfaces
   static bool HaveDtls();
   static bool HaveDtlsSrtp();
   static bool HaveExporter();
 
-  static bool IsAcceptableCipher(int cipher, KeyType key_type);
-  static bool IsAcceptableCipher(const std::string& cipher, KeyType key_type);
+  // TODO(guoweis): Move this away from a static class method.
+  static int GetDefaultSslCipherForTest(SSLProtocolVersion version,
+                                        KeyType key_type);
 
  protected:
   void OnEvent(StreamInterface* stream, int events, int err) override;

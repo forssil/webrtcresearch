@@ -11,8 +11,6 @@
 #ifndef WEBRTC_VOICE_ENGINE_NETWORK_PREDICTOR_H_
 #define WEBRTC_VOICE_ENGINE_NETWORK_PREDICTOR_H_
 
-#include <memory>
-
 #include "webrtc/base/exp_filter.h"
 #include "webrtc/system_wrappers/include/clock.h"
 
@@ -40,7 +38,7 @@ class NetworkPredictor {
   int64_t last_loss_rate_update_time_ms_;
 
   // An exponential filter is used to predict packet loss rate.
-  std::unique_ptr<rtc::ExpFilter> loss_rate_filter_;
+  rtc::scoped_ptr<rtc::ExpFilter> loss_rate_filter_;
 };
 
 }  // namespace voe

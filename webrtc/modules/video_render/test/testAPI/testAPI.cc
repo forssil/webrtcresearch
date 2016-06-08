@@ -244,7 +244,7 @@ int WebRtcCreateWindow(Window *outWindow, Display **outDisplay, int winNum, int 
 
     return 0;
 }
-#endif  // WEBRTC_LINUX
+#endif  // LINUX
 
 // Note: Mac code is in testApi_mac.mm.
 

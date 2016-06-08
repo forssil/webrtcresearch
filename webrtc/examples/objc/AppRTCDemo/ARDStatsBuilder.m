@@ -10,7 +10,8 @@
 
 #import "ARDStatsBuilder.h"
 
-#import "webrtc/api/objc/RTCStatsReport.h"
+#import "RTCPair.h"
+#import "RTCStatsReport.h"
 
 #import "ARDBitrateTracker.h"
 #import "ARDUtilities.h"
@@ -149,8 +150,9 @@
 #pragma mark - Private
 
 - (void)parseBweStatsReport:(RTCStatsReport *)statsReport {
-  [statsReport.values enumerateKeysAndObjectsUsingBlock:^(
-      NSString *key, NSString *value, BOOL *stop) {
+  for (RTCPair *pair in statsReport.values) {
+    NSString *key = pair.key;
+    NSString *value = pair.value;
     if ([key isEqualToString:@"googAvailableSendBandwidth"]) {
       _availableSendBw =
           [ARDBitrateTracker bitrateStringForBitrate:value.doubleValue];
@@ -164,16 +166,18 @@
       _targetEncBitrate =
           [ARDBitrateTracker bitrateStringForBitrate:value.doubleValue];
     }
-  }];
+  }
 }
 
 - (void)parseConnectionStatsReport:(RTCStatsReport *)statsReport {
-  NSString *activeConnection = statsReport.values[@"googActiveConnection"];
+  NSDictionary *values = [self dictionaryForReport:statsReport];
+  NSString *activeConnection = [values[@"googActiveConnection"] firstObject];
   if (![activeConnection isEqualToString:@"true"]) {
     return;
   }
-  [statsReport.values enumerateKeysAndObjectsUsingBlock:^(
-      NSString *key, NSString *value, BOOL *stop) {
+  for (RTCPair *pair in statsReport.values) {
+    NSString *key = pair.key;
+    NSString *value = pair.value;
     if ([key isEqualToString:@"googRtt"]) {
       _connRtt = value;
     } else if ([key isEqualToString:@"googLocalCandidateType"]) {
@@ -191,12 +195,12 @@
       [_connSendBitrateTracker updateBitrateWithCurrentByteCount:byteCount];
       _connSendBitrate = _connSendBitrateTracker.bitrateString;
     }
-  }];
+  }
 }
 
 - (void)parseSendSsrcStatsReport:(RTCStatsReport *)statsReport {
-  NSDictionary *values = statsReport.values;
-  NSString *trackId = values[@"googTrackId"];
+  NSDictionary *values = [self dictionaryForReport:statsReport];
+  NSString *trackId = [values[@"googTrackId"] firstObject];
   if (trackId.length && [trackId hasPrefix:@"ARDAMSv0"]) {
     // Video track.
     [self parseVideoSendStatsReport:statsReport];
@@ -207,8 +211,9 @@
 }
 
 - (void)parseAudioSendStatsReport:(RTCStatsReport *)statsReport {
-  [statsReport.values enumerateKeysAndObjectsUsingBlock:^(
-      NSString *key, NSString *value, BOOL *stop) {
+  for (RTCPair *pair in statsReport.values) {
+    NSString *key = pair.key;
+    NSString *value = pair.value;
     if ([key isEqualToString:@"googCodecName"]) {
       _audioSendCodec = value;
     } else if ([key isEqualToString:@"bytesSent"]) {
@@ -216,12 +221,13 @@
       [_audioSendBitrateTracker updateBitrateWithCurrentByteCount:byteCount];
       _audioSendBitrate = _audioSendBitrateTracker.bitrateString;
     }
-  }];
+  }
 }
 
 - (void)parseVideoSendStatsReport:(RTCStatsReport *)statsReport {
-  [statsReport.values enumerateKeysAndObjectsUsingBlock:^(
-      NSString *key, NSString *value, BOOL *stop) {
+  for (RTCPair *pair in statsReport.values) {
+    NSString *key = pair.key;
+    NSString *value = pair.value;
     if ([key isEqualToString:@"googCodecName"]) {
       _videoSendCodec = value;
     } else if ([key isEqualToString:@"googFrameHeightInput"]) {
@@ -243,12 +249,13 @@
       [_videoSendBitrateTracker updateBitrateWithCurrentByteCount:byteCount];
       _videoSendBitrate = _videoSendBitrateTracker.bitrateString;
     }
-  }];
+  }
 }
 
 - (void)parseRecvSsrcStatsReport:(RTCStatsReport *)statsReport {
-  NSDictionary *values = statsReport.values;
-  if (values[@"googFrameWidthReceived"]) {
+  NSDictionary *values = [self dictionaryForReport:statsReport];
+  NSString *transportId = [values[@"transportId"] firstObject];
+  if ([values[@"googFrameWidthReceived"] firstObject]) {
     [self parseVideoRecvStatsReport:statsReport];
   } else {
     [self parseAudioRecvStatsReport:statsReport];
@@ -256,8 +263,9 @@
 }
 
 - (void)parseAudioRecvStatsReport:(RTCStatsReport *)statsReport {
-  [statsReport.values enumerateKeysAndObjectsUsingBlock:^(
-      NSString *key, NSString *value, BOOL *stop) {
+  for (RTCPair *pair in statsReport.values) {
+    NSString *key = pair.key;
+    NSString *value = pair.value;
     if ([key isEqualToString:@"googCodecName"]) {
       _audioRecvCodec = value;
     } else if ([key isEqualToString:@"bytesReceived"]) {
@@ -269,12 +277,13 @@
     } else if ([key isEqualToString:@"googCurrentDelayMs"]) {
       _audioCurrentDelay = value;
     }
-  }];
+  }
 }
 
 - (void)parseVideoRecvStatsReport:(RTCStatsReport *)statsReport {
-  [statsReport.values enumerateKeysAndObjectsUsingBlock:^(
-      NSString *key, NSString *value, BOOL *stop) {
+  for (RTCPair *pair in statsReport.values) {
+    NSString *key = pair.key;
+    NSString *value = pair.value;
     if ([key isEqualToString:@"googFrameHeightReceived"]) {
       _videoRecvHeight = value;
     } else if ([key isEqualToString:@"googFrameWidthReceived"]) {
@@ -292,7 +301,20 @@
       [_videoRecvBitrateTracker updateBitrateWithCurrentByteCount:byteCount];
       _videoRecvBitrate = _videoRecvBitrateTracker.bitrateString;
     }
-  }];
+  }
+}
+
+- (NSDictionary *)dictionaryForReport:(RTCStatsReport *)statsReport {
+  NSMutableDictionary *dict = [NSMutableDictionary dictionary];
+  for (RTCPair *pair in statsReport.values) {
+    NSMutableArray *values = dict[pair.key];
+    if (!values) {
+      values = [NSMutableArray arrayWithCapacity:1];
+      dict[pair.key] = values;
+    }
+    [values addObject:pair.value];
+  }
+  return dict;
 }
 
 @end

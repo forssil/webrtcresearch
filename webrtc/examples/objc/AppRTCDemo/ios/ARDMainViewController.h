@@ -11,4 +11,7 @@
 #import <UIKit/UIKit.h>
 
 @interface ARDMainViewController : UIViewController
+
+- (void)applicationWillResignActive:(UIApplication *)application;
+
 @end

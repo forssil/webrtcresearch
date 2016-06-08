@@ -13,25 +13,43 @@
 
 class DtmfTest : public AfterStreamingFixture {
  protected:
-  void RunSixteenDtmfEvents() {
+  void RunSixteenDtmfEvents(bool out_of_band) {
     TEST_LOG("Sending telephone events:\n");
+    EXPECT_EQ(0, voe_dtmf_->SetDtmfFeedbackStatus(false));
+
     for (int i = 0; i < 16; i++) {
       TEST_LOG("%d ", i);
       TEST_LOG_FLUSH;
-      EXPECT_TRUE(channel_proxy_->SendTelephoneEventOutband(i, 160));
+      EXPECT_EQ(0, voe_dtmf_->SendTelephoneEvent(
+          channel_, i, out_of_band, 160, 10));
       Sleep(500);
     }
     TEST_LOG("\n");
   }
 };
 
+TEST_F(DtmfTest, DtmfFeedbackIsEnabledByDefaultButNotDirectFeedback) {
+  bool dtmf_feedback = false;
+  bool dtmf_direct_feedback = false;
+
+  EXPECT_EQ(0, voe_dtmf_->GetDtmfFeedbackStatus(dtmf_feedback,
+                                                dtmf_direct_feedback));
+
+  EXPECT_TRUE(dtmf_feedback);
+  EXPECT_FALSE(dtmf_direct_feedback);
+}
+
+TEST_F(DtmfTest, ManualSuccessfullySendsInBandTelephoneEvents) {
+  RunSixteenDtmfEvents(false);
+}
+
 TEST_F(DtmfTest, ManualSuccessfullySendsOutOfBandTelephoneEvents) {
-  RunSixteenDtmfEvents();
+  RunSixteenDtmfEvents(true);
 }
 
 TEST_F(DtmfTest, TestTwoNonDtmfEvents) {
-  EXPECT_TRUE(channel_proxy_->SendTelephoneEventOutband(32, 160));
-  EXPECT_TRUE(channel_proxy_->SendTelephoneEventOutband(110, 160));
+  EXPECT_EQ(0, voe_dtmf_->SendTelephoneEvent(channel_, 32, true));
+  EXPECT_EQ(0, voe_dtmf_->SendTelephoneEvent(channel_, 110, true));
 }
 
 // This test modifies the DTMF payload type from the default 106 to 88
@@ -60,8 +78,10 @@ TEST_F(DtmfTest, ManualCanChangeDtmfPayloadType) {
   Sleep(500);
 
   // Next, we must modify the sending side as well.
-  EXPECT_TRUE(
-      channel_proxy_->SetSendTelephoneEventPayloadType(codec_instance.pltype));
+  EXPECT_EQ(0, voe_dtmf_->SetSendTelephoneEventPayloadType(
+      channel_, codec_instance.pltype));
 
-  RunSixteenDtmfEvents();
+  RunSixteenDtmfEvents(true);
+
+  EXPECT_EQ(0, voe_dtmf_->SetDtmfFeedbackStatus(true, false));
 }

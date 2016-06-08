@@ -10,9 +10,8 @@
 
 #include "webrtc/modules/audio_processing/transient/moving_moments.h"
 
-#include <memory>
-
 #include "testing/gtest/include/gtest/gtest.h"
+#include "webrtc/base/scoped_ptr.h"
 
 namespace webrtc {
 
@@ -30,7 +29,7 @@ class MovingMomentsTest : public ::testing::Test {
                                  const float* expected_mean,
                                  const float* expected_mean_squares);
 
-  std::unique_ptr<MovingMoments> moving_moments_;
+  rtc::scoped_ptr<MovingMoments> moving_moments_;
   float output_mean_[kMaxOutputLength];
   float output_mean_squares_[kMaxOutputLength];
 };

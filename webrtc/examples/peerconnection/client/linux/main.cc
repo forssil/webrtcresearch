@@ -30,7 +30,7 @@ class CustomSocketServer : public rtc::PhysicalSocketServer {
   // Override so that we can also pump the GTK message loop.
   virtual bool Wait(int cms, bool process_io) {
     // Pump GTK events.
-    // TODO(henrike): We really should move either the socket server or UI to a
+    // TODO: We really should move either the socket server or UI to a
     // different thread.  Alternatively we could look at merging the two loops
     // by implementing a dispatcher for the socket server and/or use
     // g_main_context_set_poll_func.
@@ -96,12 +96,10 @@ int main(int argc, char* argv[]) {
   wnd.Destroy();
 
   thread->set_socketserver(NULL);
-  // TODO(henrike): Run the Gtk main loop to tear down the connection.
-  /*
-  while (gtk_events_pending()) {
-    gtk_main_iteration();
-  }
-  */
+  // TODO: Run the Gtk main loop to tear down the connection.
+  //while (gtk_events_pending()) {
+  //  gtk_main_iteration();
+  //}
   rtc::CleanupSSL();
   return 0;
 }

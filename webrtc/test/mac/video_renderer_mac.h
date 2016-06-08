@@ -8,8 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_TEST_MAC_VIDEO_RENDERER_MAC_H_
-#define WEBRTC_TEST_MAC_VIDEO_RENDERER_MAC_H_
+#ifndef WEBRTC_VIDEO_ENGINE_TEST_COMMON_MAC_VIDEO_RENDERER_MAC_H_
+#define WEBRTC_VIDEO_ENGINE_TEST_COMMON_MAC_VIDEO_RENDERER_MAC_H_
 
 #include "webrtc/base/constructormagic.h"
 #include "webrtc/test/gl/gl_renderer.h"
@@ -27,7 +27,8 @@ class MacRenderer : public GlRenderer {
   bool Init(const char* window_title, int width, int height);
 
   // Implements GlRenderer.
-  void OnFrame(const VideoFrame& frame) override;
+  void RenderFrame(const VideoFrame& frame, int delta) override;
+  bool IsTextureSupported() const override { return false; }
 
  private:
   CocoaWindow* window_;
@@ -37,4 +38,4 @@ class MacRenderer : public GlRenderer {
 }  // test
 }  // webrtc
 
-#endif  // WEBRTC_TEST_MAC_VIDEO_RENDERER_MAC_H_
+#endif  // WEBRTC_VIDEO_ENGINE_TEST_COMMON_MAC_VIDEO_RENDERER_MAC_H_

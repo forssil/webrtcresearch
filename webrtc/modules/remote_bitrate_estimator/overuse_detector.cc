@@ -10,12 +10,10 @@
 
 #include "webrtc/modules/remote_bitrate_estimator/overuse_detector.h"
 
-#include <math.h>
-#include <stdlib.h>
-
 #include <algorithm>
 #include <sstream>
-#include <string>
+#include <math.h>
+#include <stdlib.h>
 
 #include "webrtc/base/checks.h"
 #include "webrtc/base/common.h"
@@ -30,19 +28,17 @@ namespace webrtc {
 const char kAdaptiveThresholdExperiment[] = "WebRTC-AdaptiveBweThreshold";
 const char kEnabledPrefix[] = "Enabled";
 const size_t kEnabledPrefixLength = sizeof(kEnabledPrefix) - 1;
-const char kDisabledPrefix[] = "Disabled";
-const size_t kDisabledPrefixLength = sizeof(kDisabledPrefix) - 1;
+const size_t kMinExperimentLength = kEnabledPrefixLength + 3;
 
 const double kMaxAdaptOffsetMs = 15.0;
 const double kOverUsingTimeThreshold = 10;
 
-bool AdaptiveThresholdExperimentIsDisabled() {
+bool AdaptiveThresholdExperimentIsEnabled() {
   std::string experiment_string =
       webrtc::field_trial::FindFullName(kAdaptiveThresholdExperiment);
-  const size_t kMinExperimentLength = kDisabledPrefixLength;
   if (experiment_string.length() < kMinExperimentLength)
     return false;
-  return experiment_string.substr(0, kDisabledPrefixLength) == kDisabledPrefix;
+  return experiment_string.substr(0, kEnabledPrefixLength) == kEnabledPrefix;
 }
 
 // Gets thresholds from the experiment name following the format
@@ -50,20 +46,14 @@ bool AdaptiveThresholdExperimentIsDisabled() {
 bool ReadExperimentConstants(double* k_up, double* k_down) {
   std::string experiment_string =
       webrtc::field_trial::FindFullName(kAdaptiveThresholdExperiment);
-  const size_t kMinExperimentLength = kEnabledPrefixLength + 3;
-  if (experiment_string.length() < kMinExperimentLength ||
-      experiment_string.substr(0, kEnabledPrefixLength) != kEnabledPrefix)
-    return false;
   return sscanf(experiment_string.substr(kEnabledPrefixLength + 1).c_str(),
                 "%lf,%lf", k_up, k_down) == 2;
 }
 
 OveruseDetector::OveruseDetector(const OverUseDetectorOptions& options)
-      // Experiment is on by default, but can be disabled with finch by setting
-      // the field trial string to "WebRTC-AdaptiveBweThreshold/Disabled/".
-    : in_experiment_(!AdaptiveThresholdExperimentIsDisabled()),
-      k_up_(0.004),
-      k_down_(0.00006),
+    : in_experiment_(AdaptiveThresholdExperimentIsEnabled()),
+      k_up_(0.01),
+      k_down_(0.00018),
       overusing_time_threshold_(100),
       options_(options),
       threshold_(12.5),
@@ -72,7 +62,7 @@ OveruseDetector::OveruseDetector(const OverUseDetectorOptions& options)
       time_over_using_(-1),
       overuse_counter_(0),
       hypothesis_(kBwNormal) {
-  if (!AdaptiveThresholdExperimentIsDisabled())
+  if (in_experiment_)
     InitializeExperiment();
 }
 
@@ -142,10 +132,8 @@ void OveruseDetector::UpdateThreshold(double modified_offset, int64_t now_ms) {
   }
 
   const double k = fabs(modified_offset) < threshold_ ? k_down_ : k_up_;
-  const int64_t kMaxTimeDeltaMs = 100;
-  int64_t time_delta_ms = std::min(now_ms - last_update_ms_, kMaxTimeDeltaMs);
   threshold_ +=
-      k * (fabs(modified_offset) - threshold_) * time_delta_ms;
+      k * (fabs(modified_offset) - threshold_) * (now_ms - last_update_ms_);
 
   const double kMinThreshold = 6;
   const double kMaxThreshold = 600;

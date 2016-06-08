@@ -11,13 +11,13 @@
 #include <stdio.h>
 
 #include <map>
-#include <memory>
 #include <sstream>
 
 #include "gflags/gflags.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #include "webrtc/base/checks.h"
+#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/call.h"
 #include "webrtc/common_video/libyuv/include/webrtc_libyuv.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_header_parser.h"
@@ -136,10 +136,9 @@ static std::string Codec() { return static_cast<std::string>(FLAGS_codec); }
 
 static const uint32_t kReceiverLocalSsrc = 0x123456;
 
-class FileRenderPassthrough : public rtc::VideoSinkInterface<VideoFrame> {
+class FileRenderPassthrough : public VideoRenderer {
  public:
-  FileRenderPassthrough(const std::string& basename,
-                        rtc::VideoSinkInterface<VideoFrame>* renderer)
+  FileRenderPassthrough(const std::string& basename, VideoRenderer* renderer)
       : basename_(basename),
         renderer_(renderer),
         file_(nullptr),
@@ -153,9 +152,10 @@ class FileRenderPassthrough : public rtc::VideoSinkInterface<VideoFrame> {
   }
 
  private:
-  void OnFrame(const VideoFrame& video_frame) override {
+  void RenderFrame(const VideoFrame& video_frame,
+                   int time_to_render_ms) override {
     if (renderer_ != nullptr)
-      renderer_->OnFrame(video_frame);
+      renderer_->RenderFrame(video_frame, time_to_render_ms);
     if (basename_.empty())
       return;
     if (last_width_ != video_frame.width() ||
@@ -182,8 +182,10 @@ class FileRenderPassthrough : public rtc::VideoSinkInterface<VideoFrame> {
     PrintVideoFrame(video_frame, file_);
   }
 
+  bool IsTextureSupported() const override { return false; }
+
   const std::string basename_;
-  rtc::VideoSinkInterface<VideoFrame>* const renderer_;
+  VideoRenderer* const renderer_;
   FILE* file_;
   size_t count_;
   int last_width_;
@@ -207,12 +209,12 @@ class DecoderBitstreamFileWriter : public EncodedFrameObserver {
 };
 
 void RtpReplay() {
-  std::unique_ptr<test::VideoRenderer> playback_video(
+  rtc::scoped_ptr<test::VideoRenderer> playback_video(
       test::VideoRenderer::Create("Playback Video", 640, 480));
   FileRenderPassthrough file_passthrough(flags::OutBase(),
                                          playback_video.get());
 
-  std::unique_ptr<Call> call(Call::Create(Call::Config()));
+  rtc::scoped_ptr<Call> call(Call::Create(Call::Config()));
 
   test::NullTransport transport;
   VideoReceiveStream::Config receive_config(&transport);
@@ -235,7 +237,7 @@ void RtpReplay() {
   encoder_settings.payload_name = flags::Codec();
   encoder_settings.payload_type = flags::PayloadType();
   VideoReceiveStream::Decoder decoder;
-  std::unique_ptr<DecoderBitstreamFileWriter> bitstream_writer;
+  rtc::scoped_ptr<DecoderBitstreamFileWriter> bitstream_writer;
   if (!flags::DecoderBitstreamFilename().empty()) {
     bitstream_writer.reset(new DecoderBitstreamFileWriter(
         flags::DecoderBitstreamFilename().c_str()));
@@ -253,7 +255,7 @@ void RtpReplay() {
   VideoReceiveStream* receive_stream =
       call->CreateVideoReceiveStream(receive_config);
 
-  std::unique_ptr<test::RtpFileReader> rtp_reader(test::RtpFileReader::Create(
+  rtc::scoped_ptr<test::RtpFileReader> rtp_reader(test::RtpFileReader::Create(
       test::RtpFileReader::kRtpDump, flags::InputFile()));
   if (rtp_reader.get() == nullptr) {
     rtp_reader.reset(test::RtpFileReader::Create(test::RtpFileReader::kPcap,
@@ -288,7 +290,7 @@ void RtpReplay() {
         break;
       case PacketReceiver::DELIVERY_UNKNOWN_SSRC: {
         RTPHeader header;
-        std::unique_ptr<RtpHeaderParser> parser(RtpHeaderParser::Create());
+        rtc::scoped_ptr<RtpHeaderParser> parser(RtpHeaderParser::Create());
         parser->Parse(packet.data, packet.length, &header);
         if (unknown_packets[header.ssrc] == 0)
           fprintf(stderr, "Unknown SSRC: %u!\n", header.ssrc);

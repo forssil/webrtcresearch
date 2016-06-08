@@ -8,21 +8,19 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include "webrtc/modules/pacing/paced_sender.h"
+#include "webrtc/modules/pacing/include/paced_sender.h"
 
-#include <algorithm>
 #include <map>
 #include <queue>
 #include <set>
-#include <vector>
 
 #include "webrtc/base/checks.h"
-#include "webrtc/base/logging.h"
 #include "webrtc/modules/include/module_common_types.h"
 #include "webrtc/modules/pacing/bitrate_prober.h"
 #include "webrtc/system_wrappers/include/clock.h"
 #include "webrtc/system_wrappers/include/critical_section_wrapper.h"
 #include "webrtc/system_wrappers/include/field_trial.h"
+#include "webrtc/system_wrappers/include/logging.h"
 
 namespace {
 // Time limit in milliseconds between packet bursts.
@@ -36,7 +34,6 @@ const int64_t kMaxIntervalTimeMs = 30;
 
 // TODO(sprang): Move at least PacketQueue and MediaBudget out to separate
 // files, so that we can more easily test them.
-
 namespace webrtc {
 namespace paced_sender {
 struct Packet {
@@ -305,9 +302,9 @@ void PacedSender::InsertPacket(RtpPacketSender::Priority priority,
 
   if (probing_enabled_ && !prober_->IsProbing())
     prober_->SetEnabled(true);
-  int64_t now_ms = clock_->TimeInMilliseconds();
-  prober_->OnIncomingPacket(bitrate_bps_, bytes, now_ms);
+  prober_->MaybeInitializeProbe(bitrate_bps_);
 
+  int64_t now_ms = clock_->TimeInMilliseconds();
   if (capture_time_ms < 0)
     capture_time_ms = now_ms;
 
@@ -355,14 +352,15 @@ int64_t PacedSender::TimeUntilNextProcess() {
   return std::max<int64_t>(kMinPacketLimitMs - elapsed_time_ms, 0);
 }
 
-void PacedSender::Process() {
+int32_t PacedSender::Process() {
   int64_t now_us = clock_->TimeInMicroseconds();
   CriticalSectionScoped cs(critsect_.get());
   int64_t elapsed_time_ms = (now_us - time_last_update_us_ + 500) / 1000;
   time_last_update_us_ = now_us;
+  if (paused_)
+    return 0;
   int target_bitrate_kbps = max_bitrate_kbps_;
-  // TODO(holmer): Remove the !paused_ check when issue 5307 has been fixed.
-  if (!paused_ && elapsed_time_ms > 0) {
+  if (elapsed_time_ms > 0) {
     size_t queue_size_bytes = packets_->SizeInBytes();
     if (queue_size_bytes > 0) {
       // Assuming equal size packets and input/output rate, the average packet
@@ -378,34 +376,31 @@ void PacedSender::Process() {
     }
 
     media_budget_->set_target_rate_kbps(target_bitrate_kbps);
-
     int64_t delta_time_ms = std::min(kMaxIntervalTimeMs, elapsed_time_ms);
     UpdateBytesPerInterval(delta_time_ms);
   }
   while (!packets_->Empty()) {
     if (media_budget_->bytes_remaining() == 0 && !prober_->IsProbing())
-      return;
+      return 0;
 
     // Since we need to release the lock in order to send, we first pop the
     // element from the priority queue but keep it in storage, so that we can
     // reinsert it if send fails.
     const paced_sender::Packet& packet = packets_->BeginPop();
-
     if (SendPacket(packet)) {
       // Send succeeded, remove it from the queue.
       packets_->FinalizePop(packet);
       if (prober_->IsProbing())
-        return;
+        return 0;
     } else {
       // Send failed, put it back into the queue.
       packets_->CancelPop(packet);
-      return;
+      return 0;
     }
   }
 
-  // TODO(holmer): Remove the paused_ check when issue 5307 has been fixed.
-  if (paused_ || !packets_->Empty())
-    return;
+  if (!packets_->Empty())
+    return 0;
 
   size_t padding_needed;
   if (prober_->IsProbing()) {
@@ -416,14 +411,10 @@ void PacedSender::Process() {
 
   if (padding_needed > 0)
     SendPadding(static_cast<size_t>(padding_needed));
+  return 0;
 }
 
 bool PacedSender::SendPacket(const paced_sender::Packet& packet) {
-  // TODO(holmer): Because of this bug issue 5307 we have to send audio
-  // packets even when the pacer is paused. Here we assume audio packets are
-  // always high priority and that they are the only high priority packets.
-  if (paused_ && packet.priority != kHighPriority)
-    return false;
   critsect_->Leave();
   const bool success = callback_->TimeToSendPacket(packet.ssrc,
                                                    packet.sequence_number,
@@ -432,14 +423,10 @@ bool PacedSender::SendPacket(const paced_sender::Packet& packet) {
   critsect_->Enter();
 
   if (success) {
+    // Update media bytes sent.
     prober_->PacketSent(clock_->TimeInMilliseconds(), packet.bytes);
-    // TODO(holmer): High priority packets should only be accounted for if we
-    // are allocating bandwidth for audio.
-    if (packet.priority != kHighPriority) {
-      // Update media bytes sent.
-      media_budget_->UseBudget(packet.bytes);
-      padding_budget_->UseBudget(packet.bytes);
-    }
+    media_budget_->UseBudget(packet.bytes);
+    padding_budget_->UseBudget(packet.bytes);
   }
 
   return success;

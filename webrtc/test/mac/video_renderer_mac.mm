@@ -125,9 +125,9 @@ bool MacRenderer::Init(const char* window_title, int width, int height) {
   return true;
 }
 
-void MacRenderer::OnFrame(const VideoFrame& frame) {
+void MacRenderer::RenderFrame(const VideoFrame& frame, int /*delta*/) {
   [window_ makeCurrentContext];
-  GlRenderer::OnFrame(frame);
+  GlRenderer::RenderFrame(frame, 0);
 }
 
 }  // test

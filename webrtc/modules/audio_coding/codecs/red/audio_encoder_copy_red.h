@@ -11,10 +11,10 @@
 #ifndef WEBRTC_MODULES_AUDIO_CODING_CODECS_RED_AUDIO_ENCODER_COPY_RED_H_
 #define WEBRTC_MODULES_AUDIO_CODING_CODECS_RED_AUDIO_ENCODER_COPY_RED_H_
 
-#include <memory>
 #include <vector>
 
 #include "webrtc/base/buffer.h"
+#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/modules/audio_coding/codecs/audio_encoder.h"
 
 namespace webrtc {
@@ -26,24 +26,27 @@ namespace webrtc {
 class AudioEncoderCopyRed final : public AudioEncoder {
  public:
   struct Config {
-    Config();
-    Config(Config&&);
-    ~Config();
+   public:
     int payload_type;
-    std::unique_ptr<AudioEncoder> speech_encoder;
+    AudioEncoder* speech_encoder;
   };
 
-  explicit AudioEncoderCopyRed(Config&& config);
+  // Caller keeps ownership of the AudioEncoder object.
+  explicit AudioEncoderCopyRed(const Config& config);
 
   ~AudioEncoderCopyRed() override;
 
   size_t MaxEncodedBytes() const override;
   int SampleRateHz() const override;
-  size_t NumChannels() const override;
+  int NumChannels() const override;
   int RtpTimestampRateHz() const override;
   size_t Num10MsFramesInNextPacket() const override;
   size_t Max10MsFramesInAPacket() const override;
   int GetTargetBitrate() const override;
+  EncodedInfo EncodeInternal(uint32_t rtp_timestamp,
+                             rtc::ArrayView<const int16_t> audio,
+                             size_t max_encoded_bytes,
+                             uint8_t* encoded) override;
   void Reset() override;
   bool SetFec(bool enable) override;
   bool SetDtx(bool enable) override;
@@ -52,13 +55,8 @@ class AudioEncoderCopyRed final : public AudioEncoder {
   void SetProjectedPacketLossRate(double fraction) override;
   void SetTargetBitrate(int target_bps) override;
 
-protected:
-  EncodedInfo EncodeImpl(uint32_t rtp_timestamp,
-                         rtc::ArrayView<const int16_t> audio,
-                         rtc::Buffer* encoded) override;
-
  private:
-  std::unique_ptr<AudioEncoder> speech_encoder_;
+  AudioEncoder* speech_encoder_;
   int red_payload_type_;
   rtc::Buffer secondary_encoded_;
   EncodedInfoLeaf secondary_info_;

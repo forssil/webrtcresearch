@@ -8,13 +8,12 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include "webrtc/modules/remote_bitrate_estimator/transport_feedback_adapter.h"
-
 #include <limits>
 
 #include "webrtc/base/checks.h"
 #include "webrtc/base/logging.h"
 #include "webrtc/modules/remote_bitrate_estimator/remote_bitrate_estimator_abs_send_time.h"
+#include "webrtc/modules/remote_bitrate_estimator/transport_feedback_adapter.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_packet/transport_feedback.h"
 #include "webrtc/modules/utility/include/process_thread.h"
 
@@ -27,21 +26,26 @@ const int64_t kBaseTimestampScaleFactor =
 const int64_t kBaseTimestampRangeSizeUs = kBaseTimestampScaleFactor * (1 << 24);
 
 TransportFeedbackAdapter::TransportFeedbackAdapter(
-    BitrateController* bitrate_controller,
-    Clock* clock)
+    RtcpBandwidthObserver* bandwidth_observer,
+    Clock* clock,
+    ProcessThread* process_thread)
     : send_time_history_(clock, kSendTimeHistoryWindowMs),
-      bitrate_controller_(bitrate_controller),
+      rtcp_bandwidth_observer_(bandwidth_observer),
+      process_thread_(process_thread),
       clock_(clock),
       current_offset_ms_(kNoTimestamp),
       last_timestamp_us_(kNoTimestamp) {}
 
 TransportFeedbackAdapter::~TransportFeedbackAdapter() {
+  if (bitrate_estimator_.get())
+    process_thread_->DeRegisterModule(bitrate_estimator_.get());
 }
 
 void TransportFeedbackAdapter::SetBitrateEstimator(
     RemoteBitrateEstimator* rbe) {
   if (bitrate_estimator_.get() != rbe) {
     bitrate_estimator_.reset(rbe);
+    process_thread_->RegisterModule(rbe);
   }
 }
 
@@ -117,9 +121,9 @@ void TransportFeedbackAdapter::OnTransportFeedback(
 }
 
 void TransportFeedbackAdapter::OnReceiveBitrateChanged(
-    const std::vector<uint32_t>& ssrcs,
-    uint32_t bitrate) {
-  bitrate_controller_->UpdateDelayBasedEstimate(bitrate);
+    const std::vector<unsigned int>& ssrcs,
+    unsigned int bitrate) {
+  rtcp_bandwidth_observer_->OnReceivedEstimatedBitrate(bitrate);
 }
 
 void TransportFeedbackAdapter::OnRttUpdate(int64_t avg_rtt_ms,

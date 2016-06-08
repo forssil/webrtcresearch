@@ -12,7 +12,6 @@
 #include "webrtc/modules/bitrate_controller/bitrate_controller_impl.h"
 
 #include <algorithm>
-#include <map>
 #include <utility>
 
 #include "webrtc/modules/rtp_rtcp/include/rtp_rtcp_defines.h"
@@ -144,15 +143,6 @@ void BitrateControllerImpl::OnReceivedEstimatedBitrate(uint32_t bitrate) {
   MaybeTriggerOnNetworkChanged();
 }
 
-void BitrateControllerImpl::UpdateDelayBasedEstimate(uint32_t bitrate_bps) {
-  {
-    rtc::CritScope cs(&critsect_);
-    bandwidth_estimation_.UpdateDelayBasedEstimate(clock_->TimeInMilliseconds(),
-                                                   bitrate_bps);
-  }
-  MaybeTriggerOnNetworkChanged();
-}
-
 int64_t BitrateControllerImpl::TimeUntilNextProcess() {
   const int64_t kBitrateControllerUpdateIntervalMs = 25;
   rtc::CritScope cs(&critsect_);
@@ -162,15 +152,16 @@ int64_t BitrateControllerImpl::TimeUntilNextProcess() {
       kBitrateControllerUpdateIntervalMs - time_since_update_ms, 0);
 }
 
-void BitrateControllerImpl::Process() {
+int32_t BitrateControllerImpl::Process() {
   if (TimeUntilNextProcess() > 0)
-    return;
+    return 0;
   {
     rtc::CritScope cs(&critsect_);
     bandwidth_estimation_.UpdateEstimate(clock_->TimeInMilliseconds());
   }
   MaybeTriggerOnNetworkChanged();
   last_bitrate_update_ms_ = clock_->TimeInMilliseconds();
+  return 0;
 }
 
 void BitrateControllerImpl::OnReceivedRtcpReceiverReport(

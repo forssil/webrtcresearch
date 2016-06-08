@@ -21,8 +21,15 @@ static CGFloat const kRoomTextFieldMargin = 8;
 static CGFloat const kCallControlMargin = 8;
 static CGFloat const kAppLabelHeight = 20;
 
+@class ARDRoomTextField;
+@protocol ARDRoomTextFieldDelegate <NSObject>
+- (void)roomTextField:(ARDRoomTextField *)roomTextField
+         didInputRoom:(NSString *)room;
+@end
+
 // Helper view that contains a text field and a clear button.
 @interface ARDRoomTextField : UIView <UITextFieldDelegate>
+@property(nonatomic, weak) id<ARDRoomTextFieldDelegate> delegate;
 @property(nonatomic, readonly) NSString *roomText;
 @end
 
@@ -31,14 +38,14 @@ static CGFloat const kAppLabelHeight = 20;
   UIButton *_clearButton;
 }
 
+@synthesize delegate = _delegate;
+
 - (instancetype)initWithFrame:(CGRect)frame {
   if (self = [super initWithFrame:frame]) {
     _roomText = [[UITextField alloc] initWithFrame:CGRectZero];
     _roomText.borderStyle = UITextBorderStyleNone;
     _roomText.font = [UIFont fontWithName:@"Roboto" size:12];
     _roomText.placeholder = @"Room name";
-    _roomText.autocorrectionType = UITextAutocorrectionTypeNo;
-    _roomText.autocapitalizationType = UITextAutocapitalizationTypeNone;
     _roomText.delegate = self;
     [_roomText addTarget:self
                   action:@selector(textFieldDidChange:)
@@ -89,6 +96,10 @@ static CGFloat const kAppLabelHeight = 20;
 
 #pragma mark - UITextFieldDelegate
 
+- (void)textFieldDidEndEditing:(UITextField *)textField {
+  [_delegate roomTextField:self didInputRoom:textField.text];
+}
+
 - (BOOL)textFieldShouldReturn:(UITextField *)textField {
   // There is no other control that can take focus, so manually resign focus
   // when return (Join) is pressed to trigger |textFieldDidEndEditing|.
@@ -114,6 +125,9 @@ static CGFloat const kAppLabelHeight = 20;
 
 @end
 
+@interface ARDMainView () <ARDRoomTextFieldDelegate>
+@end
+
 @implementation ARDMainView {
   UILabel *_appLabel;
   ARDRoomTextField *_roomText;
@@ -122,14 +136,10 @@ static CGFloat const kAppLabelHeight = 20;
   UILabel *_audioOnlyLabel;
   UISwitch *_loopbackSwitch;
   UILabel *_loopbackLabel;
-  UISwitch *_audioConfigDelaySwitch;
-  UILabel *_audioConfigDelayLabel;
   UIButton *_startCallButton;
-  UIButton *_audioLoopButton;
 }
 
 @synthesize delegate = _delegate;
-@synthesize isAudioLoopPlaying = _isAudioLoopPlaying;
 
 - (instancetype)initWithFrame:(CGRect)frame {
   if (self = [super initWithFrame:frame]) {
@@ -141,6 +151,7 @@ static CGFloat const kAppLabelHeight = 20;
     [self addSubview:_appLabel];
 
     _roomText = [[ARDRoomTextField alloc] initWithFrame:CGRectZero];
+    _roomText.delegate = self;
     [self addSubview:_roomText];
 
     UIFont *controlFont = [UIFont fontWithName:@"Roboto" size:20];
@@ -175,17 +186,7 @@ static CGFloat const kAppLabelHeight = 20;
     [_loopbackLabel sizeToFit];
     [self addSubview:_loopbackLabel];
 
-    _audioConfigDelaySwitch = [[UISwitch alloc] initWithFrame:CGRectZero];
-    [_audioConfigDelaySwitch sizeToFit];
-    _audioConfigDelaySwitch.on = YES;
-    [self addSubview:_audioConfigDelaySwitch];
-
-    _audioConfigDelayLabel = [[UILabel alloc] initWithFrame:CGRectZero];
-    _audioConfigDelayLabel.text = @"Delay audio config";
-    _audioConfigDelayLabel.font = controlFont;
-    _audioConfigDelayLabel.textColor = controlFontColor;
-    [_audioConfigDelayLabel sizeToFit];
-    [self addSubview:_audioConfigDelayLabel];
+    _startCallButton = [[UIButton alloc] initWithFrame:CGRectZero];
 
     _startCallButton = [UIButton buttonWithType:UIButtonTypeSystem];
     _startCallButton.backgroundColor = [UIColor blueColor];
@@ -205,33 +206,9 @@ static CGFloat const kAppLabelHeight = 20;
                forControlEvents:UIControlEventTouchUpInside];
     [self addSubview:_startCallButton];
 
-    // Used to test what happens to sounds when calls are in progress.
-    _audioLoopButton = [UIButton buttonWithType:UIButtonTypeSystem];
-    _audioLoopButton.layer.cornerRadius = 10;
-    _audioLoopButton.clipsToBounds = YES;
-    _audioLoopButton.contentEdgeInsets = UIEdgeInsetsMake(5, 10, 5, 10);
-    _audioLoopButton.titleLabel.font = controlFont;
-    [_audioLoopButton setTitleColor:[UIColor whiteColor]
-                           forState:UIControlStateNormal];
-    [_audioLoopButton setTitleColor:[UIColor lightGrayColor]
-                           forState:UIControlStateSelected];
-    [self updateAudioLoopButton];
-    [_audioLoopButton addTarget:self
-                         action:@selector(onToggleAudioLoop:)
-               forControlEvents:UIControlEventTouchUpInside];
-    [self addSubview:_audioLoopButton];
-
     self.backgroundColor = [UIColor whiteColor];
   }
   return self;
-}
-
-- (void)setIsAudioLoopPlaying:(BOOL)isAudioLoopPlaying {
-  if (_isAudioLoopPlaying == isAudioLoopPlaying) {
-    return;
-  }
-  _isAudioLoopPlaying = isAudioLoopPlaying;
-  [self updateAudioLoopButton];
 }
 
 - (void)layoutSubviews {
@@ -275,54 +252,25 @@ static CGFloat const kAppLabelHeight = 20;
   _loopbackLabel.center = CGPointMake(loopbackModeLabelCenterX,
                                       CGRectGetMidY(loopbackModeRect));
 
-  CGFloat audioConfigDelayTop =
-      CGRectGetMaxY(_loopbackSwitch.frame) + kCallControlMargin;
-  CGRect audioConfigDelayRect =
-      CGRectMake(kCallControlMargin * 3,
-                 audioConfigDelayTop,
-                 _audioConfigDelaySwitch.frame.size.width,
-                 _audioConfigDelaySwitch.frame.size.height);
-  _audioConfigDelaySwitch.frame = audioConfigDelayRect;
-  CGFloat audioConfigDelayLabelCenterX = CGRectGetMaxX(audioConfigDelayRect) +
-      kCallControlMargin + _audioConfigDelayLabel.frame.size.width / 2;
-  _audioConfigDelayLabel.center =
-      CGPointMake(audioConfigDelayLabelCenterX,
-                  CGRectGetMidY(audioConfigDelayRect));
-
-  CGFloat audioLoopTop =
-     CGRectGetMaxY(audioConfigDelayRect) + kCallControlMargin * 3;
-  _audioLoopButton.frame = CGRectMake(kCallControlMargin,
-                                      audioLoopTop,
-                                      _audioLoopButton.frame.size.width,
-                                      _audioLoopButton.frame.size.height);
-
   CGFloat startCallTop =
-      CGRectGetMaxY(_audioLoopButton.frame) + kCallControlMargin * 3;
+     CGRectGetMaxY(loopbackModeRect) + kCallControlMargin * 3;
   _startCallButton.frame = CGRectMake(kCallControlMargin,
                                       startCallTop,
                                       _startCallButton.frame.size.width,
                                       _startCallButton.frame.size.height);
 }
 
+#pragma mark - ARDRoomTextFieldDelegate
+
+- (void)roomTextField:(ARDRoomTextField *)roomTextField
+         didInputRoom:(NSString *)room {
+  [_delegate mainView:self
+         didInputRoom:room
+           isLoopback:NO
+          isAudioOnly:_audioOnlySwitch.isOn];
+}
+
 #pragma mark - Private
-
-- (void)updateAudioLoopButton {
-  if (_isAudioLoopPlaying) {
-    _audioLoopButton.backgroundColor = [UIColor redColor];
-    [_audioLoopButton setTitle:@"Stop sound"
-                      forState:UIControlStateNormal];
-    [_audioLoopButton sizeToFit];
-  } else {
-    _audioLoopButton.backgroundColor = [UIColor greenColor];
-    [_audioLoopButton setTitle:@"Play sound"
-                      forState:UIControlStateNormal];
-    [_audioLoopButton sizeToFit];
-  }
-}
-
-- (void)onToggleAudioLoop:(id)sender {
-  [_delegate mainViewDidToggleAudioLoop:self];
-}
 
 - (void)onStartCall:(id)sender {
   NSString *room = _roomText.roomText;
@@ -332,10 +280,9 @@ static CGFloat const kAppLabelHeight = 20;
   }
   room = [room stringByReplacingOccurrencesOfString:@"-" withString:@""];
   [_delegate mainView:self
-                didInputRoom:room
-                  isLoopback:_loopbackSwitch.isOn
-                 isAudioOnly:_audioOnlySwitch.isOn
-      shouldDelayAudioConfig:_audioConfigDelaySwitch.isOn];
+         didInputRoom:room
+           isLoopback:_loopbackSwitch.isOn
+          isAudioOnly:_audioOnlySwitch.isOn];
 }
 
 @end

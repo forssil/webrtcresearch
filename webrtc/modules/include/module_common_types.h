@@ -28,7 +28,7 @@ struct RTPAudioHeader {
   uint8_t numEnergy;                  // number of valid entries in arrOfEnergy
   uint8_t arrOfEnergy[kRtpCsrcSize];  // one energy byte (0-9) per channel
   bool isCNG;                         // is this CNG
-  size_t channel;                     // number of channels 2 = stereo
+  uint8_t channel;                    // number of channels 2 = stereo
 };
 
 const int16_t kNoPictureId = -1;
@@ -482,9 +482,7 @@ struct VideoContentMetrics {
 class AudioFrame {
  public:
   // Stereo, 32 kHz, 60 ms (2 * 32 * 60)
-  enum : size_t {
-    kMaxDataSizeSamples = 3840
-  };
+  static const size_t kMaxDataSizeSamples = 3840;
 
   enum VADActivity {
     kVadActive = 0,
@@ -500,15 +498,19 @@ class AudioFrame {
   };
 
   AudioFrame();
+  virtual ~AudioFrame() {}
 
   // Resets all members to their default state (except does not modify the
   // contents of |data_|).
   void Reset();
 
+  // |interleaved_| is not changed by this method.
   void UpdateFrame(int id, uint32_t timestamp, const int16_t* data,
                    size_t samples_per_channel, int sample_rate_hz,
                    SpeechType speech_type, VADActivity vad_activity,
-                   size_t num_channels = 1);
+                   int num_channels = 1, uint32_t energy = -1);
+
+  AudioFrame& Append(const AudioFrame& rhs);
 
   void CopyFrom(const AudioFrame& src);
 
@@ -516,6 +518,7 @@ class AudioFrame {
 
   AudioFrame& operator>>=(const int rhs);
   AudioFrame& operator+=(const AudioFrame& rhs);
+  AudioFrame& operator-=(const AudioFrame& rhs);
 
   int id_;
   // RTP timestamp of the first sample in the AudioFrame.
@@ -529,16 +532,20 @@ class AudioFrame {
   int16_t data_[kMaxDataSizeSamples];
   size_t samples_per_channel_;
   int sample_rate_hz_;
-  size_t num_channels_;
+  int num_channels_;
   SpeechType speech_type_;
   VADActivity vad_activity_;
+  // Note that there is no guarantee that |energy_| is correct. Any user of this
+  // member must verify that the value is correct.
+  // TODO(henrike) Remove |energy_|.
+  // See https://code.google.com/p/webrtc/issues/detail?id=3315.
+  uint32_t energy_;
+  bool interleaved_;
 
  private:
   RTC_DISALLOW_COPY_AND_ASSIGN(AudioFrame);
 };
 
-// TODO(henrik.lundin) Can we remove the call to data_()?
-// See https://bugs.chromium.org/p/webrtc/issues/detail?id=5647.
 inline AudioFrame::AudioFrame()
     : data_() {
   Reset();
@@ -556,6 +563,8 @@ inline void AudioFrame::Reset() {
   num_channels_ = 0;
   speech_type_ = kUndefined;
   vad_activity_ = kVadUnknown;
+  energy_ = 0xffffffff;
+  interleaved_ = true;
 }
 
 inline void AudioFrame::UpdateFrame(int id,
@@ -565,7 +574,8 @@ inline void AudioFrame::UpdateFrame(int id,
                                     int sample_rate_hz,
                                     SpeechType speech_type,
                                     VADActivity vad_activity,
-                                    size_t num_channels) {
+                                    int num_channels,
+                                    uint32_t energy) {
   id_ = id;
   timestamp_ = timestamp;
   samples_per_channel_ = samples_per_channel;
@@ -573,7 +583,9 @@ inline void AudioFrame::UpdateFrame(int id,
   speech_type_ = speech_type;
   vad_activity_ = vad_activity;
   num_channels_ = num_channels;
+  energy_ = energy;
 
+  assert(num_channels >= 0);
   const size_t length = samples_per_channel * num_channels;
   assert(length <= kMaxDataSizeSamples);
   if (data != NULL) {
@@ -595,7 +607,10 @@ inline void AudioFrame::CopyFrom(const AudioFrame& src) {
   speech_type_ = src.speech_type_;
   vad_activity_ = src.vad_activity_;
   num_channels_ = src.num_channels_;
+  energy_ = src.energy_;
+  interleaved_ = src.interleaved_;
 
+  assert(num_channels_ >= 0);
   const size_t length = samples_per_channel_ * num_channels_;
   assert(length <= kMaxDataSizeSamples);
   memcpy(data_, src.data_, sizeof(int16_t) * length);
@@ -615,6 +630,30 @@ inline AudioFrame& AudioFrame::operator>>=(const int rhs) {
   return *this;
 }
 
+inline AudioFrame& AudioFrame::Append(const AudioFrame& rhs) {
+  // Sanity check
+  assert((num_channels_ > 0) && (num_channels_ < 3));
+  assert(interleaved_ == rhs.interleaved_);
+  if ((num_channels_ > 2) || (num_channels_ < 1)) return *this;
+  if (num_channels_ != rhs.num_channels_) return *this;
+
+  if ((vad_activity_ == kVadActive) || rhs.vad_activity_ == kVadActive) {
+    vad_activity_ = kVadActive;
+  } else if (vad_activity_ == kVadUnknown || rhs.vad_activity_ == kVadUnknown) {
+    vad_activity_ = kVadUnknown;
+  }
+  if (speech_type_ != rhs.speech_type_) {
+    speech_type_ = kUndefined;
+  }
+
+  size_t offset = samples_per_channel_ * num_channels_;
+  for (size_t i = 0; i < rhs.samples_per_channel_ * rhs.num_channels_; i++) {
+    data_[offset + i] = rhs.data_[i];
+  }
+  samples_per_channel_ += rhs.samples_per_channel_;
+  return *this;
+}
+
 namespace {
 inline int16_t ClampToInt16(int32_t input) {
   if (input < -0x00008000) {
@@ -630,6 +669,7 @@ inline int16_t ClampToInt16(int32_t input) {
 inline AudioFrame& AudioFrame::operator+=(const AudioFrame& rhs) {
   // Sanity check
   assert((num_channels_ > 0) && (num_channels_ < 3));
+  assert(interleaved_ == rhs.interleaved_);
   if ((num_channels_ > 2) || (num_channels_ < 1)) return *this;
   if (num_channels_ != rhs.num_channels_) return *this;
 
@@ -663,6 +703,31 @@ inline AudioFrame& AudioFrame::operator+=(const AudioFrame& rhs) {
       data_[i] = ClampToInt16(wrap_guard);
     }
   }
+  energy_ = 0xffffffff;
+  return *this;
+}
+
+inline AudioFrame& AudioFrame::operator-=(const AudioFrame& rhs) {
+  // Sanity check
+  assert((num_channels_ > 0) && (num_channels_ < 3));
+  assert(interleaved_ == rhs.interleaved_);
+  if ((num_channels_ > 2) || (num_channels_ < 1)) return *this;
+
+  if ((samples_per_channel_ != rhs.samples_per_channel_) ||
+      (num_channels_ != rhs.num_channels_)) {
+    return *this;
+  }
+  if ((vad_activity_ != kVadPassive) || rhs.vad_activity_ != kVadPassive) {
+    vad_activity_ = kVadUnknown;
+  }
+  speech_type_ = kUndefined;
+
+  for (size_t i = 0; i < samples_per_channel_ * num_channels_; i++) {
+    int32_t wrap_guard =
+        static_cast<int32_t>(data_[i]) - static_cast<int32_t>(rhs.data_[i]);
+    data_[i] = ClampToInt16(wrap_guard);
+  }
+  energy_ = 0xffffffff;
   return *this;
 }
 

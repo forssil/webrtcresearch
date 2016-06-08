@@ -12,10 +12,10 @@
 
 #include "webrtc/modules/video_capture/video_capture_impl.h"
 
-namespace webrtc {
+namespace webrtc
+{
 
-rtc::scoped_refptr<VideoCaptureModule> VideoCaptureFactory::Create(
-    const int32_t id,
+VideoCaptureModule* VideoCaptureFactory::Create(const int32_t id,
     const char* deviceUniqueIdUTF8) {
 #if defined(ANDROID)
   return nullptr;
@@ -24,8 +24,7 @@ rtc::scoped_refptr<VideoCaptureModule> VideoCaptureFactory::Create(
 #endif
 }
 
-rtc::scoped_refptr<VideoCaptureModule> VideoCaptureFactory::Create(
-    const int32_t id,
+VideoCaptureModule* VideoCaptureFactory::Create(const int32_t id,
     VideoCaptureExternal*& externalCapture) {
   return videocapturemodule::VideoCaptureImpl::Create(id, externalCapture);
 }

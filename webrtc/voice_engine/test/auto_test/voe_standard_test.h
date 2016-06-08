@@ -17,6 +17,7 @@
 #include "gflags/gflags.h"
 #include "webrtc/voice_engine/include/voe_audio_processing.h"
 #include "webrtc/voice_engine/include/voe_base.h"
+#include "webrtc/voice_engine/include/voe_dtmf.h"
 #include "webrtc/voice_engine/include/voe_errors.h"
 #include "webrtc/voice_engine/include/voe_file.h"
 #include "webrtc/voice_engine/include/voe_rtp_rtcp.h"
@@ -42,6 +43,8 @@
 
 #ifdef WEBRTC_VOICE_ENGINE_NETEQ_STATS_API
 namespace webrtc {
+class CriticalSectionWrapper;
+class ThreadWrapper;
 class VoENetEqStats;
 }
 #endif
@@ -59,6 +62,7 @@ class SubAPIManager {
   SubAPIManager()
     : _base(true),
       _codec(false),
+      _dtmf(false),
       _externalMedia(false),
       _file(false),
       _hardware(false),
@@ -70,6 +74,9 @@ class SubAPIManager {
       _apm(false) {
 #ifdef WEBRTC_VOICE_ENGINE_CODEC_API
       _codec = true;
+#endif
+#ifdef WEBRTC_VOICE_ENGINE_DTMF_API
+      _dtmf = true;
 #endif
 #ifdef WEBRTC_VOICE_ENGINE_EXTERNAL_MEDIA_API
       _externalMedia = true;
@@ -101,7 +108,7 @@ class SubAPIManager {
   void DisplayStatus() const;
 
  private:
-  bool _base, _codec;
+  bool _base, _codec, _dtmf;
   bool _externalMedia, _file, _hardware;
   bool _netEqStats, _network, _rtp_rtcp, _videoSync, _volumeControl, _apm;
 };
@@ -136,6 +143,9 @@ class VoETestManager {
   }
   VoEVolumeControl* VolumeControlPtr() const {
     return voe_volume_control_;
+  }
+  VoEDtmf* DtmfPtr() const {
+    return voe_dtmf_;
   }
   VoERTP_RTCP* RTP_RTCPPtr() const {
     return voe_rtp_rtcp_;
@@ -176,6 +186,7 @@ class VoETestManager {
   VoiceEngine*           voice_engine_;
   VoEBase*               voe_base_;
   VoECodec*              voe_codec_;
+  VoEDtmf*               voe_dtmf_;
   VoEExternalMedia*      voe_xmedia_;
   VoEFile*               voe_file_;
   VoEHardware*           voe_hardware_;

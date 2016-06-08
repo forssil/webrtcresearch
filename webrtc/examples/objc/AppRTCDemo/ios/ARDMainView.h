@@ -15,12 +15,9 @@
 @protocol ARDMainViewDelegate <NSObject>
 
 - (void)mainView:(ARDMainView *)mainView
-             didInputRoom:(NSString *)room
-               isLoopback:(BOOL)isLoopback
-              isAudioOnly:(BOOL)isAudioOnly
-   shouldDelayAudioConfig:(BOOL)shouldDelayAudioConfig;
-
-- (void)mainViewDidToggleAudioLoop:(ARDMainView *)mainView;
+    didInputRoom:(NSString *)room
+      isLoopback:(BOOL)isLoopback
+     isAudioOnly:(BOOL)isAudioOnly;
 
 @end
 
@@ -29,7 +26,5 @@
 @interface ARDMainView : UIView
 
 @property(nonatomic, weak) id<ARDMainViewDelegate> delegate;
-// Updates the audio loop button as needed.
-@property(nonatomic, assign) BOOL isAudioLoopPlaying;
 
 @end

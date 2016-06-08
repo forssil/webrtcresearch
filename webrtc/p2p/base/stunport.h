@@ -95,25 +95,12 @@ class UDPPort : public Port {
     OnReadPacket(socket, data, size, remote_addr, packet_time);
     return true;
   }
-  virtual bool SupportsProtocol(const std::string& protocol) const {
-    return protocol == UDP_PROTOCOL_NAME;
-  }
 
   void set_stun_keepalive_delay(int delay) {
     stun_keepalive_delay_ = delay;
   }
   int stun_keepalive_delay() const {
     return stun_keepalive_delay_;
-  }
-
-  // Visible for testing.
-  int stun_keepalive_lifetime() const { return stun_keepalive_lifetime_; }
-  void set_stun_keepalive_lifetime(int lifetime) {
-    stun_keepalive_lifetime_ = lifetime;
-  }
-  // Returns true if there is a pending request with type |msg_type|.
-  bool HasPendingRequest(int msg_type) {
-    return requests_.HasRequest(msg_type);
   }
 
  protected:
@@ -227,7 +214,6 @@ class UDPPort : public Port {
   rtc::scoped_ptr<AddressResolver> resolver_;
   bool ready_;
   int stun_keepalive_delay_;
-  int stun_keepalive_lifetime_;
 
   // This is true by default and false when
   // PORTALLOCATOR_DISABLE_DEFAULT_LOCAL_CANDIDATE is specified.

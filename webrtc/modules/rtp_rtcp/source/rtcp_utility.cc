@@ -8,7 +8,9 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include "webrtc/base/checks.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_utility.h"
+#include "webrtc/modules/rtp_rtcp/source/rtcp_packet/transport_feedback.h"
 
 #include <assert.h>
 #include <math.h>   // ceil
@@ -17,7 +19,6 @@
 #include "webrtc/base/checks.h"
 #include "webrtc/base/logging.h"
 #include "webrtc/modules/rtp_rtcp/source/byte_io.h"
-#include "webrtc/modules/rtp_rtcp/source/rtcp_packet/transport_feedback.h"
 
 namespace webrtc {
 
@@ -41,8 +42,8 @@ void NackStats::ReportRequest(uint16_t sequence_number) {
 
 uint32_t MidNtp(uint32_t ntp_sec, uint32_t ntp_frac) {
   return (ntp_sec << 16) + (ntp_frac >> 16);
+}  // end RTCPUtility
 }
-}  // namespace RTCPUtility
 
 // RTCPParserV2 : currently read only
 RTCPUtility::RTCPParserV2::RTCPParserV2(const uint8_t* rtcpData,
@@ -230,7 +231,6 @@ RTCPUtility::RTCPParserV2::IterateTopLevel()
         {
           if (!ParseFBCommon(header)) {
             // Nothing supported found, continue to next block!
-            EndCurrentBlock();
             break;
           }
           return;

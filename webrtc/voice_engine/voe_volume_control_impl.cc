@@ -10,6 +10,7 @@
 
 #include "webrtc/voice_engine/voe_volume_control_impl.h"
 
+#include "webrtc/system_wrappers/include/critical_section_wrapper.h"
 #include "webrtc/system_wrappers/include/trace.h"
 #include "webrtc/voice_engine/channel.h"
 #include "webrtc/voice_engine/include/voe_errors.h"
@@ -215,7 +216,7 @@ int VoEVolumeControlImpl::SetInputMute(int channel, bool enable) {
                           "SetInputMute() failed to locate channel");
     return -1;
   }
-  return channelPtr->SetInputMute(enable);
+  return channelPtr->SetMute(enable);
 }
 
 int VoEVolumeControlImpl::GetInputMute(int channel, bool& enabled) {
@@ -233,7 +234,7 @@ int VoEVolumeControlImpl::GetInputMute(int channel, bool& enabled) {
                             "SetInputMute() failed to locate channel");
       return -1;
     }
-    enabled = channelPtr->InputMute();
+    enabled = channelPtr->Mute();
   }
   return 0;
 }

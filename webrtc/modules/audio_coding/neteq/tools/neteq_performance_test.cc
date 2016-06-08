@@ -10,11 +10,10 @@
 
 #include "webrtc/modules/audio_coding/neteq/tools/neteq_performance_test.h"
 
-#include "webrtc/modules/audio_coding/codecs/pcm16b/pcm16b.h"
+#include "webrtc/modules/audio_coding/codecs/pcm16b/include/pcm16b.h"
 #include "webrtc/modules/audio_coding/neteq/include/neteq.h"
 #include "webrtc/modules/audio_coding/neteq/tools/audio_loop.h"
 #include "webrtc/modules/audio_coding/neteq/tools/rtp_generator.h"
-#include "webrtc/modules/include/module_common_types.h"
 #include "webrtc/system_wrappers/include/clock.h"
 #include "webrtc/test/testsupport/fileutils.h"
 #include "webrtc/typedefs.h"
@@ -35,7 +34,6 @@ int64_t NetEqPerformanceTest::Run(int runtime_ms,
   const int kSampRateHz = 32000;
   const webrtc::NetEqDecoder kDecoderType =
       webrtc::NetEqDecoder::kDecoderPCM16Bswb32kHz;
-  const std::string kDecoderName = "pcm16-swb32";
   const int kPayloadType = 95;
 
   // Initialize NetEq instance.
@@ -43,7 +41,7 @@ int64_t NetEqPerformanceTest::Run(int runtime_ms,
   config.sample_rate_hz = kSampRateHz;
   NetEq* neteq = NetEq::Create(config);
   // Register decoder in |neteq|.
-  if (neteq->RegisterPayloadType(kDecoderType, kDecoderName, kPayloadType) != 0)
+  if (neteq->RegisterPayloadType(kDecoderType, kPayloadType) != 0)
     return -1;
 
   // Set up AudioLoop object.
@@ -75,7 +73,6 @@ int64_t NetEqPerformanceTest::Run(int runtime_ms,
   // Main loop.
   webrtc::Clock* clock = webrtc::Clock::GetRealTimeClock();
   int64_t start_time_ms = clock->TimeInMilliseconds();
-  AudioFrame out_frame;
   while (time_now_ms < runtime_ms) {
     while (packet_input_time_ms <= time_now_ms) {
       // Drop every N packets, where N = FLAGS_lossrate.
@@ -105,14 +102,21 @@ int64_t NetEqPerformanceTest::Run(int runtime_ms,
     }
 
     // Get output audio, but don't do anything with it.
-    int error = neteq->GetAudio(&out_frame);
+    static const int kMaxChannels = 1;
+    static const size_t kMaxSamplesPerMs = 48000 / 1000;
+    static const int kOutputBlockSizeMs = 10;
+    static const size_t kOutDataLen =
+        kOutputBlockSizeMs * kMaxSamplesPerMs * kMaxChannels;
+    int16_t out_data[kOutDataLen];
+    int num_channels;
+    size_t samples_per_channel;
+    int error = neteq->GetAudio(kOutDataLen, out_data, &samples_per_channel,
+                                &num_channels, NULL);
     if (error != NetEq::kOK)
       return -1;
 
-    assert(out_frame.samples_per_channel_ ==
-           static_cast<size_t>(kSampRateHz * 10 / 1000));
+    assert(samples_per_channel == static_cast<size_t>(kSampRateHz * 10 / 1000));
 
-    static const int kOutputBlockSizeMs = 10;
     time_now_ms += kOutputBlockSizeMs;
     if (time_now_ms >= runtime_ms / 2 && !drift_flipped) {
       // Apply negative drift second half of simulation.

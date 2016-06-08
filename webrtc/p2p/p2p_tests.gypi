@@ -36,16 +36,6 @@
           'client/portallocator_unittest.cc',
           'stunprober/stunprober_unittest.cc',
         ],
-        'conditions': [
-          ['use_quic==1', {
-            'sources': [
-              'quic/quicconnectionhelper_unittest.cc',
-              'quic/quicsession_unittest.cc',
-              'quic/quictransportchannel_unittest.cc',
-              'quic/reliablequicstream_unittest.cc',
-            ],
-          }],
-        ],
       },
     },
   ],

@@ -12,7 +12,6 @@
 #define WEBRTC_BASE_FAKENETWORK_H_
 
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "webrtc/base/network.h"
@@ -32,7 +31,7 @@ class FakeNetworkManager : public NetworkManagerBase,
  public:
   FakeNetworkManager() : thread_(Thread::Current()) {}
 
-  typedef std::vector<std::pair<SocketAddress, AdapterType>> IfaceList;
+  typedef std::vector<SocketAddress> IfaceList;
 
   void AddInterface(const SocketAddress& iface) {
     // Ensure a unique name for the interface if its name is not given.
@@ -40,22 +39,16 @@ class FakeNetworkManager : public NetworkManagerBase,
   }
 
   void AddInterface(const SocketAddress& iface, const std::string& if_name) {
-    AddInterface(iface, if_name, ADAPTER_TYPE_UNKNOWN);
-  }
-
-  void AddInterface(const SocketAddress& iface,
-                    const std::string& if_name,
-                    AdapterType type) {
     SocketAddress address(if_name, 0);
     address.SetResolvedIP(iface.ipaddr());
-    ifaces_.push_back(std::make_pair(address, type));
+    ifaces_.push_back(address);
     DoUpdateNetworks();
   }
 
   void RemoveInterface(const SocketAddress& iface) {
     for (IfaceList::iterator it = ifaces_.begin();
          it != ifaces_.end(); ++it) {
-      if (it->first.EqualIPs(iface)) {
+      if (it->EqualIPs(iface)) {
         ifaces_.erase(it);
         break;
       }
@@ -93,17 +86,18 @@ class FakeNetworkManager : public NetworkManagerBase,
     for (IfaceList::iterator it = ifaces_.begin();
          it != ifaces_.end(); ++it) {
       int prefix_length = 0;
-      if (it->first.ipaddr().family() == AF_INET) {
+      if (it->ipaddr().family() == AF_INET) {
         prefix_length = kFakeIPv4NetworkPrefixLength;
-      } else if (it->first.ipaddr().family() == AF_INET6) {
+      } else if (it->ipaddr().family() == AF_INET6) {
         prefix_length = kFakeIPv6NetworkPrefixLength;
       }
-      IPAddress prefix = TruncateIP(it->first.ipaddr(), prefix_length);
-      scoped_ptr<Network> net(new Network(it->first.hostname(),
-                                          it->first.hostname(), prefix,
-                                          prefix_length, it->second));
+      IPAddress prefix = TruncateIP(it->ipaddr(), prefix_length);
+      scoped_ptr<Network> net(new Network(it->hostname(),
+                                          it->hostname(),
+                                          prefix,
+                                          prefix_length));
       net->set_default_local_address_provider(this);
-      net->AddIP(it->first.ipaddr());
+      net->AddIP(it->ipaddr());
       networks.push_back(net.release());
     }
     bool changed;

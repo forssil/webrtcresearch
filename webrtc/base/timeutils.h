@@ -11,7 +11,6 @@
 #ifndef WEBRTC_BASE_TIMEUTILS_H_
 #define WEBRTC_BASE_TIMEUTILS_H_
 
-#include <ctime>
 #include <time.h>
 
 #include "webrtc/base/basictypes.h"
@@ -34,19 +33,8 @@ static const int64_t kJan1970AsNtpMillisecs = INT64_C(2208988800000);
 
 typedef uint32_t TimeStamp;
 
-// Returns the current time in milliseconds in 32 bits.
-uint32_t Time32();
-
-// Returns the current time in milliseconds in 64 bits.
-int64_t Time64();
-
 // Returns the current time in milliseconds.
-// TODO(honghaiz): Returns Time64 once majority of the webrtc code migrates to
-// 64-bit timestamp.
-inline uint32_t Time() {
-  return Time32();
-}
-
+uint32_t Time();
 // Returns the current time in microseconds.
 uint64_t TimeMicros();
 // Returns the current time in nanoseconds.
@@ -79,10 +67,6 @@ inline uint32_t TimeMin(uint32_t ts1, uint32_t ts2) {
 // timestamps.  The value is negative if 'later' occurs before 'earlier'.
 int32_t TimeDiff(uint32_t later, uint32_t earlier);
 
-// Number of milliseconds that would elapse between 'earlier' and 'later'
-// timestamps.  The value is negative if 'later' occurs before 'earlier'.
-int64_t TimeDiff64(int64_t later, int64_t earlier);
-
 // The number of milliseconds that have elapsed since 'earlier'.
 inline int32_t TimeSince(uint32_t earlier) {
   return TimeDiff(Time(), earlier);
@@ -108,11 +92,6 @@ class TimestampWrapAroundHandler {
   uint32_t last_ts_;
   int64_t num_wrap_;
 };
-
-// Convert from std::tm, which is relative to 1900-01-01 00:00 to number of
-// seconds from 1970-01-01 00:00 ("epoch").  Don't return time_t since that
-// is still 32 bits on many systems.
-int64_t TmToSeconds(const std::tm& tm);
 
 }  // namespace rtc
 

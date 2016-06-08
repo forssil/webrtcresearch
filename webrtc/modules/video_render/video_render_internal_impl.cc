@@ -10,7 +10,7 @@
 
 #include <assert.h>
 
-#include "webrtc/common_video/include/incoming_video_stream.h"
+#include "webrtc/common_video/interface/incoming_video_stream.h"
 #include "webrtc/engine_configurations.h"
 #include "webrtc/modules/video_render/i_video_render.h"
 #include "webrtc/modules/video_render/video_render_defines.h"
@@ -299,7 +299,11 @@ int64_t ModuleVideoRenderImpl::TimeUntilNextProcess()
     // Not used
     return 50;
 }
-void ModuleVideoRenderImpl::Process() {}
+int32_t ModuleVideoRenderImpl::Process()
+{
+    // Not used
+    return 0;
+}
 
 void*
 ModuleVideoRenderImpl::Window()
@@ -416,8 +420,7 @@ ModuleVideoRenderImpl::AddIncomingRenderStream(const uint32_t streamId,
     }
 
     // Create platform independant code
-    IncomingVideoStream* ptrIncomingStream =
-        new IncomingVideoStream(streamId, false);
+    IncomingVideoStream* ptrIncomingStream = new IncomingVideoStream(streamId);
     ptrIncomingStream->SetRenderCallback(ptrRenderCallback);
     VideoRenderCallback* moduleCallback = ptrIncomingStream->ModuleCallback();
 
@@ -791,8 +794,7 @@ int32_t ModuleVideoRenderImpl::SetStartImage(const uint32_t streamId,
         return -1;
     }
     assert (item->second != NULL);
-    item->second->SetStartImage(videoFrame);
-    return 0;
+    return item->second->SetStartImage(videoFrame);
 
 }
 
@@ -818,8 +820,7 @@ int32_t ModuleVideoRenderImpl::SetTimeoutImage(const uint32_t streamId,
         return -1;
     }
     assert(item->second != NULL);
-    item->second->SetTimeoutImage(videoFrame, timeout);
-    return 0;
+    return item->second->SetTimeoutImage(videoFrame, timeout);
 }
 
 }  // namespace webrtc

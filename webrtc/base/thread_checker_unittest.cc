@@ -15,6 +15,7 @@
 #include "webrtc/base/thread.h"
 #include "webrtc/base/thread_checker.h"
 #include "webrtc/base/scoped_ptr.h"
+#include "webrtc/test/testsupport/gtest_disable.h"
 
 // Duplicated from base/threading/thread_checker.h so that we can be
 // good citizens there and undef the macro.

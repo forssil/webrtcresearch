@@ -12,7 +12,6 @@
 #define WEBRTC_MODULES_AUDIO_CODING_NETEQ_DECODER_DATABASE_H_
 
 #include <map>
-#include <string>
 
 #include "webrtc/base/constructormagic.h"
 #include "webrtc/common_types.h"  // NULL
@@ -36,28 +35,25 @@ class DecoderDatabase {
 
   // Struct used to store decoder info in the database.
   struct DecoderInfo {
-    DecoderInfo() = default;
+    // Constructors.
+    DecoderInfo()
+        : codec_type(NetEqDecoder::kDecoderArbitrary),
+          fs_hz(8000),
+          decoder(NULL),
+          external(false) {}
     DecoderInfo(NetEqDecoder ct, int fs, AudioDecoder* dec, bool ext)
-        : DecoderInfo(ct, "", fs, dec, ext) {}
-    DecoderInfo(NetEqDecoder ct,
-                const std::string& nm,
-                int fs,
-                AudioDecoder* dec,
-                bool ext)
         : codec_type(ct),
-          name(nm),
           fs_hz(fs),
-          rtp_sample_rate_hz(fs),
           decoder(dec),
-          external(ext) {}
+          external(ext) {
+    }
+    // Destructor. (Defined in decoder_database.cc.)
     ~DecoderInfo();
 
-    NetEqDecoder codec_type = NetEqDecoder::kDecoderArbitrary;
-    std::string name;
-    int fs_hz = 8000;
-    int rtp_sample_rate_hz = 8000;
-    AudioDecoder* decoder = nullptr;
-    bool external = false;
+    NetEqDecoder codec_type;
+    int fs_hz;
+    AudioDecoder* decoder;
+    bool external;
   };
 
   // Maximum value for 8 bits, and an invalid RTP payload type (since it is
@@ -79,21 +75,16 @@ class DecoderDatabase {
   // using InsertExternal().
   virtual void Reset();
 
-  // Registers |rtp_payload_type| as a decoder of type |codec_type|. The |name|
-  // is only used to populate the name field in the DecoderInfo struct in the
-  // database, and can be arbitrary (including empty). Returns kOK on success;
-  // otherwise an error code.
+  // Registers |rtp_payload_type| as a decoder of type |codec_type|. Returns
+  // kOK on success; otherwise an error code.
   virtual int RegisterPayload(uint8_t rtp_payload_type,
-                              NetEqDecoder codec_type,
-                              const std::string& name);
+                              NetEqDecoder codec_type);
 
   // Registers an externally created AudioDecoder object, and associates it
   // as a decoder of type |codec_type| with |rtp_payload_type|.
   virtual int InsertExternal(uint8_t rtp_payload_type,
                              NetEqDecoder codec_type,
-                             const std::string& codec_name,
-                             int fs_hz,
-                             AudioDecoder* decoder);
+                             int fs_hz, AudioDecoder* decoder);
 
   // Removes the entry for |rtp_payload_type| from the database.
   // Returns kDecoderNotFound or kOK depending on the outcome of the operation.

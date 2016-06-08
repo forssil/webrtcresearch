@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "webrtc/common_audio/ring_buffer.h"
 #include "webrtc/common_audio/signal_processing/include/real_fft.h"
@@ -364,27 +365,6 @@ static void ResetAdaptiveChannelC(AecmCore* aecm) {
     aecm->channelAdapt32[i] = (int32_t)aecm->channelStored[i] << 16;
 }
 
-// Initialize function pointers for ARM Neon platform.
-#if (defined WEBRTC_DETECT_NEON || defined WEBRTC_HAS_NEON)
-static void WebRtcAecm_InitNeon(void)
-{
-  WebRtcAecm_StoreAdaptiveChannel = WebRtcAecm_StoreAdaptiveChannelNeon;
-  WebRtcAecm_ResetAdaptiveChannel = WebRtcAecm_ResetAdaptiveChannelNeon;
-  WebRtcAecm_CalcLinearEnergies = WebRtcAecm_CalcLinearEnergiesNeon;
-}
-#endif
-
-// Initialize function pointers for MIPS platform.
-#if defined(MIPS32_LE)
-static void WebRtcAecm_InitMips(void)
-{
-#if defined(MIPS_DSP_R1_LE)
-  WebRtcAecm_StoreAdaptiveChannel = WebRtcAecm_StoreAdaptiveChannel_mips;
-  WebRtcAecm_ResetAdaptiveChannel = WebRtcAecm_ResetAdaptiveChannel_mips;
-#endif
-  WebRtcAecm_CalcLinearEnergies = WebRtcAecm_CalcLinearEnergies_mips;
-}
-#endif
 
 // WebRtcAecm_InitCore(...)
 //
@@ -521,19 +501,6 @@ int WebRtcAecm_InitCore(AecmCore* const aecm, int samplingFreq) {
     }
     aecm->aecmfloat.SmoothFactor=0.6f;
 #endif
-#ifdef WEBRTC_DETECT_NEON
-    uint64_t features = WebRtc_GetCPUFeaturesARM();
-    if ((features & kCPUFeatureNEON) != 0)
-    {
-      WebRtcAecm_InitNeon();
-    }
-#elif defined(WEBRTC_HAS_NEON)
-    WebRtcAecm_InitNeon();
-#endif
-
-#if defined(MIPS32_LE)
-    WebRtcAecm_InitMips();
-#endif
     return 0;
 }
 
@@ -563,6 +530,10 @@ void WebRtcAecm_FreeCore(AecmCore* aecm) {
     free(aecm);
 }
 
+// test dump
+//#define AECM_DUMP_DEBUG
+
+
 int WebRtcAecm_ProcessFrame(AecmCore* aecm,
                             const int16_t* farend,
                             const int16_t* nearendNoisy,
@@ -574,11 +545,60 @@ int WebRtcAecm_ProcessFrame(AecmCore* aecm,
     int16_t farFrame[FRAME_LEN];
     const int16_t* out_ptr = NULL;
     int size = 0;
+#ifdef AECM_DUMP_DEBUG
+    static FILE* pFarEndFile = NULL;
+    static FILE* pFarEndFetchFile = NULL;
+    static FILE* pNearEndFile = NULL;
+    static FILE* pResultEndFile = NULL;
 
+    if (pFarEndFile == NULL)
+    {
+      pFarEndFile = fopen("/sdcard/farend.pcm", "wb");
+      /* code */
+    }
+
+    if (pFarEndFetchFile == NULL)
+    {
+      pFarEndFetchFile = fopen("/sdcard/farendfetch.pcm", "wb");
+      /* code */
+    }
+
+    if (pNearEndFile == NULL)
+    {
+      pNearEndFile = fopen("/sdcard/nearend.pcm", "wb");
+      /* code */
+    }
+
+    if (pResultEndFile == NULL)
+    {
+      pResultEndFile = fopen("/sdcard/result.pcm", "wb");
+      /* code */
+    }
+
+    if (pNearEndFile && nearendNoisy)
+    {
+      fwrite(nearendNoisy, sizeof(int16_t), FRAME_LEN, pNearEndFile);
+      /* code */
+    }
+    if (pFarEndFile && farend)
+    {
+      fwrite(farend, sizeof(int16_t), FRAME_LEN, pFarEndFile);
+      /* code */
+    }
+
+#endif
     // Buffer the current frame.
     // Fetch an older one corresponding to the delay.
     WebRtcAecm_BufferFarFrame(aecm, farend, FRAME_LEN);
     WebRtcAecm_FetchFarFrame(aecm, farFrame, FRAME_LEN, aecm->knownDelay);
+
+#ifdef AECM_DUMP_DEBUG
+    if (pFarEndFetchFile)
+    {
+      fwrite(farFrame, sizeof(int16_t), FRAME_LEN, pFarEndFetchFile);
+      /* code */
+    }
+#endif
 
     // Buffer the synchronized far and near frames,
     // to pass the smaller blocks individually.
@@ -679,6 +699,14 @@ int WebRtcAecm_ProcessFrame(AecmCore* aecm,
       // ReadBuffer() hasn't copied to |out| in this case.
       memcpy(out, out_ptr, FRAME_LEN * sizeof(int16_t));
     }
+
+#ifdef AECM_DUMP_DEBUG
+    if (pResultEndFile && out)
+    {
+      fwrite(out, sizeof(int16_t), FRAME_LEN, pResultEndFile);
+      /* code */
+    }
+#endif
 
     return 0;
 }

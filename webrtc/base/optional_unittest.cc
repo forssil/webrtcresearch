@@ -28,14 +28,14 @@ namespace {
 // constructor) or given as an argument (explicit constructor).
 class Logger {
  public:
-  Logger() : id_(g_next_id++), origin_(id_) { Log("default constructor"); }
-  explicit Logger(int origin) : id_(g_next_id++), origin_(origin) {
+  Logger() : id_(next_id_++), origin_(id_) { Log("default constructor"); }
+  explicit Logger(int origin) : id_(next_id_++), origin_(origin) {
     Log("explicit constructor");
   }
-  Logger(const Logger& other) : id_(g_next_id++), origin_(other.origin_) {
+  Logger(const Logger& other) : id_(next_id_++), origin_(other.origin_) {
     LogFrom("copy constructor", other);
   }
-  Logger(Logger&& other) : id_(g_next_id++), origin_(other.origin_) {
+  Logger(Logger&& other) : id_(next_id_++), origin_(other.origin_) {
     LogFrom("move constructor", other);
   }
   ~Logger() { Log("destructor"); }
@@ -65,38 +65,38 @@ class Logger {
   void Foo() { Log("Foo()"); }
   void Foo() const { Log("Foo() const"); }
   static rtc::scoped_ptr<std::vector<std::string>> Setup() {
-    rtc::scoped_ptr<std::vector<std::string>> s(new std::vector<std::string>);
-    g_log = s.get();
-    g_next_id = 0;
+    auto s = rtc_make_scoped_ptr(new std::vector<std::string>);
+    Logger::log_ = s.get();
+    Logger::next_id_ = 0;
     return s;
   }
 
  private:
   int id_;
   int origin_;
-  static std::vector<std::string>* g_log;
-  static int g_next_id;
+  static std::vector<std::string>* log_;
+  static int next_id_;
   void Log(const char* msg) const {
     std::ostringstream oss;
     oss << id_ << ':' << origin_ << ". " << msg;
-    g_log->push_back(oss.str());
+    log_->push_back(oss.str());
   }
   void LogFrom(const char* msg, const Logger& other) const {
     std::ostringstream oss;
     oss << id_ << ':' << origin_ << ". " << msg << " (from " << other.id_ << ':'
         << other.origin_ << ")";
-    g_log->push_back(oss.str());
+    log_->push_back(oss.str());
   }
   static void Log2(const char* msg, const Logger& a, const Logger& b) {
     std::ostringstream oss;
     oss << msg << ' ' << a.id_ << ':' << a.origin_ << ", " << b.id_ << ':'
         << b.origin_;
-    g_log->push_back(oss.str());
+    log_->push_back(oss.str());
   }
 };
 
-std::vector<std::string>* Logger::g_log = nullptr;
-int Logger::g_next_id = 0;
+std::vector<std::string>* Logger::log_ = nullptr;
+int Logger::next_id_ = 0;
 
 // Append all the other args to the vector pointed to by the first arg.
 template <typename T>
@@ -162,7 +162,7 @@ TEST(OptionalTest, TestConstructMoveEmpty) {
   {
     Optional<Logger> x;
     EXPECT_FALSE(x);
-    auto y = std::move(x);
+    auto y = static_cast<Optional<Logger>&&>(x);
     EXPECT_FALSE(y);
   }
   EXPECT_EQ(V("0:0. default constructor", "1:0. move constructor (from 0:0)",
@@ -176,7 +176,7 @@ TEST(OptionalTest, TestConstructMoveFull) {
     Optional<Logger> x(Logger(17));
     EXPECT_TRUE(x);
     log->push_back("---");
-    auto y = std::move(x);
+    auto y = static_cast<Optional<Logger>&&>(x);
     EXPECT_TRUE(x);
     EXPECT_TRUE(y);
     log->push_back("---");
@@ -289,7 +289,7 @@ TEST(OptionalTest, TestMoveAssignToEmptyFromEmpty) {
   auto log = Logger::Setup();
   {
     Optional<Logger> x, y;
-    x = std::move(y);
+    x = static_cast<Optional<Logger>&&>(y);
   }
   EXPECT_EQ(
       V("0:0. default constructor", "1:1. default constructor",
@@ -303,7 +303,7 @@ TEST(OptionalTest, TestMoveAssignToFullFromEmpty) {
     Optional<Logger> x(Logger(17));
     Optional<Logger> y;
     log->push_back("---");
-    x = std::move(y);
+    x = static_cast<Optional<Logger>&&>(y);
     log->push_back("---");
   }
   EXPECT_EQ(
@@ -320,7 +320,7 @@ TEST(OptionalTest, TestMoveAssignToEmptyFromFull) {
     Optional<Logger> x;
     Optional<Logger> y(Logger(17));
     log->push_back("---");
-    x = std::move(y);
+    x = static_cast<Optional<Logger>&&>(y);
     log->push_back("---");
   }
   EXPECT_EQ(V("0:0. default constructor", "1:17. explicit constructor",
@@ -336,7 +336,7 @@ TEST(OptionalTest, TestMoveAssignToFullFromFull) {
     Optional<Logger> x(Logger(17));
     Optional<Logger> y(Logger(42));
     log->push_back("---");
-    x = std::move(y);
+    x = static_cast<Optional<Logger>&&>(y);
     log->push_back("---");
   }
   EXPECT_EQ(
@@ -354,7 +354,7 @@ TEST(OptionalTest, TestMoveAssignToEmptyFromT) {
     Optional<Logger> x;
     Logger y(17);
     log->push_back("---");
-    x = Optional<Logger>(std::move(y));
+    x = Optional<Logger>(static_cast<Logger&&>(y));
     log->push_back("---");
   }
   EXPECT_EQ(V("0:0. default constructor", "1:17. explicit constructor", "---",
@@ -370,7 +370,7 @@ TEST(OptionalTest, TestMoveAssignToFullFromT) {
     Optional<Logger> x(Logger(17));
     Logger y(42);
     log->push_back("---");
-    x = Optional<Logger>(std::move(y));
+    x = Optional<Logger>(static_cast<Logger&&>(y));
     log->push_back("---");
   }
   EXPECT_EQ(
@@ -390,13 +390,13 @@ TEST(OptionalTest, TestDereference) {
     log->push_back("---");
     x->Foo();
     y->Foo();
-    std::move(x)->Foo();
-    std::move(y)->Foo();
+    static_cast<Optional<Logger>&&>(x)->Foo();
+    static_cast<const Optional<Logger>&&>(y)->Foo();
     log->push_back("---");
     (*x).Foo();
     (*y).Foo();
-    (*std::move(x)).Foo();
-    (*std::move(y)).Foo();
+    (*static_cast<Optional<Logger>&&>(x)).Foo();
+    (*static_cast<const Optional<Logger>&&>(y)).Foo();
     log->push_back("---");
   }
   EXPECT_EQ(V("0:42. explicit constructor",

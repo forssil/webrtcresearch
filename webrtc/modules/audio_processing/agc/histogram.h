@@ -13,8 +13,7 @@
 
 #include <string.h>
 
-#include <memory>
-
+#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/typedefs.h"
 
 namespace webrtc {
@@ -74,9 +73,9 @@ class Histogram {
   int64_t bin_count_q10_[kHistSize];
 
   // Circular buffer for probabilities
-  std::unique_ptr<int[]> activity_probability_;
+  rtc::scoped_ptr<int[]> activity_probability_;
   // Circular buffer for histogram-indices of probabilities.
-  std::unique_ptr<int[]> hist_bin_index_;
+  rtc::scoped_ptr<int[]> hist_bin_index_;
   // Current index of circular buffer, where the newest data will be written to,
   // therefore, pointing to the oldest data if buffer is full.
   int buffer_index_;

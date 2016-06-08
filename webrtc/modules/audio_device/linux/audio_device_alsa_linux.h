@@ -11,12 +11,10 @@
 #ifndef WEBRTC_AUDIO_DEVICE_AUDIO_DEVICE_ALSA_LINUX_H
 #define WEBRTC_AUDIO_DEVICE_AUDIO_DEVICE_ALSA_LINUX_H
 
-#include <memory>
-
-#include "webrtc/base/platform_thread.h"
 #include "webrtc/modules/audio_device/audio_device_generic.h"
 #include "webrtc/modules/audio_device/linux/audio_mixer_manager_alsa_linux.h"
 #include "webrtc/system_wrappers/include/critical_section_wrapper.h"
+#include "webrtc/system_wrappers/include/thread_wrapper.h"
 
 #if defined(USE_X11)
 #include <X11/Xlib.h>
@@ -187,10 +185,8 @@ private:
 
     CriticalSectionWrapper& _critSect;
 
-    // TODO(pbos): Make plain members and start/stop instead of resetting these
-    // pointers. A thread can be reused.
-    std::unique_ptr<rtc::PlatformThread> _ptrThreadRec;
-    std::unique_ptr<rtc::PlatformThread> _ptrThreadPlay;
+    rtc::scoped_ptr<ThreadWrapper> _ptrThreadRec;
+    rtc::scoped_ptr<ThreadWrapper> _ptrThreadPlay;
 
     int32_t _id;
 

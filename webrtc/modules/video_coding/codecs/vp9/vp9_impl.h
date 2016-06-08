@@ -9,11 +9,8 @@
  *
  */
 
-#ifndef WEBRTC_MODULES_VIDEO_CODING_CODECS_VP9_VP9_IMPL_H_
-#define WEBRTC_MODULES_VIDEO_CODING_CODECS_VP9_VP9_IMPL_H_
-
-#include <memory>
-#include <vector>
+#ifndef WEBRTC_MODULES_VIDEO_CODING_CODECS_VP9_IMPL_H_
+#define WEBRTC_MODULES_VIDEO_CODING_CODECS_VP9_IMPL_H_
 
 #include "webrtc/modules/video_coding/codecs/vp9/include/vp9.h"
 #include "webrtc/modules/video_coding/codecs/vp9/vp9_frame_buffer_pool.h"
@@ -49,8 +46,6 @@ class VP9EncoderImpl : public VP9Encoder {
   int SetRates(uint32_t new_bitrate_kbit, uint32_t frame_rate) override;
 
   void OnDroppedFrame() override {}
-
-  const char* ImplementationName() const override;
 
   struct LayerFrameRefSettings {
     int8_t upd_buf = -1;   // -1 - no update,    0..7 - update buffer 0..7
@@ -129,8 +124,9 @@ class VP9EncoderImpl : public VP9Encoder {
   int64_t frames_encoded_;
   uint8_t num_ref_pics_[kMaxVp9NumberOfSpatialLayers];
   uint8_t p_diff_[kMaxVp9NumberOfSpatialLayers][kMaxVp9RefPics];
-  std::unique_ptr<ScreenshareLayersVP9> spatial_layer_;
+  rtc::scoped_ptr<ScreenshareLayersVP9> spatial_layer_;
 };
+
 
 class VP9DecoderImpl : public VP9Decoder {
  public:
@@ -150,12 +146,10 @@ class VP9DecoderImpl : public VP9Decoder {
 
   int Release() override;
 
-  const char* ImplementationName() const override;
+  int Reset() override;
 
  private:
-  int ReturnFrame(const vpx_image_t* img,
-                  uint32_t timestamp,
-                  int64_t ntp_time_ms);
+  int ReturnFrame(const vpx_image_t* img, uint32_t timeStamp);
 
   // Memory pool used to share buffers between libvpx and webrtc.
   Vp9FrameBufferPool frame_buffer_pool_;
@@ -167,4 +161,4 @@ class VP9DecoderImpl : public VP9Decoder {
 };
 }  // namespace webrtc
 
-#endif  // WEBRTC_MODULES_VIDEO_CODING_CODECS_VP9_VP9_IMPL_H_
+#endif  // WEBRTC_MODULES_VIDEO_CODING_CODECS_VP9_IMPL_H_

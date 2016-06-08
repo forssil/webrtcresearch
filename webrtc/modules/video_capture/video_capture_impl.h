@@ -15,7 +15,6 @@
  * video_capture_impl.h
  */
 
-#include "webrtc/base/scoped_ref_ptr.h"
 #include "webrtc/common_video/libyuv/include/webrtc_libyuv.h"
 #include "webrtc/common_video/rotation.h"
 #include "webrtc/modules/video_capture/video_capture.h"
@@ -39,9 +38,8 @@ public:
      *   id              - unique identifier of this video capture module object
      *   deviceUniqueIdUTF8 -  name of the device. Available names can be found by using GetDeviceName
      */
-   static rtc::scoped_refptr<VideoCaptureModule> Create(
-       const int32_t id,
-       const char* deviceUniqueIdUTF8);
+    static VideoCaptureModule* Create(const int32_t id,
+                                      const char* deviceUniqueIdUTF8);
 
     /*
      *   Create a video capture module object used for external capture.
@@ -49,9 +47,8 @@ public:
      *   id              - unique identifier of this video capture module object
      *   externalCapture - [out] interface to call when a new frame is captured.
      */
-   static rtc::scoped_refptr<VideoCaptureModule> Create(
-       const int32_t id,
-       VideoCaptureExternal*& externalCapture);
+    static VideoCaptureModule* Create(const int32_t id,
+                                      VideoCaptureExternal*& externalCapture);
 
     static DeviceInfo* CreateDeviceInfo(const int32_t id);
 
@@ -82,7 +79,7 @@ public:
 
     // Module handling
     virtual int64_t TimeUntilNextProcess();
-    virtual void Process();
+    virtual int32_t Process();
 
     // Implement VideoCaptureExternal
     // |capture_time| must be specified in NTP time format in milliseconds.

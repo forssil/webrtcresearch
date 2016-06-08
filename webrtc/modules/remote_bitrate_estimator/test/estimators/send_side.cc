@@ -101,8 +101,9 @@ void FullBweSender::OnPacketsSent(const Packets& packets) {
   }
 }
 
-void FullBweSender::OnReceiveBitrateChanged(const std::vector<uint32_t>& ssrcs,
-                                            uint32_t bitrate) {
+void FullBweSender::OnReceiveBitrateChanged(
+    const std::vector<unsigned int>& ssrcs,
+    unsigned int bitrate) {
   feedback_observer_->OnReceivedEstimatedBitrate(bitrate);
 }
 
@@ -110,9 +111,9 @@ int64_t FullBweSender::TimeUntilNextProcess() {
   return bitrate_controller_->TimeUntilNextProcess();
 }
 
-void FullBweSender::Process() {
+int FullBweSender::Process() {
   rbe_->Process();
-  bitrate_controller_->Process();
+  return bitrate_controller_->Process();
 }
 
 SendSideBweReceiver::SendSideBweReceiver(int flow_id)

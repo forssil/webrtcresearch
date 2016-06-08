@@ -13,7 +13,6 @@
 #include <algorithm>
 #include <cstdio>
 #include <limits>
-#include <sstream>
 
 #include "webrtc/base/checks.h"
 #include "webrtc/base/safe_conversions.h"
@@ -24,7 +23,7 @@ namespace webrtc {
 
 // We write 16-bit PCM WAV files.
 static const WavFormat kWavFormat = kWavFormatPcm;
-static const size_t kBytesPerSample = 2;
+static const int kBytesPerSample = 2;
 
 // Doesn't take ownership of the file handle and won't close it.
 class ReadableWavFile : public ReadableWav {
@@ -38,21 +37,13 @@ class ReadableWavFile : public ReadableWav {
   FILE* file_;
 };
 
-std::string WavFile::FormatAsString() const {
-  std::ostringstream s;
-  s << "Sample rate: " << sample_rate() << " Hz, Channels: " << num_channels()
-    << ", Duration: "
-    << (1.f * num_samples()) / (num_channels() * sample_rate()) << " s";
-  return s.str();
-}
-
 WavReader::WavReader(const std::string& filename)
     : file_handle_(fopen(filename.c_str(), "rb")) {
-  RTC_CHECK(file_handle_) << "Could not open wav file for reading.";
+  RTC_CHECK(file_handle_ && "Could not open wav file for reading.");
 
   ReadableWavFile readable(file_handle_);
   WavFormat format;
-  size_t bytes_per_sample;
+  int bytes_per_sample;
   RTC_CHECK(ReadWavHeader(&readable, &num_channels_, &sample_rate_, &format,
                           &bytes_per_sample, &num_samples_));
   num_samples_remaining_ = num_samples_;
@@ -64,30 +55,19 @@ WavReader::~WavReader() {
   Close();
 }
 
-int WavReader::sample_rate() const {
-  return sample_rate_;
-}
-
-size_t WavReader::num_channels() const {
-  return num_channels_;
-}
-
-size_t WavReader::num_samples() const {
-  return num_samples_;
-}
-
 size_t WavReader::ReadSamples(size_t num_samples, int16_t* samples) {
 #ifndef WEBRTC_ARCH_LITTLE_ENDIAN
 #error "Need to convert samples to big-endian when reading from WAV file"
 #endif
   // There could be metadata after the audio; ensure we don't read it.
-  num_samples = std::min(num_samples, num_samples_remaining_);
+  num_samples = std::min(rtc::checked_cast<uint32_t>(num_samples),
+                         num_samples_remaining_);
   const size_t read =
       fread(samples, sizeof(*samples), num_samples, file_handle_);
   // If we didn't read what was requested, ensure we've reached the EOF.
   RTC_CHECK(read == num_samples || feof(file_handle_));
   RTC_CHECK_LE(read, num_samples_remaining_);
-  num_samples_remaining_ -= read;
+  num_samples_remaining_ -= rtc::checked_cast<uint32_t>(read);
   return read;
 }
 
@@ -111,12 +91,12 @@ void WavReader::Close() {
 }
 
 WavWriter::WavWriter(const std::string& filename, int sample_rate,
-                     size_t num_channels)
+                     int num_channels)
     : sample_rate_(sample_rate),
       num_channels_(num_channels),
       num_samples_(0),
       file_handle_(fopen(filename.c_str(), "wb")) {
-  RTC_CHECK(file_handle_) << "Could not open wav file for writing.";
+  RTC_CHECK(file_handle_ && "Could not open wav file for writing.");
   RTC_CHECK(CheckWavParameters(num_channels_, sample_rate_, kWavFormat,
                                kBytesPerSample, num_samples_));
 
@@ -130,18 +110,6 @@ WavWriter::~WavWriter() {
   Close();
 }
 
-int WavWriter::sample_rate() const {
-  return sample_rate_;
-}
-
-size_t WavWriter::num_channels() const {
-  return num_channels_;
-}
-
-size_t WavWriter::num_samples() const {
-  return num_samples_;
-}
-
 void WavWriter::WriteSamples(const int16_t* samples, size_t num_samples) {
 #ifndef WEBRTC_ARCH_LITTLE_ENDIAN
 #error "Need to convert samples to little-endian when writing to WAV file"
@@ -149,8 +117,9 @@ void WavWriter::WriteSamples(const int16_t* samples, size_t num_samples) {
   const size_t written =
       fwrite(samples, sizeof(*samples), num_samples, file_handle_);
   RTC_CHECK_EQ(num_samples, written);
-  num_samples_ += written;
-  RTC_CHECK(num_samples_ >= written);  // detect size_t overflow
+  num_samples_ += static_cast<uint32_t>(written);
+  RTC_CHECK(written <= std::numeric_limits<uint32_t>::max() ||
+            num_samples_ >= written);  // detect uint32_t overflow
 }
 
 void WavWriter::WriteSamples(const float* samples, size_t num_samples) {
@@ -177,7 +146,7 @@ void WavWriter::Close() {
 
 rtc_WavWriter* rtc_WavOpen(const char* filename,
                            int sample_rate,
-                           size_t num_channels) {
+                           int num_channels) {
   return reinterpret_cast<rtc_WavWriter*>(
       new webrtc::WavWriter(filename, sample_rate, num_channels));
 }
@@ -196,10 +165,10 @@ int rtc_WavSampleRate(const rtc_WavWriter* wf) {
   return reinterpret_cast<const webrtc::WavWriter*>(wf)->sample_rate();
 }
 
-size_t rtc_WavNumChannels(const rtc_WavWriter* wf) {
+int rtc_WavNumChannels(const rtc_WavWriter* wf) {
   return reinterpret_cast<const webrtc::WavWriter*>(wf)->num_channels();
 }
 
-size_t rtc_WavNumSamples(const rtc_WavWriter* wf) {
+uint32_t rtc_WavNumSamples(const rtc_WavWriter* wf) {
   return reinterpret_cast<const webrtc::WavWriter*>(wf)->num_samples();
 }

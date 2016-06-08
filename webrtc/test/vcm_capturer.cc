@@ -79,13 +79,17 @@ void VcmCapturer::Stop() {
 }
 
 void VcmCapturer::Destroy() {
-  if (!vcm_)
+  if (vcm_ == NULL) {
     return;
+  }
 
   vcm_->StopCapture();
   vcm_->DeRegisterCaptureDataCallback();
-  // Release reference to VCM.
-  vcm_ = nullptr;
+  vcm_->Release();
+
+  // TODO(pbos): How do I destroy the VideoCaptureModule? This still leaves
+  //             non-freed memory.
+  vcm_ = NULL;
 }
 
 VcmCapturer::~VcmCapturer() { Destroy(); }
