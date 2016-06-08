@@ -512,7 +512,15 @@ int WebRtcAecm_InitCore(AecmCore* const aecm, int samplingFreq) {
     WebRtcAecm_CalcLinearEnergies = CalcLinearEnergiesC;
     WebRtcAecm_StoreAdaptiveChannel = StoreAdaptiveChannelC;
     WebRtcAecm_ResetAdaptiveChannel = ResetAdaptiveChannelC;
-
+#ifdef FLOATPRO
+    aecm->enablefloatpro = 1;
+    memset(&aecm->aecmfloat, 0, sizeof(aecm->aecmfloat));
+    for (i=0; i<PART_LEN1; i++) {
+        aecm->aecmfloat.NearNoise[i]=NOISEGATE*10000;
+        aecm->aecmfloat.FarNoise[i]=NOISEGATE*10000;
+    }
+    aecm->aecmfloat.SmoothFactor=0.6f;
+#endif
 #ifdef WEBRTC_DETECT_NEON
     uint64_t features = WebRtc_GetCPUFeaturesARM();
     if ((features & kCPUFeatureNEON) != 0)
@@ -604,24 +612,54 @@ int WebRtcAecm_ProcessFrame(AecmCore* aecm,
                               (void**) &near_clean_block_ptr,
                               near_clean_block,
                               PART_LEN);
-            if (WebRtcAecm_ProcessBlock(aecm,
+#ifdef FLOATPRO
+            if (1==aecm->enablefloatpro) {
+                if(WebRtcAecm_ProcessBlockwithFloat(aecm,
+                                        far_block_ptr,
+                                        near_noisy_block_ptr,
+                                        near_clean_block_ptr,
+                                                    outBlock) == -1){
+                    return -1;
+                }
+            }
+            else {
+#endif
+                if (WebRtcAecm_ProcessBlock(aecm,
                                         far_block_ptr,
                                         near_noisy_block_ptr,
                                         near_clean_block_ptr,
                                         outBlock) == -1)
-            {
-                return -1;
+                {
+                    return -1;
+                }
+#ifdef FLOATPRO
             }
+#endif
         } else
         {
-            if (WebRtcAecm_ProcessBlock(aecm,
+#ifdef FLOATPRO
+            if (1==aecm->enablefloatpro) {
+                if(WebRtcAecm_ProcessBlockwithFloat(aecm,
+                                                    far_block_ptr,
+                                                    near_noisy_block_ptr,
+                                                    NULL,
+                                                    outBlock) == -1){
+                    return -1;
+                }
+            }
+            else {
+#endif
+                if (WebRtcAecm_ProcessBlock(aecm,
                                         far_block_ptr,
                                         near_noisy_block_ptr,
                                         NULL,
                                         outBlock) == -1)
-            {
-                return -1;
+                {
+                    return -1;
+                }
+#ifdef FLOATPRO
             }
+#endif
         }
 
         WebRtc_WriteBuffer(aecm->outFrameBuf, outBlock, PART_LEN);

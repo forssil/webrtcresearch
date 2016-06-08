@@ -25,13 +25,18 @@ int main(int argc, const char * argv[]) {
         printf("Not Enough Input Parameters!");
         return 0;
     }
-    read_file_name1 = argv[1];
-    read_file_name2 = argv[2];
-    write_file_name = argv[3];
-    
-
-    
-    
+  //  read_file_name1 = argv[1];
+  //  read_file_name2 = argv[2];
+  //  write_file_name = argv[3];
+    //s6
+    read_file_name1 = "/Users/huagao/works/sample/with_near_end_5cm_to_MAC/input/near16_com.wav";
+    read_file_name2 = "/Users/huagao/works/sample/with_near_end_5cm_to_MAC/input/far16.wav";
+    write_file_name = "/Users/huagao/works/sample/with_near_end_5cm_to_MAC/input/webrtcfloat_out_fix64.wav";
+    //s5
+    /*read_file_name1 = "/Users/huagao/works/sample/s5/AECNearInIutput-float32-Chn1-16000.wav";
+    read_file_name2 = "/Users/huagao/works/sample/s5/AECFarInIutput-float32-Chn1-16000.wav";
+    write_file_name = "/Users/huagao/works/sample/s5/webrtc_out_float.wav";
+    */
      SWavFileHead wavhead1 = {0};
      SWavFileHead wavhead2 = {0};
      CWavFileOp *read_file1 = NULL;
@@ -91,7 +96,7 @@ int main(int argc, const char * argv[]) {
      ////
      int loop =0;
      for (loop = 0 ; loop  < wavhead1.RawDataFileLength; loop += frame_size * wavhead1.BytesPerSample) {
-         if (loop >1962222*wavhead1.BytesPerSample) {
+         if (loop >658621*wavhead1.BytesPerSample) {
              loop*=1;
          }
          read_file1->ReadSample(buffer, frame_size);
@@ -101,8 +106,14 @@ int main(int argc, const char * argv[]) {
              short * pso = (short *)processing_buffer;
              for (int i = 0; i< frame_size; i++) {
                 int j = i * wavhead1.NChannels;
-                 pso[i]=32766.9f>psi[j]?static_cast<short>(psi[j]):32767;
-                pso[i]=-32767.9f<pso[i]?pso[i]:-32768;
+                 if (32766.9f<psi[j]) {
+                     pso[i]=32767;
+                 }
+                 else if (-32767.9f>psi[j]){
+                     pso[i]= -32768;
+                 }
+                 else
+                     pso[i]=static_cast<short>(psi[j]);
              }
              process_in =pso;
          }
@@ -124,8 +135,14 @@ int main(int argc, const char * argv[]) {
              short * pso = (short *)refer_buffer;
              for (int i = 0; i< frame_size; i++) {
                  int j = i * wavhead2.NChannels;
-                 pso[i]=32766.9f>psi[j]?static_cast<short>(psi[j]):32767;
-                 pso[i]=-32767.9f<pso[i]?pso[i]:-32768;
+                 if (32766.9f<psi[j]) {
+                     pso[i]=32767;
+                 }
+                 else if (-32767.9f>psi[j]){
+                     pso[i]= -32768;
+                 }
+                 else
+                     pso[i]=static_cast<short>(psi[j]);
              }
              reffer_in =pso;
          }
