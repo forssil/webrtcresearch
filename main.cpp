@@ -25,13 +25,13 @@ int main(int argc, const char * argv[]) {
         printf("Not Enough Input Parameters!");
         return 0;
     }
-  //  read_file_name1 = argv[1];
-  //  read_file_name2 = argv[2];
-  //  write_file_name = argv[3];
+    read_file_name1 = argv[1];
+    read_file_name2 = argv[2];
+    write_file_name = argv[3];
     //s6
-    read_file_name1 = "/Users/huagao/works/sample/with_near_end_5cm_to_MAC/input/near16_com.wav";
-    read_file_name2 = "/Users/huagao/works/sample/with_near_end_5cm_to_MAC/input/far16.wav";
-    write_file_name = "/Users/huagao/works/sample/with_near_end_5cm_to_MAC/input/webrtcfloat_out_fix64.wav";
+//    read_file_name1 = "/Users/huagao/works/sample/with_near_end_5cm_to_MAC/input/near16_com.wav";
+//   read_file_name2 = "/Users/huagao/works/sample/with_near_end_5cm_to_MAC/input/far16.wav";
+//   write_file_name = "/Users/huagao/works/sample/with_near_end_5cm_to_MAC/input/webrtcfloat_out_fix64.wav";
     //s5
     /*read_file_name1 = "/Users/huagao/works/sample/s5/AECNearInIutput-float32-Chn1-16000.wav";
     read_file_name2 = "/Users/huagao/works/sample/s5/AECFarInIutput-float32-Chn1-16000.wav";
