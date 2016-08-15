@@ -193,7 +193,7 @@ class  WebRtcAudioRecord {
     // verified that it does not increase the actual recording latency.
     int bufferSizeInBytes =
         Math.max(BUFFER_SIZE_FACTOR * minBufferSize, byteBuffer.capacity());
-    Logging.d(TAG, "bufferSizeInBytes: " + bufferSizeInBytes + ", captureMode:" +WebRtcAudioUtils.captureMode);
+    Logging.d(TAG, "Keith bufferSizeInBytes: " + bufferSizeInBytes + ", captureMode:" +WebRtcAudioUtils.captureMode);
     try {
       audioRecord = new AudioRecord(WebRtcAudioUtils.captureMode,
                                     sampleRate,

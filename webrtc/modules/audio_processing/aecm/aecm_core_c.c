@@ -22,11 +22,7 @@
 #include "webrtc/system_wrappers/include/cpu_features_wrapper.h"
 #include "webrtc/typedefs.h"
 
-// Square root of Hanning window in Q14.
-#if defined(WEBRTC_DETECT_NEON) || defined(WEBRTC_HAS_NEON)
-// Table is defined in an ARM assembly file.
-extern const ALIGN8_BEG int16_t WebRtcAecm_kSqrtHanning[] ALIGN8_END;
-#else
+
 
 static const ALIGN8_BEG int16_t WebRtcAecm_kSqrtHanning[] ALIGN8_END =
     {
@@ -74,7 +70,7 @@ static const ALIGN8_BEG int16_t WebRtcAecm_kSqrtHanning64[] ALIGN8_END =
  };
 
 
-#endif
+//#endif
 
 #ifdef AECM_WITH_ABS_APPROX
 //Q15 alpha = 0.99439986968132  const Factor for magnitude approximation

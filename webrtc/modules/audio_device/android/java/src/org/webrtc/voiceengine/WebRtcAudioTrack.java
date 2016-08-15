@@ -169,7 +169,7 @@ class WebRtcAudioTrack {
         sampleRate,
         AudioFormat.CHANNEL_OUT_MONO,
         AudioFormat.ENCODING_PCM_16BIT);
-    Logging.d(TAG, "AudioTrack.getMinBufferSize: " + minBufferSizeInBytes
+    Logging.d(TAG, "Keith AudioTrack.getMinBufferSize: " + minBufferSizeInBytes
        + ", playbackMode:" + WebRtcAudioUtils.playbackMode);
     assertTrue(audioTrack == null);
 
