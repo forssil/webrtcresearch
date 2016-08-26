@@ -227,6 +227,16 @@ AudioProcessingImpl::AudioProcessingImpl(const Config& config,
       array_geometry_(config.Get<Beamforming>().array_geometry),
       target_direction_(config.Get<Beamforming>().target_direction),
       intelligibility_enabled_(config.Get<Intelligibility>().enabled) {
+          android_play_amplify_enalbed_ = (false);
+          history_filter_[0] =0;
+          history_filter_[1] =0;
+          a_[0] =  4096;
+          a_[1] = -8192;
+          a_[2] = 4096 ;
+          b_[0] =  4096;
+          b_[1] = -7240;
+          b_[2] = 3243 ;
+          g_ = 3644;
   echo_cancellation_ = new EchoCancellationImpl(this, crit_);
   component_list_.push_back(echo_cancellation_);
 
@@ -842,6 +852,32 @@ int AudioProcessingImpl::ProcessReverseStreamLocked() {
     ra->SplitIntoFrequencyBands();
   }
 
+    if (android_play_amplify_enalbed_) {
+        int sample_in =0;
+        int sample_out=0;
+        int temp =0;
+        for (int j = 0; j < ra->num_channels(); j++) {
+            int16_t* data=ra->split_bands(j)[kBand0To8kHz];
+            for (int i=0; i<ra->num_frames_per_band(); i++) {
+                sample_in= (int)data[i];
+                temp = (sample_in*g_)>>12;
+                sample_out=  temp+ history_filter_[0];
+                history_filter_[0]= (-temp<<1)-((sample_out*b_[1])>>12);
+                history_filter_[0]+=history_filter_[1];
+                history_filter_[1]=temp-((sample_out*b_[2])>>12);
+                temp= sample_out+(sample_out>>1);
+                if (temp > 32767) {
+                    data[i] = 32767;
+                }
+                else if (temp < -32768) {
+                    data[i] =-32768;
+                }
+                else {
+                    data[i]=(int16_t) temp;
+                }
+            }
+        }
+    }
   if (intelligibility_enabled_) {
     intelligibility_enhancer_->ProcessRenderAudio(
         ra->split_channels_f(kBand0To8kHz), split_rate_, ra->num_channels());

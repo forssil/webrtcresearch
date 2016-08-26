@@ -229,7 +229,7 @@ class WEBRTC_DLLEXPORT VoEAudioProcessing {
   // external media interface.
   virtual void EnableStereoChannelSwapping(bool enable) = 0;
   virtual bool IsStereoChannelSwappingEnabled() = 0;
-
+  virtual int SetPlayAmplify(bool enable) =0;
  protected:
   VoEAudioProcessing() {}
   virtual ~VoEAudioProcessing() {}

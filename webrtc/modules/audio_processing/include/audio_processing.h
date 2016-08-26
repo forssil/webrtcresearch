@@ -437,7 +437,7 @@ class AudioProcessing {
   virtual LevelEstimator* level_estimator() const = 0;
   virtual NoiseSuppression* noise_suppression() const = 0;
   virtual VoiceDetection* voice_detection() const = 0;
-
+ 
   struct Statistic {
     int instant;  // Instantaneous value.
     int average;  // Long-term average.
@@ -480,6 +480,9 @@ class AudioProcessing {
   static const int kMaxAECMSampleRateHz;
 
   static const int kChunkSizeMs = 10;
+    ///
+    void enable_play_amplify(bool enable) {android_play_amplify_enalbed_ = enable;};
+    bool android_play_amplify_enalbed_;
 };
 
 class StreamConfig {

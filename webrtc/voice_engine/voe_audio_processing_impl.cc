@@ -1049,4 +1049,9 @@ bool VoEAudioProcessingImpl::IsStereoChannelSwappingEnabled() {
 
 #endif  // #ifdef WEBRTC_VOICE_ENGINE_AUDIO_PROCESSING_API
 
+    int VoEAudioProcessingImpl::SetPlayAmplify(bool enable) {
+        _shared->audio_processing()->enable_play_amplify(enable);
+        return  0;
+    }
+    
 }  // namespace webrtc

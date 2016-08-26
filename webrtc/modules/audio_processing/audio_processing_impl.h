@@ -212,6 +212,10 @@ class AudioProcessingImpl : public AudioProcessing {
 
   bool intelligibility_enabled_;
   rtc::scoped_ptr<IntelligibilityEnhancer> intelligibility_enhancer_;
+    int history_filter_[2];
+    int a_[3];
+    int b_[3];
+    int g_;
 };
 
 }  // namespace webrtc
