@@ -99,7 +99,8 @@ class VoEAudioProcessingImpl : public VoEAudioProcessing {
 
   void EnableStereoChannelSwapping(bool enable) override;
   bool IsStereoChannelSwappingEnabled() override;
-
+  int SetPlayProcessing(bool enable) override;
+  int SetPlayLowpass(bool enable) override;
  protected:
   VoEAudioProcessingImpl(voe::SharedData* shared);
   ~VoEAudioProcessingImpl() override;

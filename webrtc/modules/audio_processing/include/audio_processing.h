@@ -481,8 +481,10 @@ class AudioProcessing {
 
   static const int kChunkSizeMs = 10;
     ///
-    void enable_play_amplify(bool enable) {android_play_amplify_enalbed_ = enable;};
-    bool android_play_amplify_enalbed_;
+    void enable_play_process(bool enable) {android_play_process_enalbed_ = enable;};
+    bool android_play_process_enalbed_;
+    void enable_play_lowpass(bool enable) {android_play_lowpass_enalbed_ = enable;};
+    bool android_play_lowpass_enalbed_;
 };
 
 class StreamConfig {

@@ -1049,8 +1049,12 @@ bool VoEAudioProcessingImpl::IsStereoChannelSwappingEnabled() {
 
 #endif  // #ifdef WEBRTC_VOICE_ENGINE_AUDIO_PROCESSING_API
 
-    int VoEAudioProcessingImpl::SetPlayAmplify(bool enable) {
-        _shared->audio_processing()->enable_play_amplify(enable);
+    int VoEAudioProcessingImpl::SetPlayProcessing(bool enable) {
+        _shared->audio_processing()->enable_play_process(enable);
+        return  0;
+    }
+    int VoEAudioProcessingImpl::SetPlayLowpass(bool enable) {
+        _shared->audio_processing()->enable_play_lowpass(enable);
         return  0;
     }
     

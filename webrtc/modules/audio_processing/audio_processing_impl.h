@@ -216,6 +216,9 @@ class AudioProcessingImpl : public AudioProcessing {
     int a_[3];
     int b_[3];
     int g_;
+    int LPa_[6];
+    int LPb_[6];
+    int history_lp_[5];
 };
 
 }  // namespace webrtc
