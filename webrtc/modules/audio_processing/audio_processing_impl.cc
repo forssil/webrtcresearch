@@ -872,7 +872,7 @@ int AudioProcessingImpl::ProcessReverseStreamLocked() {
         int temp =0;
         for (int j = 0; j < ra->num_channels(); j++) {
             int16_t* data=ra->split_bands(j)[kBand0To8kHz];
-            for (int i=0; i<ra->num_frames_per_band(); i++) {
+            for (unsigned int i=0; i<ra->num_frames_per_band(); i++) {
                 sample_in= (int)data[i];
                 
                 sample_out=  ((sample_in+ history_filter_[0])*g_)>>12;
@@ -899,7 +899,7 @@ int AudioProcessingImpl::ProcessReverseStreamLocked() {
         int temp =0;
         for (int j = 0; j < ra->num_channels(); j++) {
             int16_t* data=ra->split_bands(j)[kBand0To8kHz];
-            for (int i=0; i<ra->num_frames_per_band(); i++) {
+            for (unsigned int i=0; i<ra->num_frames_per_band(); i++) {
                 sample_in= (int)data[i];
                 temp = (sample_in*LPa_[0])>>13;
                 sample_out=  temp+ history_lp_[0];
