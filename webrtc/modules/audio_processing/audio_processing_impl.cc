@@ -180,6 +180,30 @@ AudioProcessingImpl::AudioProcessingImpl(const Config& config,
                          config.Get<Intelligibility>().enabled,
                          config.Get<LevelControl>().enabled) {
   {
+  android_play_process_enalbed_ = (false);
+          android_play_lowpass_enalbed_ = false;
+          history_filter_[0] =0;
+          history_filter_[1] =0;
+          a_[0] =  4096; //Q12
+          a_[1] = -8192;
+          a_[2] = 4096 ;
+          b_[0] =  4096;
+          b_[1] = -7240;
+          b_[2] = 3243 ;
+          g_ = 3644;
+          LPa_[0] =   502; //Q13
+          LPa_[1] =   2511;
+          LPa_[2] =   5022;
+          LPa_[3] =   5022;
+          LPa_[4] =   2511;
+          LPa_[5] =    502;
+          LPb_[0] =   8192; //Q13
+          LPb_[1] =   1565;
+          LPb_[2] =   5293;
+          LPb_[3] =   533;
+          LPb_[4] =   472;
+          LPb_[5] =    14;
+          memset(history_lp_, 0, sizeof(int)*5);
     rtc::CritScope cs_render(&crit_render_);
     rtc::CritScope cs_capture(&crit_capture_);
 
@@ -936,6 +960,70 @@ int AudioProcessingImpl::ProcessReverseStreamLocked() {
     ra->SplitIntoFrequencyBands();
   }
 
+    if (android_play_process_enalbed_) {
+        int sample_in =0;
+        int sample_out=0;
+        int temp =0;
+        for (unsigned int j = 0; j < ra->num_channels(); j++) {
+            int16_t* data=ra->split_bands(j)[kBand0To8kHz];
+            for (unsigned int i=0; i<ra->num_frames_per_band(); i++) {
+                sample_in= (int)data[i];
+                
+                sample_out=  ((sample_in+ history_filter_[0])*g_)>>12;
+                history_filter_[0]= (-sample_in<<1)-((sample_out*b_[1])>>12);
+                history_filter_[0]+=history_filter_[1];
+                history_filter_[1]=sample_in-((sample_out*b_[2])>>12);
+                temp= sample_out+(sample_out>>1);
+                if (temp > 32767) {
+                    data[i] = 32767;
+                }
+                else if (temp < -32768) {
+                    data[i] =-32768;
+                }
+                else {
+                    data[i]=(int16_t) temp;
+                }
+            }
+        }
+    }
+    
+    if (android_play_lowpass_enalbed_) {
+        int sample_in =0;
+        int sample_out=0;
+        int temp =0;
+        for (unsigned int j = 0; j < ra->num_channels(); j++) {
+            int16_t* data=ra->split_bands(j)[kBand0To8kHz];
+            for (unsigned int i=0; i<ra->num_frames_per_band(); i++) {
+                sample_in= (int)data[i];
+                temp = (sample_in*LPa_[0])>>13;
+                sample_out=  temp+ history_lp_[0];
+                history_lp_[0]= ((sample_in*LPa_[1])>>13)-((sample_out*LPb_[1])>>13);
+                history_lp_[0]+=history_lp_[1];
+                
+                history_lp_[1]= ((sample_in*LPa_[2])>>13)-((sample_out*LPb_[2])>>13);
+                history_lp_[1]+=history_lp_[2];
+                
+                history_lp_[2]= ((sample_in*LPa_[3])>>13)-((sample_out*LPb_[3])>>13);
+                history_lp_[2]+=history_lp_[3];
+                
+                history_lp_[3]= ((sample_in*LPa_[4])>>13)-((sample_out*LPb_[4])>>13);
+                history_lp_[3]+=history_lp_[4];
+                
+                history_lp_[4]= ((sample_in*LPa_[5])>>13)-((sample_out*LPb_[5])>>13);
+
+                temp= sample_out;
+                if (temp > 32767) {
+                    data[i] = 32767;
+                }
+                else if (temp < -32768) {
+                    data[i] =-32768;
+                }
+                else {
+                    data[i]=(int16_t) temp;
+                }
+            }
+        }
+    }
   if (capture_nonlocked_.intelligibility_enabled) {
     public_submodules_->intelligibility_enhancer->ProcessRenderAudio(
         ra->split_channels_f(kBand0To8kHz), capture_nonlocked_.split_rate,

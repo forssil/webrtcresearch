@@ -21,6 +21,7 @@ import android.os.Process;
 
 import java.lang.Thread;
 import java.nio.ByteBuffer;
+import org.webrtc.voiceengine.WebRtcAudioUtils;
 
 public class WebRtcAudioTrack {
   private static final boolean DEBUG = false;
@@ -183,7 +184,8 @@ public class WebRtcAudioTrack {
         sampleRate,
         AudioFormat.CHANNEL_OUT_MONO,
         AudioFormat.ENCODING_PCM_16BIT);
-    Logging.d(TAG, "AudioTrack.getMinBufferSize: " + minBufferSizeInBytes);
+    Logging.d(TAG, "Keith AudioTrack.getMinBufferSize: " + minBufferSizeInBytes
+       + ", playbackMode:" + WebRtcAudioUtils.playbackMode);
     assertTrue(audioTrack == null);
 
     // For the streaming mode, data must be written to the audio sink in
@@ -194,7 +196,7 @@ public class WebRtcAudioTrack {
       // Create an AudioTrack object and initialize its associated audio buffer.
       // The size of this buffer determines how long an AudioTrack can play
       // before running out of data.
-      audioTrack = new AudioTrack(AudioManager.STREAM_VOICE_CALL,
+      audioTrack = new AudioTrack(WebRtcAudioUtils.playbackMode,
                                   sampleRate,
                                   AudioFormat.CHANNEL_OUT_MONO,
                                   AudioFormat.ENCODING_PCM_16BIT,
@@ -244,7 +246,7 @@ public class WebRtcAudioTrack {
   private int getStreamMaxVolume() {
     Logging.d(TAG, "getStreamMaxVolume");
     assertTrue(audioManager != null);
-    return audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL);
+    return audioManager.getStreamMaxVolume(WebRtcAudioUtils.playbackMode);
   }
 
   /** Set current volume level for a phone call audio stream. */
@@ -255,7 +257,7 @@ public class WebRtcAudioTrack {
       Logging.e(TAG, "The device implements a fixed volume policy.");
       return false;
     }
-    audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, volume, 0);
+    audioManager.setStreamVolume(WebRtcAudioUtils.playbackMode, volume, 0);
     return true;
   }
 
@@ -270,7 +272,7 @@ public class WebRtcAudioTrack {
   private int getStreamVolume() {
     Logging.d(TAG, "getStreamVolume");
     assertTrue(audioManager != null);
-    return audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL);
+    return audioManager.getStreamVolume(WebRtcAudioUtils.playbackMode);
   }
 
   /** Helper method which throws an exception  when an assertion has failed. */

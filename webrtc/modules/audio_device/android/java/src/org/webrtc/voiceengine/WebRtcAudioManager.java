@@ -23,7 +23,7 @@ import android.os.Build;
 
 import java.util.Timer;
 import java.util.TimerTask;
-
+import org.webrtc.voiceengine.WebRtcAudioUtils;
 // WebRtcAudioManager handles tasks that uses android.media.AudioManager.
 // At construction, storeAudioParameters() is called and it retrieves
 // fundamental audio parameters like native sample rate and number of channels.
@@ -151,13 +151,34 @@ public class WebRtcAudioManager {
     if (DEBUG) {
       WebRtcAudioUtils.logDeviceInfo(TAG);
     }
-    volumeLogger = new VolumeLogger(audioManager);
+	volumeLogger = new VolumeLogger(audioManager);
+
+     Logging.d(TAG, "Keith bDisableWebRTCAEC:" + WebRtcAudioUtils.bDisableWebRTCAEC);
+   
     storeAudioParameters();
-    nativeCacheAudioParameters(
-        sampleRate, channels, hardwareAEC, hardwareAGC, hardwareNS,
+    if (true == WebRtcAudioUtils.bDisableWebRTCAEC) {
+         nativeCacheAudioParameters(
+        sampleRate, channels, true, true, true,
         lowLatencyOutput, proAudio, outputBufferSize, inputBufferSize,
         nativeAudioManager);
-  }
+      
+    }
+    else
+    {
+/*      
+        nativeCacheAudioParameters(
+        sampleRate, channels, false, false, false,
+        lowLatencyOutput, proAudio, outputBufferSize, inputBufferSize,
+        nativeAudioManager);
+ 
+ */
+        nativeCacheAudioParameters(
+        sampleRate, channels, hardwareAEC, hardwareAGC, hardwareNS,
+        lowLatencyOutput, proAudio, outputBufferSize, inputBufferSize,
+        nativeAudioManager);   
+ 
+    }
+ }
 
   private boolean init() {
     Logging.d(TAG, "init" + WebRtcAudioUtils.getThreadInfo());

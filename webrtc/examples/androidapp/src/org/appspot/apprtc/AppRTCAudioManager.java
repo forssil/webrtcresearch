@@ -25,7 +25,8 @@ import android.util.Log;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-
+import android.media.MediaRecorder.AudioSource;
+import org.webrtc.voiceengine.WebRtcAudioUtils;
 /**
  * AppRTCAudioManager manages all audio related parts of the AppRTC demo.
  */
@@ -123,6 +124,9 @@ public class AppRTCAudioManager {
       defaultAudioDevice = AudioDevice.SPEAKER_PHONE;
     }
 
+      WebRtcAudioUtils.captureMode = AudioSource.VOICE_COMMUNICATION;
+      WebRtcAudioUtils.bDisableWebRTCAEC = false;
+      WebRtcAudioUtils.playbackMode = AudioManager.STREAM_VOICE_CALL;
     // Create and initialize the proximity sensor.
     // Tablet devices (e.g. Nexus 7) does not support proximity sensors.
     // Note that, the sensor will not be active until start() has been called.

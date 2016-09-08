@@ -13,7 +13,7 @@
 #include <assert.h>
 #include <stddef.h>
 #include <stdlib.h>
-
+#include <stdio.h>
 extern "C" {
 #include "webrtc/common_audio/ring_buffer.h"
 #include "webrtc/common_audio/signal_processing/include/real_fft.h"
@@ -158,6 +158,7 @@ static const int16_t kChannelStored16kHz[PART_LEN1] = {
 //
 void WebRtcAecm_UpdateFarHistory(AecmCore* self,
                                  uint16_t* far_spectrum,
+                                 ComplexInt16* far_spectrum_complex,
                                  int far_q) {
   // Get new buffer position
   self->far_history_pos++;
@@ -170,6 +171,9 @@ void WebRtcAecm_UpdateFarHistory(AecmCore* self,
   memcpy(&(self->far_history[self->far_history_pos * PART_LEN1]),
          far_spectrum,
          sizeof(uint16_t) * PART_LEN1);
+    memcpy(&(self->far_history_complex[self->far_history_pos * PART_LEN1]),
+           far_spectrum_complex,
+           sizeof(ComplexInt16) * PART_LEN1);
 }
 
 // Returns a pointer to the far end spectrum aligned to current near end
@@ -364,27 +368,6 @@ static void ResetAdaptiveChannelC(AecmCore* aecm) {
     aecm->channelAdapt32[i] = (int32_t)aecm->channelStored[i] << 16;
 }
 
-// Initialize function pointers for ARM Neon platform.
-#if defined(WEBRTC_HAS_NEON)
-static void WebRtcAecm_InitNeon(void)
-{
-  WebRtcAecm_StoreAdaptiveChannel = WebRtcAecm_StoreAdaptiveChannelNeon;
-  WebRtcAecm_ResetAdaptiveChannel = WebRtcAecm_ResetAdaptiveChannelNeon;
-  WebRtcAecm_CalcLinearEnergies = WebRtcAecm_CalcLinearEnergiesNeon;
-}
-#endif
-
-// Initialize function pointers for MIPS platform.
-#if defined(MIPS32_LE)
-static void WebRtcAecm_InitMips(void)
-{
-#if defined(MIPS_DSP_R1_LE)
-  WebRtcAecm_StoreAdaptiveChannel = WebRtcAecm_StoreAdaptiveChannel_mips;
-  WebRtcAecm_ResetAdaptiveChannel = WebRtcAecm_ResetAdaptiveChannel_mips;
-#endif
-  WebRtcAecm_CalcLinearEnergies = WebRtcAecm_CalcLinearEnergies_mips;
-}
-#endif
 
 // WebRtcAecm_InitCore(...)
 //
@@ -438,6 +421,7 @@ int WebRtcAecm_InitCore(AecmCore* const aecm, int samplingFreq) {
     }
     // Set far end histories to zero
     memset(aecm->far_history, 0, sizeof(uint16_t) * PART_LEN1 * MAX_DELAY);
+    memset(aecm->far_history_complex, 0, sizeof(ComplexInt16) * PART_LEN1* MAX_DELAY);
     memset(aecm->far_q_domains, 0, sizeof(int) * MAX_DELAY);
     aecm->far_history_pos = MAX_DELAY;
 
@@ -511,13 +495,14 @@ int WebRtcAecm_InitCore(AecmCore* const aecm, int samplingFreq) {
     WebRtcAecm_CalcLinearEnergies = CalcLinearEnergiesC;
     WebRtcAecm_StoreAdaptiveChannel = StoreAdaptiveChannelC;
     WebRtcAecm_ResetAdaptiveChannel = ResetAdaptiveChannelC;
-
-#if defined(WEBRTC_HAS_NEON)
-    WebRtcAecm_InitNeon();
-#endif
-
-#if defined(MIPS32_LE)
-    WebRtcAecm_InitMips();
+#ifdef FLOATPRO
+    aecm->enablefloatpro = 1;
+    memset(&aecm->aecmfloat, 0, sizeof(aecm->aecmfloat));
+    for (i=0; i<PART_LEN1; i++) {
+        aecm->aecmfloat.NearNoise[i]=NOISEGATE*10000;
+        aecm->aecmfloat.FarNoise[i]=NOISEGATE*10000;
+    }
+    aecm->aecmfloat.SmoothFactor=0.6f;
 #endif
     return 0;
 }
@@ -548,6 +533,10 @@ void WebRtcAecm_FreeCore(AecmCore* aecm) {
     free(aecm);
 }
 
+// test dump
+//#define AECM_DUMP_DEBUG
+
+
 int WebRtcAecm_ProcessFrame(AecmCore* aecm,
                             const int16_t* farend,
                             const int16_t* nearendNoisy,
@@ -559,11 +548,60 @@ int WebRtcAecm_ProcessFrame(AecmCore* aecm,
     int16_t farFrame[FRAME_LEN];
     const int16_t* out_ptr = NULL;
     int size = 0;
+#ifdef AECM_DUMP_DEBUG
+    static FILE* pFarEndFile = NULL;
+    static FILE* pFarEndFetchFile = NULL;
+    static FILE* pNearEndFile = NULL;
+    static FILE* pResultEndFile = NULL;
 
+    if (pFarEndFile == NULL)
+    {
+      pFarEndFile = fopen("/sdcard/farend.pcm", "wb");
+      /* code */
+    }
+
+    if (pFarEndFetchFile == NULL)
+    {
+      pFarEndFetchFile = fopen("/sdcard/farendfetch.pcm", "wb");
+      /* code */
+    }
+
+    if (pNearEndFile == NULL)
+    {
+      pNearEndFile = fopen("/sdcard/nearend.pcm", "wb");
+      /* code */
+    }
+
+    if (pResultEndFile == NULL)
+    {
+      pResultEndFile = fopen("/sdcard/result.pcm", "wb");
+      /* code */
+    }
+
+    if (pNearEndFile && nearendNoisy)
+    {
+      fwrite(nearendNoisy, sizeof(int16_t), FRAME_LEN, pNearEndFile);
+      /* code */
+    }
+    if (pFarEndFile && farend)
+    {
+      fwrite(farend, sizeof(int16_t), FRAME_LEN, pFarEndFile);
+      /* code */
+    }
+
+#endif
     // Buffer the current frame.
     // Fetch an older one corresponding to the delay.
     WebRtcAecm_BufferFarFrame(aecm, farend, FRAME_LEN);
     WebRtcAecm_FetchFarFrame(aecm, farFrame, FRAME_LEN, aecm->knownDelay);
+
+#ifdef AECM_DUMP_DEBUG
+    if (pFarEndFetchFile)
+    {
+      fwrite(farFrame, sizeof(int16_t), FRAME_LEN, pFarEndFetchFile);
+      /* code */
+    }
+#endif
 
     // Buffer the synchronized far and near frames,
     // to pass the smaller blocks individually.
@@ -597,24 +635,54 @@ int WebRtcAecm_ProcessFrame(AecmCore* aecm,
                               (void**) &near_clean_block_ptr,
                               near_clean_block,
                               PART_LEN);
-            if (WebRtcAecm_ProcessBlock(aecm,
+#ifdef FLOATPRO
+            if (1==aecm->enablefloatpro) {
+                if(WebRtcAecm_ProcessBlockwithFloat(aecm,
+                                        far_block_ptr,
+                                        near_noisy_block_ptr,
+                                        near_clean_block_ptr,
+                                                    outBlock) == -1){
+                    return -1;
+                }
+            }
+            else {
+#endif
+                if (WebRtcAecm_ProcessBlock(aecm,
                                         far_block_ptr,
                                         near_noisy_block_ptr,
                                         near_clean_block_ptr,
                                         outBlock) == -1)
-            {
-                return -1;
+                {
+                    return -1;
+                }
+#ifdef FLOATPRO
             }
+#endif
         } else
         {
-            if (WebRtcAecm_ProcessBlock(aecm,
+#ifdef FLOATPRO
+            if (1==aecm->enablefloatpro) {
+                if(WebRtcAecm_ProcessBlockwithFloat(aecm,
+                                                    far_block_ptr,
+                                                    near_noisy_block_ptr,
+                                                    NULL,
+                                                    outBlock) == -1){
+                    return -1;
+                }
+            }
+            else {
+#endif
+                if (WebRtcAecm_ProcessBlock(aecm,
                                         far_block_ptr,
                                         near_noisy_block_ptr,
                                         NULL,
                                         outBlock) == -1)
-            {
-                return -1;
+                {
+                    return -1;
+                }
+#ifdef FLOATPRO
             }
+#endif
         }
 
         WebRtc_WriteBuffer(aecm->outFrameBuf, outBlock, PART_LEN);
@@ -634,6 +702,14 @@ int WebRtcAecm_ProcessFrame(AecmCore* aecm,
       // ReadBuffer() hasn't copied to |out| in this case.
       memcpy(out, out_ptr, FRAME_LEN * sizeof(int16_t));
     }
+
+#ifdef AECM_DUMP_DEBUG
+    if (pResultEndFile && out)
+    {
+      fwrite(out, sizeof(int16_t), FRAME_LEN, pResultEndFile);
+      /* code */
+    }
+#endif
 
     return 0;
 }

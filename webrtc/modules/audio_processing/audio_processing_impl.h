@@ -345,6 +345,14 @@ class AudioProcessingImpl : public AudioProcessing {
     std::unique_ptr<AudioConverter> render_converter;
     std::unique_ptr<AudioBuffer> render_audio;
   } render_ GUARDED_BY(crit_render_);
+   
+    int history_filter_[2];
+    int a_[3];
+    int b_[3];
+    int g_;
+    int LPa_[6];
+    int LPb_[6];
+    int history_lp_[5];
 };
 
 }  // namespace webrtc

@@ -28,11 +28,40 @@ extern "C" {
 #define ALIGN8_END __attribute__((aligned(8)))
 #endif
 
+#define FLOATPRO
+
+
+ 
+#ifdef AEC_DEBUG
+#include <stdio.h>
+#endif
+
+
 typedef struct {
     int16_t real;
     int16_t imag;
 } ComplexInt16;
-
+#ifdef FLOATPRO
+#define NOISEGATE (0.0000000149f*32768*32768)
+typedef struct {
+    float FarSpectrumHistory[PART_LEN2 * MAX_DELAY];
+    int FarWritePosition;
+    float NearSpectrum[PART_LEN2];
+    float EchoEstSpectrum[PART_LEN2];
+    float ErrorSpectrum[PART_LEN2];
+    float ErrorPower[PART_LEN1];
+    float FarPower[PART_LEN1];
+    float NearPower[PART_LEN1];
+    float EchoPower[PART_LEN1];
+    float FarNoise[PART_LEN1];
+    float NearNoise[PART_LEN1];
+    float CrossRelation[PART_LEN2];
+    float AutoRelation[PART_LEN2];
+    float gain[PART_LEN1];
+    float H[PART_LEN2];
+    float SmoothFactor;
+}AecmFloat;
+#endif
 typedef struct {
     int farBufWritePos;
     int farBufReadPos;
@@ -57,12 +86,13 @@ typedef struct {
     // Far end history variables
     // TODO(bjornv): Replace |far_history| with ring_buffer.
     uint16_t far_history[PART_LEN1 * MAX_DELAY];
+    ComplexInt16 far_history_complex[PART_LEN1 * MAX_DELAY];
     int far_history_pos;
     int far_q_domains[MAX_DELAY];
 
     int16_t nlpFlag;
     int16_t fixedDelay;
-
+   
     uint32_t totCount;
 
     int16_t dfaCleanQDomain;
@@ -127,7 +157,10 @@ typedef struct {
     int16_t supGainErrParamDiffBD;
 
     struct RealFFT* real_fft;
-
+#ifdef FLOATPRO
+    int16_t enablefloatpro;
+    AecmFloat aecmfloat;
+#endif
 #ifdef AEC_DEBUG
     FILE *farFile;
     FILE *nearFile;
@@ -278,6 +311,7 @@ void WebRtcAecm_FetchFarFrame(AecmCore* const aecm,
 //
 void WebRtcAecm_UpdateFarHistory(AecmCore* self,
                                  uint16_t* far_spectrum,
+                                 ComplexInt16* far_spectrum_complex,
                                  int far_q);
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -431,6 +465,20 @@ void WebRtcAecm_StoreAdaptiveChannel_mips(AecmCore* aecm,
 
 void WebRtcAecm_ResetAdaptiveChannel_mips(AecmCore* aecm);
 #endif
+#endif
+
+#ifdef FLOATPRO
+void CopyFixFFT2Float(ComplexInt16* freq_signal,int16_t zeros,float* fp);
+void PowerEstimation(float *fpin,float* fpout);
+void NoiseTrack(AecmCore* aecm);
+void UpdateH(AecmCore* aecm);
+void CopyFloatFFT2Fix(ComplexInt16* freq_signal,int16_t zeros,float* fp);
+void NLP(AecmCore* aecm);
+int WebRtcAecm_ProcessBlockwithFloat(AecmCore* aecm,
+                                     const int16_t* farend,
+                                     const int16_t* nearendNoisy,
+                                     const int16_t* noisyClean,
+                                     int16_t* out);
 #endif
 
 #endif
