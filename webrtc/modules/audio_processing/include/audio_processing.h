@@ -24,7 +24,7 @@
 #include "webrtc/common.h"
 #include "webrtc/modules/audio_processing/beamformer/array_util.h"
 #include "webrtc/typedefs.h"
-
+#include "webrtc/system_wrappers/include/logging.h"
 namespace webrtc {
 
 struct AecCore;
@@ -515,9 +515,22 @@ class AudioProcessing {
 
   static const int kChunkSizeMs = 10;
     ///
-    void enable_play_process(bool enable) {android_play_process_enalbed_ = enable;};
+    void enable_play_process(bool enable) {
+      android_play_process_enalbed_ = enable;
+      LOG(LS_INFO) << " keith enable_play_process enable: "
+                 << android_play_process_enalbed_;
+                    };
+
     bool android_play_process_enalbed_;
-    void enable_play_lowpass(bool enable) {android_play_lowpass_enalbed_ = enable;};
+
+    void enable_play_lowpass(bool enable) {
+
+      android_play_lowpass_enalbed_ = enable;
+      LOG(LS_INFO) << " keith enable_play_lowpass enable: "
+                 << android_play_lowpass_enalbed_;
+ 
+    };
+
     bool android_play_lowpass_enalbed_;
 };
 

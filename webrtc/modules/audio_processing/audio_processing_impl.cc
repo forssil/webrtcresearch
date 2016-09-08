@@ -180,8 +180,12 @@ AudioProcessingImpl::AudioProcessingImpl(const Config& config,
                          config.Get<Intelligibility>().enabled,
                          config.Get<LevelControl>().enabled) {
   {
-  android_play_process_enalbed_ = (false);
-          android_play_lowpass_enalbed_ = false;
+          android_play_process_enalbed_ = (true);
+          android_play_lowpass_enalbed_ = true;
+
+  LOG(LS_INFO) << " keith android_play_process_enalbed_: "
+                 << android_play_process_enalbed_
+                 <<", android_play_lowpass_enalbed_:" <<android_play_lowpass_enalbed_;
           history_filter_[0] =0;
           history_filter_[1] =0;
           a_[0] =  4096; //Q12
