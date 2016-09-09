@@ -13,6 +13,7 @@ ninja -C out/Debug  audio_processing
 ninja -C out/Debug  audio_processing_neon
 ninja -C out/Debug  audioproc_debug_proto
 ninja -C out/Debug  bitrate_controller
+ninja -C out/Debug  level_indicator
 ninja -C out/Debug  cng
 ninja -C out/Debug  common_audio
 ninja -C out/Debug  common_audio_neon
@@ -62,6 +63,7 @@ ninja -C out/Release  audio_processing
 ninja -C out/Release  audio_processing_neon
 ninja -C out/Release  audioproc_debug_proto
 ninja -C out/Release  bitrate_controller
+ninja -C out/Release  level_indicator
 ninja -C out/Release  cng
 ninja -C out/Release  common_audio
 ninja -C out/Release  common_audio_neon
@@ -158,6 +160,7 @@ cp ./out/Debug/obj/webrtc/librtc_event_log_proto.a ./package/Debug -v
 cp ./out/Debug/obj/webrtc/modules/librtp_rtcp.a ./package/Debug -v
 cp ./out/Debug/obj/webrtc/system_wrappers/libsystem_wrappers.a ./package/Debug -v
 cp ./out/Debug/obj/webrtc/voice_engine/libvoice_engine.a ./package/Debug -v
+cp ./out/Debug/obj/webrtc/voice_engine/liblevel_indicator.a ./package/Debug -v
 cp ./out/Debug/obj/webrtc/libwebrtc_common.a ./package/Debug -v
 cp ./out/Debug/obj/webrtc/modules/libwebrtc_opus.a ./package/Debug -v
 cp ./out/Debug/obj/webrtc/modules/libwebrtc_utility.a ./package/Debug -v
@@ -208,6 +211,7 @@ cp ./out/Release/obj/webrtc/librtc_event_log_proto.a ./package/Release -v
 cp ./out/Release/obj/webrtc/modules/librtp_rtcp.a ./package/Release -v
 cp ./out/Release/obj/webrtc/system_wrappers/libsystem_wrappers.a ./package/Release -v
 cp ./out/Release/obj/webrtc/voice_engine/libvoice_engine.a ./package/Release -v
+cp ./out/Release/obj/webrtc/voice_engine/liblevel_indicator.a ./package/Release -v
 cp ./out/Release/obj/webrtc/libwebrtc_common.a ./package/Release -v
 cp ./out/Release/obj/webrtc/modules/libwebrtc_opus.a ./package/Release -v
 cp ./out/Release/obj/webrtc/modules/libwebrtc_utility.a ./package/Release -v
