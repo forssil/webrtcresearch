@@ -1,0 +1,1 @@
+APP_MODULES:=webrtc_voe_wrapper
