@@ -1,2 +1,3 @@
 #include <stdio.h>
-int test_add(int x, int y);
+extern "C" int test_add(int x, int y);
+

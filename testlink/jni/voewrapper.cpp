@@ -1,5 +1,10 @@
-#include "share.h"
+#include "voewrapper.h"
+extern "C"
+{
 #include "static.h"
+}
+
+
 int test_add(int x, int y)
 {
     // 调用static里面的方法
