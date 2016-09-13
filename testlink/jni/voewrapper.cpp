@@ -11,7 +11,7 @@ int test_add(int x, int y)
     return add(x, y);
 }
 
-Void CreateVoE()
+void CreateVoE()
 {
     VoiceEngine* voe = VoiceEngine::Create();
     VoEBase* base = VoEBase::GetInterface(voe);
