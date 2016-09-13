@@ -10,3 +10,16 @@ int test_add(int x, int y)
     // 调用static里面的方法
     return add(x, y);
 }
+
+Void CreateVoE()
+{
+    VoiceEngine* voe = VoiceEngine::Create();
+    VoEBase* base = VoEBase::GetInterface(voe);
+    base->Init();
+    int ch = base->CreateChannel();
+    base->StartPlayout(ch);
+    base->DeleteChannel(ch);
+    base->Terminate();
+    base->Release();
+    VoiceEngine::Delete(voe);
+}
