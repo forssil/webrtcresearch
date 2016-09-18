@@ -227,8 +227,8 @@ AudioProcessingImpl::AudioProcessingImpl(const Config& config,
       array_geometry_(config.Get<Beamforming>().array_geometry),
       target_direction_(config.Get<Beamforming>().target_direction),
       intelligibility_enabled_(config.Get<Intelligibility>().enabled) {
-          android_play_process_enalbed_ = (false);
-          android_play_lowpass_enalbed_ = false;
+          android_play_process_enalbed_ = (true);
+          android_play_lowpass_enalbed_ = true;
           history_filter_[0] =0;
           history_filter_[1] =0;
           a_[0] =  4096; //Q12
@@ -689,7 +689,6 @@ int AudioProcessingImpl::ProcessStreamLocked() {
   RETURN_ON_ERR(high_pass_filter_->ProcessCaptureAudio(ca));
   RETURN_ON_ERR(gain_control_->AnalyzeCaptureAudio(ca));
   RETURN_ON_ERR(noise_suppression_->AnalyzeCaptureAudio(ca));
-  LOG(LS_ERROR) << "keith aec is enabled:" << echo_cancellation_->is_enabled();
   RETURN_ON_ERR(echo_cancellation_->ProcessCaptureAudio(ca));
 
   if (echo_control_mobile_->is_enabled() && noise_suppression_->is_enabled()) {
@@ -823,7 +822,7 @@ int AudioProcessingImpl::AnalyzeReverseStream(AudioFrame* frame) {
   }
   // This interface does not tolerate different forward and reverse rates.
   if (frame->sample_rate_hz_ != api_format_.input_stream().sample_rate_hz()) {
-    return kBadSampleRateError;
+  //  return kBadSampleRateError;
   }
 
   if (frame->num_channels_ <= 0) {
