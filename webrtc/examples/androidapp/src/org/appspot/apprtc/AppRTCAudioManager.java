@@ -109,8 +109,8 @@ public class AppRTCAudioManager {
     audioManager = ((AudioManager) context.getSystemService(
         Context.AUDIO_SERVICE));
      
-      WebRtcAudioUtils.captureMode = AudioSource.MIC;
-      WebRtcAudioUtils.bDisableWebRTCAEC = true;
+      WebRtcAudioUtils.captureMode = AudioSource.VOICE_COMMUNICATION;
+      WebRtcAudioUtils.bDisableWebRTCAEC = false;
       WebRtcAudioUtils.playbackMode = AudioManager.STREAM_VOICE_CALL;
 
 

@@ -115,6 +115,11 @@ public class WebRtcAudioManager {
         lowLatencyOutput, outputBufferSize, inputBufferSize,
         nativeAudioManager);
       
+        /*nativeCacheAudioParameters(
+        sampleRate, channels, hardwareAEC, hardwareAGC, hardwareNS,
+        lowLatencyOutput, outputBufferSize, inputBufferSize,
+        nativeAudioManager);
+        */
     }
  }
 
