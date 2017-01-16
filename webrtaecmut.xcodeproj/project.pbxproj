@@ -285,7 +285,7 @@
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = /Users/keithyan/keithyan/WMECode/aecmtest/aecm.pch;
+				GCC_PREFIX_HEADER = aecm.pch;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
 					"$(inherited)",
@@ -330,7 +330,7 @@
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = /Users/keithyan/keithyan/WMECode/aecmtest/aecm.pch;
+				GCC_PREFIX_HEADER = aecm.pch;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
@@ -347,7 +347,7 @@
 		0BD49A7E1CB3CEC800BE82CA /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				GCC_PREFIX_HEADER = /Users/keithyan/keithyan/WMECode/aecmtest/aecm.pch;
+				GCC_PREFIX_HEADER = aecm.pch;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -355,7 +355,7 @@
 		0BD49A7F1CB3CEC800BE82CA /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				GCC_PREFIX_HEADER = /Users/keithyan/keithyan/WMECode/aecmtest/aecm.pch;
+				GCC_PREFIX_HEADER = aecm.pch;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
