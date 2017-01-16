@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0B77F1241E2CFA4300D1386A /* aecm.pch in Sources */ = {isa = PBXBuildFile; fileRef = 0BD49AB31CB3D35600BE82CA /* aecm.pch */; };
 		0BD49A851CB3CF4300BE82CA /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0BD49A821CB3CF4300BE82CA /* main.cpp */; };
 		0BD49A861CB3CF4300BE82CA /* WaveIO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0BD49A831CB3CF4300BE82CA /* WaveIO.cpp */; };
 		0BD49A8B1CB3CFC400BE82CA /* ring_buffer.c in Sources */ = {isa = PBXBuildFile; fileRef = 0BD49A891CB3CFC400BE82CA /* ring_buffer.c */; };
@@ -222,6 +223,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0B77F1241E2CFA4300D1386A /* aecm.pch in Sources */,
 				0BD49A901CB3D01100BE82CA /* real_fft.c in Sources */,
 				0BD49AA21CB3D0D700BE82CA /* spl_init.c in Sources */,
 				0BD49AC91CB3E84300BE82CA /* sqrt_of_one_minus_x_squared.c in Sources */,
@@ -285,7 +287,7 @@
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = /Users/keithyan/keithyan/WMECode/aecmtest/aecm.pch;
+				GCC_PREFIX_HEADER = aecm.pch;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
 					"$(inherited)",
@@ -330,7 +332,7 @@
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = /Users/keithyan/keithyan/WMECode/aecmtest/aecm.pch;
+				GCC_PREFIX_HEADER = aecm.pch;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
@@ -347,7 +349,7 @@
 		0BD49A7E1CB3CEC800BE82CA /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				GCC_PREFIX_HEADER = /Users/keithyan/keithyan/WMECode/aecmtest/aecm.pch;
+				GCC_PREFIX_HEADER = aecm.pch;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -355,7 +357,7 @@
 		0BD49A7F1CB3CEC800BE82CA /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				GCC_PREFIX_HEADER = /Users/keithyan/keithyan/WMECode/aecmtest/aecm.pch;
+				GCC_PREFIX_HEADER = aecm.pch;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
