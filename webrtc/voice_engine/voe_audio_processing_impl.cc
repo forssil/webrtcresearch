@@ -1058,4 +1058,15 @@ bool VoEAudioProcessingImpl::IsStereoChannelSwappingEnabled() {
         return  0;
     }
     
+
+
+    int VoEAudioProcessingImpl::SetFixGain(float fgain) {
+        _shared->audio_processing()->set_fix_gain(fgain);
+        return  0;
+    }
+    float VoEAudioProcessingImpl::GetFixGain() {
+        _shared->audio_processing()->get_fix_gain();
+        return  0;
+    }
+
 }  // namespace webrtc

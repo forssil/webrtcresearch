@@ -251,6 +251,10 @@ AudioProcessingImpl::AudioProcessingImpl(const Config& config,
           LPb_[4] =   472;
           LPb_[5] =    14;
           memset(history_lp_, 0, sizeof(int)*5);
+
+          fix_gain_ = 1.0;
+          fix_gain_intq15_ = (int)(1.0 * (1 <<15) );
+
   echo_cancellation_ = new EchoCancellationImpl(this, crit_);
   component_list_.push_back(echo_cancellation_);
 
@@ -930,6 +934,31 @@ int AudioProcessingImpl::ProcessReverseStreamLocked() {
         }
     }
 
+if (fix_gain_ > 1.0)
+{
+   // apply gain here!
+  /* code */
+          int sample_in =0;
+        int sample_out=0;
+        for (int j = 0; j < ra->num_channels(); j++) {
+            int16_t* data=ra->split_bands(j)[kBand0To8kHz];
+            for (unsigned int i=0; i<ra->num_frames_per_band(); i++) {
+                sample_in= (int)data[i];
+                
+                sample_out=  (sample_in*fix_gain_intq15_)>>12;
+                if (sample_out > 32767) {
+                    data[i] = 32767;
+                }
+                else if (sample_out < -32768) {
+                    data[i] =-32768;
+                }
+                else {
+                    data[i]=(int16_t) sample_out;
+                }
+            }
+          }
+ 
+}
   if (intelligibility_enabled_) {
     intelligibility_enhancer_->ProcessRenderAudio(
         ra->split_channels_f(kBand0To8kHz), split_rate_, ra->num_channels());

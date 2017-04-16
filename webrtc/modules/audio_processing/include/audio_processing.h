@@ -24,7 +24,8 @@
 #include "webrtc/common.h"
 #include "webrtc/modules/audio_processing/beamformer/array_util.h"
 #include "webrtc/typedefs.h"
-
+#include "webrtc/system_wrappers/include/logging.h"
+ 
 struct AecCore;
 
 namespace webrtc {
@@ -485,6 +486,15 @@ class AudioProcessing {
     bool android_play_process_enalbed_;
     void enable_play_lowpass(bool enable) {android_play_lowpass_enalbed_ = enable;};
     bool android_play_lowpass_enalbed_;
+
+    void set_fix_gain(float gain) {
+      fix_gain_ = gain; 
+      fix_gain_intq15_ = (int)(fix_gain_ * (1<<15));
+      LOG(LS_INFO) << "Keith, fix_gain_:" << fix_gain_ <<", fix_gain_intq15_:"<< fix_gain_intq15_ ;
+};
+    float get_fix_gain(){return fix_gain_;}
+    float fix_gain_;
+    int fix_gain_intq15_; // Q15;
 };
 
 class StreamConfig {

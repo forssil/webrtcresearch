@@ -231,6 +231,12 @@ class WEBRTC_DLLEXPORT VoEAudioProcessing {
   virtual bool IsStereoChannelSwappingEnabled() = 0;
   virtual int SetPlayProcessing(bool enable) { return 0;};
   virtual int SetPlayLowpass(bool enable) { return 0;};
+
+    // Enables a high pass filter on the capture signal. This removes DC bias
+  // and low-frequency noise. Recommended to be enabled.
+  virtual int SetFixGain(float gain) {return 0;};
+  virtual float GetFixGain()  {return 0;};
+
  protected:
   VoEAudioProcessing() {}
   virtual ~VoEAudioProcessing() {}
