@@ -253,7 +253,7 @@ AudioProcessingImpl::AudioProcessingImpl(const Config& config,
           memset(history_lp_, 0, sizeof(int)*5);
 
           fix_gain_ = 1.0;
-          fix_gain_intq15_ = (int)(1.0 * (1 <<15) );
+          fix_gain_intq12_ = (int)(1.0 * (1 <<12) );
 
   echo_cancellation_ = new EchoCancellationImpl(this, crit_);
   component_list_.push_back(echo_cancellation_);
@@ -945,7 +945,7 @@ if (fix_gain_ > 1.0)
             for (unsigned int i=0; i<ra->num_frames_per_band(); i++) {
                 sample_in= (int)data[i];
                 
-                sample_out=  (sample_in*fix_gain_intq15_)>>12;
+                sample_out=  (sample_in*fix_gain_intq12_)>>12;
                 if (sample_out > 32767) {
                     data[i] = 32767;
                 }
