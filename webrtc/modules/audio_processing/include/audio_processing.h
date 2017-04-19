@@ -488,13 +488,18 @@ class AudioProcessing {
     bool android_play_lowpass_enalbed_;
 
     void set_fix_gain(float gain) {
-      fix_gain_ = gain; 
-      fix_gain_intq15_ = (int)(fix_gain_ * (1<<15));
-      LOG(LS_INFO) << "Keith, fix_gain_:" << fix_gain_ <<", fix_gain_intq15_:"<< fix_gain_intq15_ ;
+      if(gain < 0)
+            fix_gain_ = 0;
+      esle if (gain > 3)
+            fix_gain = 3.0;
+      else
+           fix_gain = gain;
+      fix_gain_intq12_ = (int)(fix_gain_ * (1<<15));
+      LOG(LS_INFO) << "Keith, fix_gain_:" << fix_gain_ <<", fix_gain_intq12_:"<< fix_gain_intq12_ ;
 };
     float get_fix_gain(){return fix_gain_;}
     float fix_gain_;
-    int fix_gain_intq15_; // Q15;
+    int fix_gain_intq12_; // Q12;
 };
 
 class StreamConfig {
