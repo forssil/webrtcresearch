@@ -490,10 +490,10 @@ class AudioProcessing {
     void set_fix_gain(float gain) {
       if(gain < 0)
             fix_gain_ = 0;
-      esle if (gain > 3)
-            fix_gain = 3.0;
+      else if (gain > 3)
+            fix_gain_ = 3.0;
       else
-           fix_gain = gain;
+           fix_gain_ = gain;
       fix_gain_intq12_ = (int)(fix_gain_ * (1<<12));
       LOG(LS_INFO) << "Keith, fix_gain_:" << fix_gain_ <<", fix_gain_intq12_:"<< fix_gain_intq12_ ;
 };
