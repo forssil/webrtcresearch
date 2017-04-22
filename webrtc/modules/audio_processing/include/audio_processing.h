@@ -494,7 +494,7 @@ class AudioProcessing {
             fix_gain = 3.0;
       else
            fix_gain = gain;
-      fix_gain_intq12_ = (int)(fix_gain_ * (1<<15));
+      fix_gain_intq12_ = (int)(fix_gain_ * (1<<12));
       LOG(LS_INFO) << "Keith, fix_gain_:" << fix_gain_ <<", fix_gain_intq12_:"<< fix_gain_intq12_ ;
 };
     float get_fix_gain(){return fix_gain_;}
